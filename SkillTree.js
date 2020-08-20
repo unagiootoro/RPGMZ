@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc スキルツリー v1.3.0
+@plugindesc スキルツリー v1.3.1
 @author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
 
 @param SpName
@@ -459,6 +459,8 @@ class SkillTreeMapLoader {
     }
 }
 
+class SkillTreeConfigLoadError extends Error {}
+
 class SkillTreeConfigLoader {
     constructor() {
         this._configData = loadSkillTreeConfig();
@@ -493,7 +495,7 @@ class SkillTreeConfigLoader {
                 break;
             }
         }
-        if (!cfgTypes) throw new Error(`missing types from actorId:${actorId}`);
+        if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
         for (let cfgType of cfgTypes) {
             const enabled = (cfgType.length === 3 ? true : cfgType[3]);
             typesArray.push(new SkillDataType(cfgType[0], actorId, cfgType[1], cfgType[2], enabled));
@@ -510,17 +512,17 @@ class SkillTreeConfigLoader {
                 break;
             }
         }
-        if (!derivative) throw new Error(`missing skill type name ${type.skillTreeName()}`);
-        for (let data of derivative) {
-            let nodeTag = data[0];
+        if (!derivative) throw new SkillTreeConfigLoadError(`Missing skill type name ${type.skillTreeName()}`);
+        for (const data of derivative) {
+            const nodeTag = data[0];
             nodes[nodeTag] = new SkillTreeNode(nodeTag);
         }
-        for (let data of derivative) {
-            let nodeTag = data[0];
+        for (const data of derivative) {
+            const nodeTag = data[0];
             if (data.length >= 2) {
-                let childsTag = data[1];
-                for (let childTag of childsTag) {
-                    if (!nodes[childTag]) throw new Error(`unknow ${childTag}`);
+                const childsTag = data[1];
+                for (const childTag of childsTag) {
+                    if (!nodes[childTag]) throw new SkillTreeConfigLoadError(`Unknow derivative ${childTag}`);
                     nodes[nodeTag].addChild(nodes[childTag]);
                 }
             }
@@ -529,23 +531,26 @@ class SkillTreeConfigLoader {
         for (const node of Object.values(nodes)) {
             if (node.parents().length === 0) topNode.addChild(node);
         }
-        if (topNode.length === 0) throw new Error(`missing top nodes`);
+        if (topNode.length === 0) throw new SkillTreeConfigLoadError(`Missing top nodes`);
         return topNode;
     }
 
     loadSkillTreeInfo(actorId, allNodes) {
-        for (let cfgInfoKey in this._configData.skillTreeInfo) {
-            let cfgInfo = this._configData.skillTreeInfo[cfgInfoKey];
-            let nodeTag = cfgInfo[0];
-            let node = allNodes[nodeTag];
+        for (const cfgInfoKey in this._configData.skillTreeInfo) {
+            const cfgInfo = this._configData.skillTreeInfo[cfgInfoKey];
+            const nodeTag = cfgInfo[0];
+            const node = allNodes[nodeTag];
             if (!node) continue;
-            let skillId = cfgInfo[1];
-            let needSp = cfgInfo[2];
-            let iconData = cfgInfo[3];
+            const skillId = cfgInfo[1];
+            const needSp = cfgInfo[2];
+            const iconData = cfgInfo[3];
             let helpMessage = "";
             if (cfgInfo.length >= 5) helpMessage = cfgInfo[4];
-            let info = new SkillTreeNodeInfo(actorId, skillId, needSp, iconData, helpMessage);
+            const info = new SkillTreeNodeInfo(actorId, skillId, needSp, iconData, helpMessage);
             node.setup(info);
+        }
+        for (const node of Object.values(allNodes)) {
+            if (!node.info()) throw new SkillTreeConfigLoadError(`Node ${node.tag()} is missing node info`);
         }
     }
 }
@@ -1331,7 +1336,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         draw() {
-            this.drawActorFace(this.actor(), 0, 0, 240, this.windowHeight() - 100);
+            this.drawActorFace(this.actor(), 0, 0, 220, this.windowHeight() - 100);
             this.drawText(`${this.actor().name()}`, 0, this.windowHeight() - 100, 120, "left");
             this.changeTextColor(this.systemColor());
             const nowSp = $skillTreeData.sp(this._actorId);
@@ -1377,16 +1382,16 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
 
         draw() {
             const skill = this._skillTreeManager.selectNode().info().skill();
-            this.drawText(skill.name, 0, 0, 240, "left");
+            this.drawText(skill.name, 0, 0, 200, "left");
             const needSp = this._skillTreeManager.selectNode().needSp();
             const nowSp = $skillTreeData.sp(this._skillTreeManager.actorId());
-            this.drawText(NeedSpText.format(SpName), 0, 40, 240, "left");
+            this.drawText(NeedSpText.format(SpName), 0, 40, 200, "left");
             if (needSp <= nowSp) {
                 this.changeTextColor(this.crisisColor());
             } else {
                 this.changePaintOpacity(false);
             }
-            this.drawText(`${needSp}/${nowSp}`, -40, 40, 240, "right");
+            this.drawText(`${needSp}/${nowSp}`, -40, 40, 200, "right");
             this.resetTextColor();
             this.changePaintOpacity(true);
         }
