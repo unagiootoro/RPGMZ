@@ -128,6 +128,12 @@ wideを設定すると、横にスキルツリーを表示します。longを設
 @desc
 スキルツリーウィンドウに表示する必要SPのテキストを指定します。%1にはSP名が入ります。
 
+@param OpenedNodeText
+@type string
+@default 取得済み
+@desc
+スキルが取得済みの場合に必要SPの代わりに表示するテキストを指定します。
+
 @param NodeOpenConfirmationText
 @type string
 @default %1%2を消費して%3を取得しますか？
@@ -803,6 +809,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
 
     const MenuSkillTreeText = params["MenuSkillTreeText"];
     const NeedSpText = params["NeedSpText"];
+    const OpenedNodeText = params["OpenedNodeText"];
     const NodeOpenConfirmationText = params["NodeOpenConfirmationText"];
     const NodeOpenYesText = params["NodeOpenYesText"];
     const NodeOpenNoText = params["NodeOpenNoText"];
@@ -1381,17 +1388,22 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         draw() {
-            const skill = this._skillTreeManager.selectNode().info().skill();
+            const selectNode = this._skillTreeManager.selectNode();
+            const skill = selectNode.info().skill();
             this.drawText(skill.name, 0, 0, 200, "left");
-            const needSp = this._skillTreeManager.selectNode().needSp();
+            const needSp = selectNode.needSp();
             const nowSp = $skillTreeData.sp(this._skillTreeManager.actorId());
-            this.drawText(NeedSpText.format(SpName), 0, 40, 200, "left");
-            if (needSp <= nowSp) {
-                this.changeTextColor(this.crisisColor());
+            if (selectNode.isOpened()) {
+                this.drawText(OpenedNodeText, 0, 40, 200, "left");
             } else {
-                this.changePaintOpacity(false);
+                this.drawText(NeedSpText.format(SpName), 0, 40, 130, "left");
+                if (needSp <= nowSp) {
+                    this.changeTextColor(this.crisisColor());
+                } else {
+                    this.changePaintOpacity(false);
+                }
+                this.drawText(`${needSp}/${nowSp}`, 130, 40, 70, "left");
             }
-            this.drawText(`${needSp}/${nowSp}`, -40, 40, 200, "right");
             this.resetTextColor();
             this.changePaintOpacity(true);
         }
