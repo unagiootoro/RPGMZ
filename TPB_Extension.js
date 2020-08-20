@@ -1,4 +1,5 @@
 /*:
+@target MZ
 @plugindesc TPB戦闘を拡張します。
 @author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
 
