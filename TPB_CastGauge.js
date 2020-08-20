@@ -1,4 +1,5 @@
 /*:
+@target MZ
 @plugindesc スキル発動待機時間をゲージに表示します。
 @author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
 
@@ -25,7 +26,9 @@
 v1.0.0 新規作成
 */
 
-{
+(() => {
+    "use strict";
+
     const pluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
     const params = PluginManager.parameters(pluginName);
     const CastGaugeColor1 = params["CastGaugeColor1"];
@@ -140,4 +143,4 @@ v1.0.0 新規作成
     Sprite_Gauge.prototype.isNeedCast = function() {
         return this._battler.tpbRequiredCastTime() > 0;
     }
-};
+})();
