@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc TPB戦闘を拡張します。
+@plugindesc TPB戦闘拡張プラグイン v1.0.1
 @author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
 
 @param FastForwardSpeed
@@ -265,7 +265,7 @@ const TPBExParams = {};
         this._currentActor = actor ? actor : null;
         this.startActorInput();
         // When the actor command is shown, SE is played.
-        this.playActorInputSe();
+        if (this._currentActor) this.playActorInputSe();
     };
 
     BattleManager.playActorInputSe = function() {
