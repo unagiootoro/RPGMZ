@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc スキルツリー v1.3.2
+@plugindesc スキルツリー v1.3.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -1879,21 +1879,36 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
 
 
     // Initialize skill tree.
+    const _DataManager_setupNewGame = DataManager.setupNewGame;
+    DataManager.setupNewGame = function() {
+        this.initSkillTree();
+        _DataManager_setupNewGame.call(this);
+    };
+
+    const _DataManager_setupBattleTest = DataManager.setupBattleTest;
+    DataManager.setupBattleTest = function() {
+        this.initSkillTree();
+        _DataManager_setupBattleTest.call(this);
+    };
+
+    const _DataManager_setupEventTest = DataManager.setupEventTest;
+    DataManager.setupEventTest = function() {
+        this.initSkillTree();
+        _DataManager_setupEventTest.call(this);
+    };
+
+    DataManager.initSkillTree = function() {
+        $skillTreeData = new SkillTreeData();
+        $skillTreeConfigLoader = new SkillTreeConfigLoader();
+    };
+
     const _Game_Party_setupStartingMembers = Game_Party.prototype.setupStartingMembers;
     Game_Party.prototype.setupStartingMembers = function() {
         _Game_Party_setupStartingMembers.call(this);
-        this.initSkillTree();
-    };
-
-    Game_Party.prototype.initSkillTree = function() {
-        $skillTreeData = new SkillTreeData();
-        $skillTreeConfigLoader = new SkillTreeConfigLoader();
-        for (let actor of this.members()) {
-            let actorId = actor.actorId();
+        for (const actor of this.members()) {
+            const actorId = actor.actorId();
             $skillTreeConfigLoader.loadConfig(actorId);
-            if (!$skillTreeData.sp(actorId)) {
-                $skillTreeData.setSp(actorId, 0);
-            }
+            if (!$skillTreeData.sp(actorId)) $skillTreeData.setSp(actorId, 0);
         }
     };
 
@@ -1901,9 +1916,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     Game_Party.prototype.addActor = function(actorId) {
         _Game_Party_addActor.call(this, actorId);
         $skillTreeConfigLoader.loadConfig(actorId);
-        if (!$skillTreeData.sp(actorId)) {
-            $skillTreeData.setSp(actorId, 0);
-        }
+        if (!$skillTreeData.sp(actorId)) $skillTreeData.setSp(actorId, 0);
     };
 
 
