@@ -1030,7 +1030,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         isReady() {
             if (!super.isReady()) return false;
             if (RectImageFileName) {
-                const rectImage = ImageManager.loadBitmap(RectImageFileName);
+                const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
                 if (!rectImage.isReady()) return false;
             }
             for (let infoData of $skillTreeConfigLoader.configData().skillTreeInfo) {
@@ -1736,7 +1736,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
                     const x = px - ViewRectOfs;
                     const y = py - ViewRectOfs;
                     if (RectImageFileName) {
-                        const rectImage = ImageManager.loadBitmap(RectImageFileName);
+                        const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
                         bitmap.blt(rectImage, 0, 0, IconWidth, IconHeight, x, y);
                     } else {
                         const width = IconWidth + ViewRectOfs * 2;
