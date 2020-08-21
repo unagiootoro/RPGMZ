@@ -1030,7 +1030,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         isReady() {
             if (!super.isReady()) return false;
             if (RectImageFileName) {
-                const rectImage = ImageManager.loadPicture(RectImageFileName);
+                const rectImage = ImageManager.loadBitmap(RectImageFileName);
                 if (!rectImage.isReady()) return false;
             }
             for (let infoData of $skillTreeConfigLoader.configData().skillTreeInfo) {
