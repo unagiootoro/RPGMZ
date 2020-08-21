@@ -1,7 +1,8 @@
 /*:
 @target MV MZ
-@plugindesc スキルツリー v1.3.1
-@author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
+@plugindesc スキルツリー v1.3.2
+@author うなぎおおとろ
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
 @param SpName
 @type string
@@ -40,7 +41,8 @@ trueを設定すると、レベルアップ時にSPを入手できるように�
 wideを設定すると、横にスキルツリーを表示します。longを設定すると、縦にスキルツリーを表示します。
 
 @param RectImageFileName
-@type string
+@type file
+@dir img
 @desc
 取得済みスキルのアイコンを囲む画像のファイル名を指定します。空欄の場合、直線の枠でアイコンを囲みます。
 
@@ -1734,7 +1736,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
                     const x = px - ViewRectOfs;
                     const y = py - ViewRectOfs;
                     if (RectImageFileName) {
-                        const rectImage = ImageManager.loadPicture(RectImageFileName);
+                        const rectImage = ImageManager.loadBitmap(RectImageFileName);
                         bitmap.blt(rectImage, 0, 0, IconWidth, IconHeight, x, y);
                     } else {
                         const width = IconWidth + ViewRectOfs * 2;

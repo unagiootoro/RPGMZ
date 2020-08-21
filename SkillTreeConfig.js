@@ -1,7 +1,8 @@
 /*:
 @target MV MZ
 @plugindesc スキルツリーコンフィグ
-@author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
+@author うなぎおおとろ
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTreeConfig.js
 
 @help
 [概要]
@@ -321,11 +322,11 @@ skillTreeDerivative: {
         ["ヒールⅠ", ["ヒールⅡ", "リカバーⅠ"]],
         ["ヒールⅡ", ["ヒールⅢ"]],
         ["リカバーⅠ", ["リカバーⅡ"]],
-        ["リカバーⅡ", ["リカバーⅢ"]],
         ["ヒールⅢ", ["リカバーⅢ"]],
+        ["リカバーⅡ", ["リカバーⅢ"]],
 
-        ["リカバーⅢ", ["レイズⅡ"]],
         ["レイズⅠ", ["レイズⅡ"]],
+        ["リカバーⅢ", ["レイズⅡ"]],
         ["レイズⅡ"],
     ],
 },
@@ -357,6 +358,34 @@ levelUpGainSp: [
 
     {
         classId: 4,
+        default: 5,
+        2: 3,
+        3: 4,
+    },
+
+    {
+        classId: 5,
+        default: 5,
+        2: 3,
+        3: 4,
+    },
+
+    {
+        classId: 6,
+        default: 5,
+        2: 3,
+        3: 4,
+    },
+
+    {
+        classId: 7,
+        default: 5,
+        2: 3,
+        3: 4,
+    },
+
+    {
+        classId: 8,
         default: 5,
         2: 3,
         3: 4,
