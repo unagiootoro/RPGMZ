@@ -1,6 +1,182 @@
 /*:
 @target MV MZ
-@plugindesc スキルツリー v1.3.3
+@plugindesc Skill tree v1.3.4
+@author unagi ootoro
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
+
+@param SpName
+@type string
+@default SP
+@desc
+Specify the wording of SP in the game.
+
+@param MaxSp
+@type number
+@default 9999
+@desc
+Set the maximum value of SP that can be acquired.
+
+@param EnabledSkillTreeSwitchId
+@type number
+@default 0
+@desc
+Specify the ID of the switch that enables/disables the skill tree with the menu command. If you specify 0, the skill tree is always valid.
+
+@param EnableGetSpWhenBattleEnd
+@type boolean
+@default true
+@desc
+If set to true, SP will be available at the end of battle.
+
+@param EnableGetSpWhenLevelUp
+@type boolean
+@default true
+@desc
+If you set true, you will be able to get SP when you level up.
+
+@param ViewMode
+@type string
+@default wide
+@desc
+If you set wide, the skill tree will be displayed next to it. If long is set, the skill tree will be displayed vertically.
+
+@param RectImageFileName
+@type file
+@dir img
+@desc
+Specify the file name of the image that surrounds the acquired skill icon. If left blank, enclose the icon in a straight frame.
+
+@param IconWidth
+@type number
+@default 32
+@desc
+Specify the width of the icon.
+
+@param IconHeight
+@type number
+@default 32
+@desc
+Specifies the vertical width of the icon.
+
+@param IconSpaceWidth
+@type number
+@default 32
+@desc
+Specifies the width of the space between the icons.
+
+@param IconSpaceHeight
+@type number
+@default 32
+@desc
+Specifies the vertical width of the space between icons.
+
+@param ViewLineWidth
+@type number
+@default 3
+@desc
+Specifies the line width.
+
+@param ViewLineColorBase
+@type string
+@default #000000
+@desc
+Specifies the color of the line for which the skill has not been learned.
+
+@param ViewLineColorLearned
+@type string
+@default #00aaff
+@desc
+Specify the color of the line for which the skill has been acquired.
+
+@param ViewBeginXOffset
+@type number
+@default 24
+@desc
+Specifies the X coordinate of the drawing start of the skill tree.
+
+@param ViewBeginYOffset
+@type number
+@default 24
+@desc
+Specify the drawing start Y coordinate of the skill tree.
+
+@param ViewCursorOfs
+@type number
+@default 6
+@desc
+Specifies the cursor coordinate offset for the skill tree icon.
+
+@param ViewRectColor
+@type string
+@default #ffff00
+@desc
+Specifies the color of the border surrounding the acquired skill icon.
+
+@param ViewRectOfs
+@type number
+@default 1
+@desc
+Specify the coordinate offset of the border or border image that surrounds the acquired skill icon.
+
+@param MenuSkillTreeText
+@type string
+@default Skill tree
+@desc
+Specify the skill tree command name to be displayed in the menu command.
+
+@param NeedSpText
+@type string
+@default Required %1:
+@desc
+Specify the required SP text to be displayed in the skill tree window. The SP name is entered in %1.
+
+@param OpenedNodeText
+@type string
+@default Acquired
+@desc
+Specifies the text to display in place of the required SP if the skill is already acquired.
+
+@param NodeOpenConfirmationText
+@type string
+@default Do you consume %1%2 and get %3?
+@desc
+The confirmation text is displayed on the screen for selecting whether to acquire skills. %1 is the SP value to be consumed, %2 is the SP name, and %3 is the skill name to be acquired.
+
+@param NodeOpenYesText
+@type string
+@default Learn
+@desc
+On the selection screen of whether to acquire the skill, specify the text for acquiring the skill.
+
+@param NodeOpenNoText
+@type string
+@default Don't learn
+@desc
+In the selection screen of whether to acquire the skill, specify the text when the skill is not acquired.
+
+@param BattleEndGetSpText
+@type string
+@default I got %1%2.
+@desc
+Specifies the text to display when the SP is obtained at the end of the battle. The acquired SP value will be entered in %1, and the SP name will be entered in %2.
+
+@param LevelUpGetSpText
+@type string
+@default I got %1%2.
+@desc
+Specify the text to display when you get the SP when you level up. The acquired SP value will be entered in %1, and the SP name will be entered in %2.
+
+@help
+A plugin that introduces a skill tree.
+Please refer to "SkillTreeConfig.js" for the setting method.
+
+[License]
+This plugin is available under the terms of the MIT license.
+*/
+
+/*:ja
+@target MV MZ
+@plugindesc スキルツリー v1.3.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -174,543 +350,7 @@ wideを設定すると、横にスキルツリーを表示します。longを設
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-class SkillTreeNodeInfo {
-    constructor(actorId, skillId, needSp, iconData, helpMessage) {
-        this._actorId = actorId;
-        this._skillId = skillId;
-        this._needSp = needSp;
-        this._iconData = iconData;
-        this._helpMessage = helpMessage;
-    }
-
-    actor() {
-        const actor = $gameParty.members().find(actor => actor.actorId() === this._actorId);
-        if (!actor) throw new Error(`actor id: ${this._actorId} is not found.`)
-        return actor;
-    }
-
-    skill() {
-        const skill = $dataSkills[this._skillId];
-        if (!skill) throw new Error(`skill id: ${this._skillId} is not found.`)
-        return skill;
-    }
-
-    canLearn(nowSp) {
-        return nowSp >= this._needSp;
-    }
-
-    learnSkill() {
-        this.actor().learnSkill(this._skillId);
-    }
-
-    forgetSkill() {
-        this.actor().forgetSkill(this._skillId);
-    }
-
-    iconBitmap() {
-        if (this._iconData[0] === "img") {
-            return ImageManager.loadPicture(this._iconData[1]);
-        } else if (this._iconData[0] === "icon") {
-            let iconIndex;
-            if (this._iconData.length >= 2) {
-                iconIndex = this._iconData[1];
-            } else {
-                iconIndex = this.skill().iconIndex;
-            }
-            const srcBitmap = ImageManager.loadSystem("IconSet");
-            const dstBitmap = new Bitmap(32, 32);
-            const sx = iconIndex % 16 * 32;
-            const sy = Math.floor(iconIndex / 16) * 32;
-            dstBitmap.blt(srcBitmap, sx, sy, 32, 32, 0, 0);
-            return dstBitmap;
-        }
-        throw new Error(`Unknown ${this._iconData[0]}`);
-    }
-
-    needSp() {
-        return this._needSp;
-    }
-
-    helpMessage() {
-        return this._helpMessage;
-    }
-}
-
-class SkillTreeNode {
-    constructor(tag) {
-        this._tag = tag
-        this._parents = [];
-        this._childs = [];
-        this._info = null;
-        this._opened = false;
-        this._point = null;
-        this._reservedPoint = null;
-    }
-
-    get point() { return this._point; }
-    set point(_point) { this._point = _point; }
-
-    tag() {
-        return this._tag;
-    }
-
-    info() {
-        return this._info;
-    }
-
-    reservedPoint() {
-        return this._reservedPoint;
-    }
-
-    setReservedPoint(point) {
-        this._reservedPoint = point;
-    }
-
-    parents() {
-        return this._parents;
-    }
-
-    childs() {
-        return this._childs;
-    }
-
-    getAllChilds() {
-        let allChilds = [this];
-        for (let child of this._childs) {
-            allChilds = allChilds.concat(child.getAllChilds());
-        }
-        return allChilds;
-    }
-
-    parent(index) {
-        if (index < 0) index = this._parents.length - index;
-        return this._parents[index % this._parents.length];
-    }
-
-    child(index) {
-        if (index < 0) index = this._childs.length - index;
-        return this._childs[index % this._childs.length];
-    }
-
-    addChild(child) {
-        if (!child) throw new Error("child is none.");
-        child._parents.push(this);
-        this._childs.push(child);
-    }
-
-    setup(info) {
-        this._info = info;
-    }
-
-    isOpenable(nowSp) {
-        return this.isSelectable() && !this.isOpened() && this._info.canLearn(nowSp);
-    }
-
-    isSelectable() {
-        for (let parent of this._parents) {
-            if (!parent.isOpened()) return false;
-        }
-        return true;
-    }
-
-    isOpened() {
-        return this._opened;
-    }
-
-    setOpeneStatus(openStatus) {
-        this._opened = openStatus;
-    }
-
-    open() {
-        this._info.learnSkill();
-        this._opened = true;
-    }
-
-    close() {
-        this._info.forgetSkill();
-        this._opened = false;
-    }
-
-    clearPointNode() {
-        this.point = null;
-        if (this._childs.length === 0) return;
-        for (let child of this._childs) {
-            child.clearPointNode();
-        }
-    }
-
-    makePointNode(x, y, mode) {
-        if (this.reservedPoint()) {
-            this.point = this.reservedPoint();
-            x = this.reservedPoint().x;
-            y = this.reservedPoint().y;
-        } else {
-            if (this.point) {
-                if (mode === "wide") {
-                    if (x < this.point.x) {
-                        this.point = { x: this.point.x, y: y };
-                    } else {
-                        this.point = { x: x, y: this.point.y };
-                    }
-                } else if (mode === "long") {
-                    if (y < this.point.y) {
-                        this.point = { x: x, y: this.point.y };
-                    } else {
-                        this.point = { x: this.point.x, y: y };
-                    }
-                }
-            } else {
-                this.point = { x: x, y: y };
-            }
-        }
-        if (this._childs.length === 0) return 1;
-        if (mode === "wide") {
-            let yOfs = 0;
-            for (let child of this._childs) {
-                yOfs += child.makePointNode(x + 1, y + yOfs, mode);
-            }
-            return yOfs;
-        } else if (mode === "long") {
-            let xOfs = 0;
-            for (let child of this._childs) {
-                xOfs += child.makePointNode(x + xOfs, y + 1, mode);
-            }
-            return xOfs;
-        }
-    }
-
-    needSp() {
-        return this._info.needSp();
-    }
-
-    iconBitmap() {
-        return this._info.iconBitmap();
-    }
-
-    helpMessage() {
-        return this._info.helpMessage();
-    }
-}
-
-class SkillTreeTopNode extends SkillTreeNode {
-    constructor() {
-        super(null);
-        this._opened = true;
-        const dummyInfo = new SkillTreeNodeInfo(null, null, 0, 0, "");
-        this.setup(dummyInfo);
-    }
-
-    getAllChilds() {
-        let allChilds = [];
-        for (let child of this._childs) {
-            allChilds = allChilds.concat(child.getAllChilds());
-        }
-        return allChilds;
-    }
-
-    skillReset() {
-        for (let child of this._childs) {
-            if (child.isOpened()) child.skillReset();
-        }
-    }
-}
-
-class SkillDataType {
-    constructor(skillTreeName, actorId, message, helpMessage, enabled) {
-        this._message = message;
-        this._skillTreeName = skillTreeName;
-        this._skillTreeTag = `${skillTreeName}_actorId${actorId}`;
-        this._helpMessage = helpMessage;
-        this._enabled = enabled;
-    }
-
-    message() {
-        return this._message;
-    }
-
-    skillTreeName() {
-        return this._skillTreeName;
-    }
-
-    skillTreeTag() {
-        return this._skillTreeTag;
-    }
-
-    helpMessage() {
-        return this._helpMessage;
-    }
-
-    enabled() {
-        return this._enabled;
-    }
-
-    setEnabled(enabled) {
-        this._enabled = enabled;
-    }
-}
-
-class SkillTreeMapLoader {
-    constructor(mapData, type) {
-        this._mapData = mapData;
-        this._type = type;
-    }
-
-    loadMap() {
-        const allNodes = $skillTreeData.getAllNodesByType(this._type);
-        for (let eventData of this._mapData.events) {
-            if (!eventData) continue;
-            let nodeTag = eventData.note;
-            let node = allNodes[nodeTag];
-            if (!node) continue;
-            node.setReservedPoint({ x: eventData.x, y: eventData.y });
-        }
-    }
-}
-
-class SkillTreeConfigLoadError extends Error {}
-
-class SkillTreeConfigLoader {
-    constructor() {
-        this._configData = loadSkillTreeConfig();
-    }
-
-    configData() {
-        return this._configData;
-    }
-
-    loadConfig(actorId) {
-        let types = $skillTreeData.types(actorId);
-        if (!types) {
-            types = this.loadTypes(actorId);
-            $skillTreeData.setTypes(actorId, types);
-        }
-        for (let type of types) {
-            let topNode = $skillTreeData.topNode(type);
-            if (!topNode) {
-                topNode = this.loadSkillTreeNodes(type);
-                $skillTreeData.setTopNode(type, topNode);
-                this.loadSkillTreeInfo(actorId, $skillTreeData.getAllNodesByType(type));
-            }
-        }
-    }
-
-    loadTypes(actorId) {
-        let cfgTypes = null;
-        let typesArray = [];
-        for (let cfg of this._configData.skillTreeTypes) {
-            if (cfg.actorId === actorId) {
-                cfgTypes = cfg.types;
-                break;
-            }
-        }
-        if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
-        for (let cfgType of cfgTypes) {
-            const enabled = (cfgType.length === 3 ? true : cfgType[3]);
-            typesArray.push(new SkillDataType(cfgType[0], actorId, cfgType[1], cfgType[2], enabled));
-        }
-        return typesArray;
-    }
-
-    loadSkillTreeNodes(type) {
-        const nodes = {};
-        let derivative = null;
-        for (const skillTreeType in this._configData.skillTreeDerivative) {
-            if (skillTreeType === type.skillTreeName()) {
-                derivative = this._configData.skillTreeDerivative[skillTreeType];
-                break;
-            }
-        }
-        if (!derivative) throw new SkillTreeConfigLoadError(`Missing skill type name ${type.skillTreeName()}`);
-        for (const data of derivative) {
-            const nodeTag = data[0];
-            nodes[nodeTag] = new SkillTreeNode(nodeTag);
-        }
-        for (const data of derivative) {
-            const nodeTag = data[0];
-            if (data.length >= 2) {
-                const childsTag = data[1];
-                for (const childTag of childsTag) {
-                    if (!nodes[childTag]) throw new SkillTreeConfigLoadError(`Unknow derivative ${childTag}`);
-                    nodes[nodeTag].addChild(nodes[childTag]);
-                }
-            }
-        }
-        const topNode = new SkillTreeTopNode();
-        for (const node of Object.values(nodes)) {
-            if (node.parents().length === 0) topNode.addChild(node);
-        }
-        if (topNode.length === 0) throw new SkillTreeConfigLoadError(`Missing top nodes`);
-        return topNode;
-    }
-
-    loadSkillTreeInfo(actorId, allNodes) {
-        for (const cfgInfoKey in this._configData.skillTreeInfo) {
-            const cfgInfo = this._configData.skillTreeInfo[cfgInfoKey];
-            const nodeTag = cfgInfo[0];
-            const node = allNodes[nodeTag];
-            if (!node) continue;
-            const skillId = cfgInfo[1];
-            const needSp = cfgInfo[2];
-            const iconData = cfgInfo[3];
-            let helpMessage = "";
-            if (cfgInfo.length >= 5) helpMessage = cfgInfo[4];
-            const info = new SkillTreeNodeInfo(actorId, skillId, needSp, iconData, helpMessage);
-            node.setup(info);
-        }
-        for (const node of Object.values(allNodes)) {
-            if (!node.info()) throw new SkillTreeConfigLoadError(`Node ${node.tag()} is missing node info`);
-        }
-    }
-}
-
-class SkillTreeData {
-    constructor() {
-        this._actorSp = {};
-        this._topNodes = {};
-        this._actorTypes = {};
-    }
-
-    sp(actorId) {
-        return this._actorSp[actorId];
-    }
-
-    setSp(actorId, sp) {
-        this._actorSp[actorId] = sp;
-    }
-
-    gainSp(actorId, sp) {
-        const nowSp = this.sp(actorId);
-        this.setSp(actorId, nowSp + sp);
-    }
-
-    topNodes() {
-        return this._topNodes;
-    }
-
-    topNode(type) {
-        return this._topNodes[type.skillTreeTag()];
-    }
-
-    setTopNode(type, topNode) {
-        this._topNodes[type.skillTreeTag()] = topNode;
-    }
-
-    actorTypes() {
-        return this._actorTypes;
-    }
-
-    types(actorId) {
-        return this._actorTypes[actorId];
-    }
-
-    enableTypes(actorId) {
-        return this.types(actorId).filter((type) => type.enabled());
-    }
-
-    setTypes(actorId, types) {
-        this._actorTypes[actorId] = types;
-    }
-
-    totalSp(type) {
-        let resetSp = 0;
-        for (const node of Object.values(this.getAllNodesByType(type))) {
-            if (node.isOpened()) resetSp += node.needSp();
-        }
-        return resetSp;
-    }
-
-    skillReset(type) {
-        for (const node of Object.values(this.getAllNodesByType(type))) {
-            if (node.isOpened()) node.close();
-        }
-    }
-
-    totalSpAllTypes(actorId) {
-        let resetSp = 0;
-        for (let type of this.enableTypes(actorId)) {
-            resetSp += this.totalSp(type);
-        }
-        return resetSp;
-    }
-
-    skillResetAllTypes(actorId) {
-        for (let type of this.enableTypes(actorId)) {
-            this.skillReset(type);
-        }
-    }
-
-    copyTree(dstType, srcType) {
-        const dst = this.getAllNodesByType(dstType);
-        const src = this.getAllNodesByType(srcType);
-        for (const tag in src) {
-            const srcNode = src[tag];
-            const dstNode = dst[tag];
-            if (srcNode && dstNode && srcNode.isOpened()) {
-                srcNode.close();
-                dstNode.open();
-            }
-        }
-    }
-
-    makePoint(type, mode) {
-        this.topNode(type).clearPointNode();
-        // Start point is -1 because first node is dummy. 
-        if (mode === "wide") {
-            this.topNode(type).makePointNode(-1, 0, mode);
-        } else if (mode === "long") {
-            this.topNode(type).makePointNode(0, -1, mode);
-        } else {
-            throw new Error(`Unknown ${ViewMode}`);
-        }
-    }
-
-    getAllNodesByType(type) {
-        const nodes = {};
-        for (let node of this.topNode(type).getAllChilds()) {
-            nodes[node.tag()] = node; 
-        }
-        return nodes;
-    }
-
-    makeSaveContents() {
-        let contents = {};
-        for (let actor of $gameParty.members()) {
-            const actorId = actor.actorId();
-            contents[actorId] = { sp: this.sp(actorId) };
-            for (const type of this.types(actorId)) {
-                const openeStatus = {};
-                const reservedPoint = {};
-                const nodes = this.getAllNodesByType(type);
-                for (const tag in nodes) {
-                    openeStatus[tag] = nodes[tag].isOpened();
-                    reservedPoint[tag] = nodes[tag].reservedPoint();
-                }
-                contents[type.skillTreeTag()] = {
-                    enabled: type.enabled(),
-                    openeStatus: openeStatus,
-                    reservedPoint: reservedPoint,
-                };
-            }
-        }
-        return contents;
-    }
-
-    loadSaveContents(contents) {
-        for (let actor of $gameParty.members()) {
-            const actorId = actor.actorId();
-            this.setSp(actorId, contents[actorId].sp);
-            for (const type of this.types(actorId)) {
-                type.setEnabled(contents[type.skillTreeTag()].enabled);
-                const nodes = this.getAllNodesByType(type);
-                for (const tag in nodes) {
-                    nodes[tag].setOpeneStatus(contents[type.skillTreeTag()].openeStatus[tag]);
-                    nodes[tag].setReservedPoint(contents[type.skillTreeTag()].reservedPoint[tag]);
-                }
-            }
-        }
-    }
-}
-
+const SkillTreeClassAlias = {};
 let $skillTreeData = null;
 let $skillTreeConfigLoader = null;
 
@@ -726,9 +366,9 @@ const skt_skillReset = (actorId) => {
 };
 
 const skt_loadMap = (actorId, typeName) => {
-    for (let type of $skillTreeData.types(actorId)) {
+    for (const type of $skillTreeData.types(actorId)) {
         if (type.skillTreeName() === typeName) {
-            let skillTreeMapLoader = new SkillTreeMapLoader($dataMap, type);
+            const skillTreeMapLoader = new SkillTreeClassAlias.SkillTreeMapLoader($dataMap, type);
             skillTreeMapLoader.loadMap();
         }
     }
@@ -817,6 +457,544 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     const NodeOpenNoText = params["NodeOpenNoText"];
     const BattleEndGetSpText = params["BattleEndGetSpText"];
     const LevelUpGetSpText = params["LevelUpGetSpText"];
+
+    class SkillTreeNodeInfo {
+        constructor(actorId, skillId, needSp, iconData, helpMessage) {
+            this._actorId = actorId;
+            this._skillId = skillId;
+            this._needSp = needSp;
+            this._iconData = iconData;
+            this._helpMessage = helpMessage;
+        }
+    
+        actor() {
+            const actor = $gameParty.members().find(actor => actor.actorId() === this._actorId);
+            if (!actor) throw new Error(`actor id: ${this._actorId} is not found.`)
+            return actor;
+        }
+    
+        skill() {
+            const skill = $dataSkills[this._skillId];
+            if (!skill) throw new Error(`skill id: ${this._skillId} is not found.`)
+            return skill;
+        }
+    
+        canLearn(nowSp) {
+            return nowSp >= this._needSp;
+        }
+    
+        learnSkill() {
+            this.actor().learnSkill(this._skillId);
+        }
+    
+        forgetSkill() {
+            this.actor().forgetSkill(this._skillId);
+        }
+    
+        iconBitmap() {
+            if (this._iconData[0] === "img") {
+                return ImageManager.loadPicture(this._iconData[1]);
+            } else if (this._iconData[0] === "icon") {
+                let iconIndex;
+                if (this._iconData.length >= 2) {
+                    iconIndex = this._iconData[1];
+                } else {
+                    iconIndex = this.skill().iconIndex;
+                }
+                const srcBitmap = ImageManager.loadSystem("IconSet");
+                const dstBitmap = new Bitmap(32, 32);
+                const sx = iconIndex % 16 * 32;
+                const sy = Math.floor(iconIndex / 16) * 32;
+                dstBitmap.blt(srcBitmap, sx, sy, 32, 32, 0, 0);
+                return dstBitmap;
+            }
+            throw new Error(`Unknown ${this._iconData[0]}`);
+        }
+    
+        needSp() {
+            return this._needSp;
+        }
+    
+        helpMessage() {
+            return this._helpMessage;
+        }
+    }
+    
+    class SkillTreeNode {
+        constructor(tag) {
+            this._tag = tag
+            this._parents = [];
+            this._childs = [];
+            this._info = null;
+            this._opened = false;
+            this._point = null;
+            this._reservedPoint = null;
+        }
+    
+        get point() { return this._point; }
+        set point(_point) { this._point = _point; }
+    
+        tag() {
+            return this._tag;
+        }
+    
+        info() {
+            return this._info;
+        }
+    
+        reservedPoint() {
+            return this._reservedPoint;
+        }
+    
+        setReservedPoint(point) {
+            this._reservedPoint = point;
+        }
+    
+        parents() {
+            return this._parents;
+        }
+    
+        childs() {
+            return this._childs;
+        }
+    
+        getAllChilds() {
+            let allChilds = [this];
+            for (const child of this._childs) {
+                allChilds = allChilds.concat(child.getAllChilds());
+            }
+            return allChilds;
+        }
+    
+        parent(index) {
+            if (index < 0) index = this._parents.length - index;
+            return this._parents[index % this._parents.length];
+        }
+    
+        child(index) {
+            if (index < 0) index = this._childs.length - index;
+            return this._childs[index % this._childs.length];
+        }
+    
+        addChild(child) {
+            if (!child) throw new Error("child is none.");
+            child._parents.push(this);
+            this._childs.push(child);
+        }
+    
+        setup(info) {
+            this._info = info;
+        }
+    
+        isOpenable(nowSp) {
+            return this.isSelectable() && !this.isOpened() && this._info.canLearn(nowSp);
+        }
+    
+        isSelectable() {
+            for (const parent of this._parents) {
+                if (!parent.isOpened()) return false;
+            }
+            return true;
+        }
+    
+        isOpened() {
+            return this._opened;
+        }
+    
+        setOpeneStatus(openStatus) {
+            this._opened = openStatus;
+        }
+    
+        open() {
+            this._info.learnSkill();
+            this._opened = true;
+        }
+    
+        close() {
+            this._info.forgetSkill();
+            this._opened = false;
+        }
+    
+        clearPointNode() {
+            this.point = null;
+            if (this._childs.length === 0) return;
+            for (const child of this._childs) {
+                child.clearPointNode();
+            }
+        }
+    
+        makePointNode(x, y, mode) {
+            if (this.reservedPoint()) {
+                this.point = this.reservedPoint();
+                x = this.reservedPoint().x;
+                y = this.reservedPoint().y;
+            } else {
+                if (this.point) {
+                    if (mode === "wide") {
+                        if (x < this.point.x) {
+                            this.point = { x: this.point.x, y: y };
+                        } else {
+                            this.point = { x: x, y: this.point.y };
+                        }
+                    } else if (mode === "long") {
+                        if (y < this.point.y) {
+                            this.point = { x: x, y: this.point.y };
+                        } else {
+                            this.point = { x: this.point.x, y: y };
+                        }
+                    }
+                } else {
+                    this.point = { x: x, y: y };
+                }
+            }
+            if (this._childs.length === 0) return 1;
+            if (mode === "wide") {
+                let yOfs = 0;
+                for (const child of this._childs) {
+                    yOfs += child.makePointNode(x + 1, y + yOfs, mode);
+                }
+                return yOfs;
+            } else if (mode === "long") {
+                let xOfs = 0;
+                for (const child of this._childs) {
+                    xOfs += child.makePointNode(x + xOfs, y + 1, mode);
+                }
+                return xOfs;
+            }
+        }
+    
+        needSp() {
+            return this._info.needSp();
+        }
+    
+        iconBitmap() {
+            return this._info.iconBitmap();
+        }
+    
+        helpMessage() {
+            return this._info.helpMessage();
+        }
+    }
+    
+    class SkillTreeTopNode extends SkillTreeNode {
+        constructor() {
+            super(null);
+            this._opened = true;
+            const dummyInfo = new SkillTreeNodeInfo(null, null, 0, 0, "");
+            this.setup(dummyInfo);
+        }
+    
+        getAllChilds() {
+            let allChilds = [];
+            for (const child of this._childs) {
+                allChilds = allChilds.concat(child.getAllChilds());
+            }
+            return allChilds;
+        }
+    
+        skillReset() {
+            for (const child of this._childs) {
+                if (child.isOpened()) child.skillReset();
+            }
+        }
+    }
+    
+    class SkillDataType {
+        constructor(skillTreeName, actorId, message, helpMessage, enabled) {
+            this._message = message;
+            this._skillTreeName = skillTreeName;
+            this._skillTreeTag = `${skillTreeName}_actorId${actorId}`;
+            this._helpMessage = helpMessage;
+            this._enabled = enabled;
+        }
+    
+        message() {
+            return this._message;
+        }
+    
+        skillTreeName() {
+            return this._skillTreeName;
+        }
+    
+        skillTreeTag() {
+            return this._skillTreeTag;
+        }
+    
+        helpMessage() {
+            return this._helpMessage;
+        }
+    
+        enabled() {
+            return this._enabled;
+        }
+    
+        setEnabled(enabled) {
+            this._enabled = enabled;
+        }
+    }
+    
+    class SkillTreeMapLoader {
+        constructor(mapData, type) {
+            this._mapData = mapData;
+            this._type = type;
+        }
+    
+        loadMap() {
+            const allNodes = $skillTreeData.getAllNodesByType(this._type);
+            for (const eventData of this._mapData.events) {
+                if (!eventData) continue;
+                let nodeTag = eventData.note;
+                let node = allNodes[nodeTag];
+                if (!node) continue;
+                node.setReservedPoint({ x: eventData.x, y: eventData.y });
+            }
+        }
+    }
+    
+    class SkillTreeConfigLoadError extends Error {}
+    
+    class SkillTreeConfigLoader {
+        constructor() {
+            this._configData = loadSkillTreeConfig();
+        }
+    
+        configData() {
+            return this._configData;
+        }
+    
+        loadConfig(actorId) {
+            let types = $skillTreeData.types(actorId);
+            if (!types) {
+                types = this.loadTypes(actorId);
+                $skillTreeData.setTypes(actorId, types);
+            }
+            for (const type of types) {
+                let topNode = $skillTreeData.topNode(type);
+                if (!topNode) {
+                    topNode = this.loadSkillTreeNodes(type);
+                    $skillTreeData.setTopNode(type, topNode);
+                    this.loadSkillTreeInfo(actorId, $skillTreeData.getAllNodesByType(type));
+                }
+            }
+        }
+    
+        loadTypes(actorId) {
+            let cfgTypes = null;
+            let typesArray = [];
+            for (const cfg of this._configData.skillTreeTypes) {
+                if (cfg.actorId === actorId) {
+                    cfgTypes = cfg.types;
+                    break;
+                }
+            }
+            if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
+            for (const cfgType of cfgTypes) {
+                const enabled = (cfgType.length === 3 ? true : cfgType[3]);
+                typesArray.push(new SkillDataType(cfgType[0], actorId, cfgType[1], cfgType[2], enabled));
+            }
+            return typesArray;
+        }
+    
+        loadSkillTreeNodes(type) {
+            const nodes = {};
+            let derivative = null;
+            for (const skillTreeType in this._configData.skillTreeDerivative) {
+                if (skillTreeType === type.skillTreeName()) {
+                    derivative = this._configData.skillTreeDerivative[skillTreeType];
+                    break;
+                }
+            }
+            if (!derivative) throw new SkillTreeConfigLoadError(`Missing skill type name ${type.skillTreeName()}`);
+            for (const data of derivative) {
+                const nodeTag = data[0];
+                nodes[nodeTag] = new SkillTreeNode(nodeTag);
+            }
+            for (const data of derivative) {
+                const nodeTag = data[0];
+                if (data.length >= 2) {
+                    const childsTag = data[1];
+                    for (const childTag of childsTag) {
+                        if (!nodes[childTag]) throw new SkillTreeConfigLoadError(`Unknow derivative ${childTag}`);
+                        nodes[nodeTag].addChild(nodes[childTag]);
+                    }
+                }
+            }
+            const topNode = new SkillTreeTopNode();
+            for (const node of Object.values(nodes)) {
+                if (node.parents().length === 0) topNode.addChild(node);
+            }
+            if (topNode.length === 0) throw new SkillTreeConfigLoadError(`Missing top nodes`);
+            return topNode;
+        }
+    
+        loadSkillTreeInfo(actorId, allNodes) {
+            for (const cfgInfoKey in this._configData.skillTreeInfo) {
+                const cfgInfo = this._configData.skillTreeInfo[cfgInfoKey];
+                const nodeTag = cfgInfo[0];
+                const node = allNodes[nodeTag];
+                if (!node) continue;
+                const skillId = cfgInfo[1];
+                const needSp = cfgInfo[2];
+                let iconData = ["icon"];
+                if (cfgInfo.length >= 4) iconData = cfgInfo[3];
+                let helpMessage = "";
+                if (cfgInfo.length >= 5) helpMessage = cfgInfo[4];
+                const info = new SkillTreeNodeInfo(actorId, skillId, needSp, iconData, helpMessage);
+                node.setup(info);
+            }
+            for (const node of Object.values(allNodes)) {
+                if (!node.info()) throw new SkillTreeConfigLoadError(`Node ${node.tag()} is missing node info`);
+            }
+        }
+    }
+    
+    class SkillTreeData {
+        constructor() {
+            this._actorSp = {};
+            this._topNodes = {};
+            this._actorTypes = {};
+        }
+    
+        sp(actorId) {
+            return this._actorSp[actorId];
+        }
+    
+        setSp(actorId, sp) {
+            this._actorSp[actorId] = sp;
+        }
+    
+        gainSp(actorId, sp) {
+            const nowSp = this.sp(actorId);
+            this.setSp(actorId, nowSp + sp);
+        }
+    
+        topNodes() {
+            return this._topNodes;
+        }
+    
+        topNode(type) {
+            return this._topNodes[type.skillTreeTag()];
+        }
+    
+        setTopNode(type, topNode) {
+            this._topNodes[type.skillTreeTag()] = topNode;
+        }
+    
+        actorTypes() {
+            return this._actorTypes;
+        }
+    
+        types(actorId) {
+            return this._actorTypes[actorId];
+        }
+    
+        enableTypes(actorId) {
+            return this.types(actorId).filter((type) => type.enabled());
+        }
+    
+        setTypes(actorId, types) {
+            this._actorTypes[actorId] = types;
+        }
+    
+        totalSp(type) {
+            let resetSp = 0;
+            for (const node of Object.values(this.getAllNodesByType(type))) {
+                if (node.isOpened()) resetSp += node.needSp();
+            }
+            return resetSp;
+        }
+    
+        skillReset(type) {
+            for (const node of Object.values(this.getAllNodesByType(type))) {
+                if (node.isOpened()) node.close();
+            }
+        }
+    
+        totalSpAllTypes(actorId) {
+            let resetSp = 0;
+            for (const type of this.enableTypes(actorId)) {
+                resetSp += this.totalSp(type);
+            }
+            return resetSp;
+        }
+    
+        skillResetAllTypes(actorId) {
+            for (const type of this.enableTypes(actorId)) {
+                this.skillReset(type);
+            }
+        }
+    
+        copyTree(dstType, srcType) {
+            const dst = this.getAllNodesByType(dstType);
+            const src = this.getAllNodesByType(srcType);
+            for (const tag in src) {
+                const srcNode = src[tag];
+                const dstNode = dst[tag];
+                if (srcNode && dstNode && srcNode.isOpened()) {
+                    srcNode.close();
+                    dstNode.open();
+                }
+            }
+        }
+    
+        makePoint(type, mode) {
+            this.topNode(type).clearPointNode();
+            // Start point is -1 because first node is dummy. 
+            if (mode === "wide") {
+                this.topNode(type).makePointNode(-1, 0, mode);
+            } else if (mode === "long") {
+                this.topNode(type).makePointNode(0, -1, mode);
+            } else {
+                throw new Error(`Unknown ${ViewMode}`);
+            }
+        }
+    
+        getAllNodesByType(type) {
+            const nodes = {};
+            for (const node of this.topNode(type).getAllChilds()) {
+                nodes[node.tag()] = node; 
+            }
+            return nodes;
+        }
+    
+        makeSaveContents() {
+            let contents = {};
+            for (const actor of $gameParty.members()) {
+                const actorId = actor.actorId();
+                contents[actorId] = { sp: this.sp(actorId) };
+                for (const type of this.types(actorId)) {
+                    const openeStatus = {};
+                    const reservedPoint = {};
+                    const nodes = this.getAllNodesByType(type);
+                    for (const tag in nodes) {
+                        openeStatus[tag] = nodes[tag].isOpened();
+                        reservedPoint[tag] = nodes[tag].reservedPoint();
+                    }
+                    contents[type.skillTreeTag()] = {
+                        enabled: type.enabled(),
+                        openeStatus: openeStatus,
+                        reservedPoint: reservedPoint,
+                    };
+                }
+            }
+            return contents;
+        }
+    
+        loadSaveContents(contents) {
+            for (const actor of $gameParty.members()) {
+                const actorId = actor.actorId();
+                this.setSp(actorId, contents[actorId].sp);
+                for (const type of this.types(actorId)) {
+                    type.setEnabled(contents[type.skillTreeTag()].enabled);
+                    const nodes = this.getAllNodesByType(type);
+                    for (const tag in nodes) {
+                        nodes[tag].setOpeneStatus(contents[type.skillTreeTag()].openeStatus[tag]);
+                        nodes[tag].setReservedPoint(contents[type.skillTreeTag()].reservedPoint[tag]);
+                    }
+                }
+            }
+        }
+    }
 
     class SkillTreeManager {
         constructor() {
@@ -1027,24 +1205,8 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     }
 
     class Scene_SkillTree extends Scene_MenuBase {
-        isReady() {
-            if (!super.isReady()) return false;
-            if (RectImageFileName) {
-                const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
-                if (!rectImage.isReady()) return false;
-            }
-            for (let infoData of $skillTreeConfigLoader.configData().skillTreeInfo) {
-                let iconData = infoData[3];
-                if (iconData[0] === "img") {
-                    const iconBitmap = ImageManager.loadPicture(iconData[1]);
-                    if (!iconBitmap.isReady()) return false;
-                }
-            }
-            return true;
-        }
-
-        start() {
-            super.start();
+        create() {
+            super.create();
             this._skillTreeManager = new SkillTreeManager($skillTreeData);
             this.updateActor();
             this.createHelpWindow();
@@ -1054,6 +1216,36 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this.createSkillTreeNodeInfo();
             this.createSKillTreeWindow();
             this.createNodeOpenWindow();
+        }
+
+        isReady() {
+            if (!super.isReady()) return false;
+            if (RectImageFileName) {
+                const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
+                if (!rectImage.isReady()) return false;
+            }
+            if (typeof Array.prototype.flatMap !== "undefined") {
+                const nodes = $gameParty.members()
+                                        .flatMap(actor => $skillTreeData.types(actor.actorId()))
+                                        .flatMap(type => Object.values($skillTreeData.getAllNodesByType(type)));
+                for (const node of nodes) {
+                    if (!node.iconBitmap().isReady()) return false;
+                }
+            } else {
+                for (const actor of $gameParty.members()) {
+                    for (const type of $skillTreeData.types(actor.actorId())) {
+                        for (const node of Object.values($skillTreeData.getAllNodesByType(type))) {
+                            if (!node.iconBitmap().isReady()) return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        start() {
+            super.start();
             this._windowTypeSelect.showHelpWindow();
             this._windowTypeSelect.open();
             this._windowTypeSelect.activate();
@@ -1310,7 +1502,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
 
         makeCommandList() {
             let i = 0;
-            for (let type of this._types) {
+            for (const type of this._types) {
                 this.addCommand(type.message(), `type${i}`);
                 i++;
             }
@@ -1748,9 +1940,9 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         viewDrawLine(bitmap) {
-            for (let node of Object.values( this._skillTreeManager.getAllNodes())) {
+            for (const node of Object.values( this._skillTreeManager.getAllNodes())) {
                 let [px, py] = SkillTreeView.getPixelXY(node.point);
-                for (let child of node.childs()) {
+                for (const child of node.childs()) {
                     let color;
                     if (node.isOpened()) {
                         color = ViewLineColorLearned;
@@ -2012,7 +2204,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     };
 
     Game_Party.prototype.gainSp = function(sp) {
-        for (let actor of this.members()) {
+        for (const actor of this.members()) {
             $skillTreeData.gainSp(actor.actorId(), sp);
         }
     };
@@ -2038,7 +2230,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     };
 
     Game_Actor.prototype.getLevelUpSp = function(level) {
-        for (let data of $skillTreeConfigLoader.configData().levelUpGainSp) {
+        for (const data of $skillTreeConfigLoader.configData().levelUpGainSp) {
             if (data.classId === this.currentClass().id) {
                 const defaultGainSp = data.default;
                 const sp = data[level.toString()];
@@ -2055,4 +2247,21 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
     };
 
+    // Define class alias.
+    SkillTreeClassAlias.SkillTreeNodeInfo = SkillTreeNodeInfo;
+    SkillTreeClassAlias.SkillTreeNode = SkillTreeNode;
+    SkillTreeClassAlias.SkillTreeTopNode = SkillTreeTopNode;
+    SkillTreeClassAlias.SkillDataType = SkillDataType;
+    SkillTreeClassAlias.SkillTreeMapLoader = SkillTreeMapLoader;
+    SkillTreeClassAlias.SkillTreeConfigLoadError = SkillTreeConfigLoadError;
+    SkillTreeClassAlias.SkillTreeConfigLoader = SkillTreeConfigLoader;
+    SkillTreeClassAlias.SkillTreeData = SkillTreeData;
+    SkillTreeClassAlias.SkillTreeManager = SkillTreeManager;
+    SkillTreeClassAlias.Scene_SkillTree = Scene_SkillTree;
+    SkillTreeClassAlias.Window_TypeSelect = Window_TypeSelect;
+    SkillTreeClassAlias.Window_ActorInfo = Window_ActorInfo;
+    SkillTreeClassAlias.Window_SkillTreeNodeInfo = Window_SkillTreeNodeInfo;
+    SkillTreeClassAlias.Window_SkillTree = Window_SkillTree;
+    SkillTreeClassAlias.Window_NodeOpen = Window_NodeOpen;
+    SkillTreeClassAlias.SkillTreeView = SkillTreeView;
 })();
