@@ -1,7 +1,8 @@
 /*:
 @target MZ
-@plugindesc TPB戦闘拡張プラグイン v1.0.1
-@author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
+@plugindesc TPB戦闘拡張プラグイン v1.0.2
+@author うなぎおおとろ
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/TPB_Extension.js
 
 @param FastForwardSpeed
 @type number
@@ -16,7 +17,8 @@ Shiftキーが押されている間、ゲージ進行を早送りするスピー
 trueを設定すると、Shiftキーが押されている間、アニメーション表示を早送りします。
 
 @param OpenActorCommandSeFileName
-@type string
+@type file
+@dir audio/se
 @default Flash2
 @desc
 アクターコマンドがオープンしたときに再生するSEのファイル名を指定します。
