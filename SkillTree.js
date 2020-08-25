@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.3.4
+@plugindesc Skill tree v1.3.5
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -176,7 +176,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.3.4
+@plugindesc スキルツリー v1.3.5
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -1270,7 +1270,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         };
 
         createTypeSelectWindow() {
-            this._windowTypeSelect = new Window_TypeSelect(this.getSkillTreeTypes());
+            this._windowTypeSelect = new Window_TypeSelect(this.typeSelectWindowRect(), this.getSkillTreeTypes());
             this.typeSelectWindowSetupHandlers();
             this._windowTypeSelect.close();
             this._windowTypeSelect.refresh();
@@ -1278,6 +1278,11 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this._windowTypeSelect.hideHelpWindow();
             this._windowTypeSelect.hide();
             this.addWindow(this._windowTypeSelect);
+        }
+
+        typeSelectWindowRect() {
+            if (Utils.RPGMAKER_NAME === "MZ") return new Rectangle(0, 150, 240, 160);
+            return new Rectangle(0, 110, 240, 200);
         }
 
         resetTypeSelectWindow() {
@@ -1301,12 +1306,16 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         createActorInfoWindow() {
-            this._windowActorInfo = new Window_ActorInfo(this.actor().actorId());
+            this._windowActorInfo = new Window_ActorInfo(this.actorInfoWindowRect(), this.actor().actorId());
             this._windowActorInfo.close();
             this._windowActorInfo.refresh();
             this._windowActorInfo.deactivate();
             this._windowActorInfo.hide();
             this.addWindow(this._windowActorInfo);
+        }
+
+        actorInfoWindowRect() {
+            return new Rectangle(0, 310, 240, 200);
         }
 
         resetActorInfoWindow() {
@@ -1317,7 +1326,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         createSkillTreeNodeInfo() {
-            this._windowSkillTreeNodeInfo = new Window_SkillTreeNodeInfo(this._skillTreeManager);
+            this._windowSkillTreeNodeInfo = new Window_SkillTreeNodeInfo(this.skillTreeNodeInfoWindowRect(), this._skillTreeManager);
             this._windowSkillTreeNodeInfo.close();
             this._windowSkillTreeNodeInfo.refresh();
             this._windowSkillTreeNodeInfo.deactivate();
@@ -1325,8 +1334,17 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this.addWindow(this._windowSkillTreeNodeInfo);
         }
 
+        skillTreeNodeInfoWindowRect() {
+            const actorInfoWindowRect = this.actorInfoWindowRect();
+            const y = actorInfoWindowRect.y + actorInfoWindowRect.height;
+            return new Rectangle(0, y, 240, Graphics.boxHeight - y);
+        }
+
         createSKillTreeWindow() {
-            this._windowSkillTree = new Window_SkillTree(this._skillTreeManager, this._windowTypeSelect, this._windowSkillTreeNodeInfo);
+            this._windowSkillTree = new Window_SkillTree(this.skillTreeWindowRect(),
+                                                         this._skillTreeManager,
+                                                         this._windowTypeSelect,
+                                                         this._windowSkillTreeNodeInfo);
             this._windowSkillTree.setHandler("ok", this.skillTreeOk.bind(this));
             this._windowSkillTree.setHandler("cancel", this.skillTreeCance.bind(this));
             this._windowSkillTree.setHelpWindow(this._helpWindow);
@@ -1337,8 +1355,17 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this.addWindow(this._windowSkillTree);
         }
 
+        skillTreeWindowRect() {            
+            const typeSelectWindowRect = this.typeSelectWindowRect();
+            const x = typeSelectWindowRect.width;
+            const y = typeSelectWindowRect.y;
+            const w = Graphics.boxWidth - x;
+            const h = Graphics.boxHeight - y;
+            return new Rectangle(x, y, w, h);
+        }
+
         createNodeOpenWindow() {
-            this._windowNodeOpen = new Window_NodeOpen(this._skillTreeManager);
+            this._windowNodeOpen = new Window_NodeOpen(this.nodeOpenWindowRect(), this._skillTreeManager);
             this._windowNodeOpen.setHandler("yes", this.nodeOpenOk.bind(this));
             this._windowNodeOpen.setHandler("no", this.nodeOpenCancel.bind(this));
             this._windowNodeOpen.setHandler("cancel", this.nodeOpenCancel.bind(this));
@@ -1347,6 +1374,14 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this._windowNodeOpen.deactivate();
             this._windowNodeOpen.hide();
             this.addWindow(this._windowNodeOpen);
+        }
+
+        nodeOpenWindowRect() {
+            const w = 640;
+            const h = 160;
+            const x = Graphics.boxWidth / 2 - w / 2;
+            const y = Graphics.boxHeight / 2 - h / 2;
+            return new Rectangle(x, y, w, h);
         }
 
         typeOk() {
@@ -1451,14 +1486,15 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     }
 
     class Window_TypeSelect extends Window_Command {
-        initialize(types) {
+        initialize(rect, types) {
+            this._windowRect = rect;
             this._types = types;
             if (Utils.RPGMAKER_NAME === "MZ") {
-                super.initialize(new Rectangle(0, 0, this.windowWidth(), this.windowHeight()));
+                super.initialize(rect);
             } else {
-                super.initialize(0, 0, this.windowWidth(), this.windowHeight());
+                super.initialize(0, 0);
+                this.updatePlacement();
             }
-            this.updatePlacement();
         }
 
         reset(types) {
@@ -1483,21 +1519,16 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         windowWidth() {
-            return 240;
+            return this._windowRect.width;
         }
 
         windowHeight() {
-            if (Utils.RPGMAKER_NAME === "MZ") return 160;
-            return 200;
+            return this._windowRect.height;
         }
 
         updatePlacement() {
-            this.x = 0;
-            if (Utils.RPGMAKER_NAME === "MZ") {
-                this.y = 150;
-            } else {
-                this.y = 110;
-            }
+            this.x = this._windowRect.x;
+            this.y = this._windowRect.y;
         }
 
         makeCommandList() {
@@ -1510,12 +1541,12 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     }
 
     class Window_ActorInfo extends Window_Base {
-        initialize(actorId) {
+        initialize(rect, actorId) {
             this._actorId = actorId;
             if (Utils.RPGMAKER_NAME === "MZ") {
-                super.initialize(new Rectangle(0, 310, this.windowWidth(), this.windowHeight()));
+                super.initialize(rect);
             } else {
-                super.initialize(0, 310, this.windowWidth(), this.windowHeight());
+                super.initialize(rect.x, rect.y, rect.width, rect.height);
             }
         }
 
@@ -1537,13 +1568,15 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         draw() {
-            this.drawActorFace(this.actor(), 0, 0, 220, this.windowHeight() - 100);
-            this.drawText(`${this.actor().name()}`, 0, this.windowHeight() - 100, 120, "left");
+            const textWidth = this.windowWidth() - this.padding * 2;
+            this.drawActorFace(this.actor(), 0, 0, textWidth, this.windowHeight() - 100);
+            this.drawText(`${this.actor().name()}`, 0, this.windowHeight() - 100, textWidth, "left");
             this.changeTextColor(this.systemColor());
             const nowSp = $skillTreeData.sp(this._actorId);
-            this.drawText(SpName, 0, this.windowHeight() - 70, 48);
+            this.drawText(SpName, 0, this.windowHeight() - 70, textWidth);
             this.resetTextColor();
-            this.drawText(nowSp.toString(), 84, this.windowHeight() - 70, 36, "right");
+            const nowSpTextX = this.textWidth(SpName) + (textWidth - this.textWidth(SpName)) / 2;
+            this.drawText(nowSp.toString(), 0, this.windowHeight() - 70, nowSpTextX, "right");
         }
 
         systemColor() {
@@ -1565,12 +1598,12 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     }
 
     class Window_SkillTreeNodeInfo extends Window_Base {
-        initialize(skillTreeManager) {
+        initialize(rect, skillTreeManager) {
             this._skillTreeManager = skillTreeManager;
             if (Utils.RPGMAKER_NAME === "MZ") {
-                super.initialize(new Rectangle(0, 510, this.windowWidth(), this.windowHeight()));
+                super.initialize(rect);
             } else {
-                super.initialize(0, 510, this.windowWidth(), this.windowHeight());
+                super.initialize(rect.x, rect.y, rect.width, rect.height);
             }
         }
 
@@ -1582,21 +1615,22 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         draw() {
+            const textWidth = this.windowWidth() - this.padding * 2;
             const selectNode = this._skillTreeManager.selectNode();
             const skill = selectNode.info().skill();
-            this.drawText(skill.name, 0, 0, 200, "left");
+            this.drawText(skill.name, 0, 0, textWidth, "left");
             const needSp = selectNode.needSp();
             const nowSp = $skillTreeData.sp(this._skillTreeManager.actorId());
             if (selectNode.isOpened()) {
-                this.drawText(OpenedNodeText, 0, 40, 200, "left");
+                this.drawText(OpenedNodeText, 0, 40, textWidth, "left");
             } else {
-                this.drawText(NeedSpText.format(SpName), 0, 40, 130, "left");
+                this.drawText(NeedSpText.format(SpName), 0, 40, textWidth, "left");
                 if (needSp <= nowSp) {
                     this.changeTextColor(this.crisisColor());
                 } else {
                     this.changePaintOpacity(false);
                 }
-                this.drawText(`${needSp}/${nowSp}`, 130, 40, 70, "left");
+                this.drawText(`${needSp}/${nowSp}`, 0, 40, textWidth, "right");
             }
             this.resetTextColor();
             this.changePaintOpacity(true);
@@ -1617,16 +1651,17 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     }
 
     class Window_SkillTree extends Window_Selectable {
-        initialize(skillTreeManager, windowTypeSelect, windowSkillTreeNodeInfo) {
+        initialize(rect, skillTreeManager, windowTypeSelect, windowSkillTreeNodeInfo) {
+            this._windowRect = rect;
             this._skillTreeManager = skillTreeManager;
             this._windowTypeSelect = windowTypeSelect;
             this._windowSkillTreeNodeInfo = windowSkillTreeNodeInfo;
             if (Utils.RPGMAKER_NAME === "MZ") {
-                super.initialize(new Rectangle(240, 150, this.windowWidth(), this.windowHeight()));
+                super.initialize(rect);
             } else {
-                super.initialize(240, 110, this.windowWidth(), this.windowHeight());
+                super.initialize(rect.x, rect.y, rect.width, rect.height);
             }
-            this._skillTreeView = new SkillTreeView(skillTreeManager, this.windowWidth(), this.windowHeight());
+            this._skillTreeView = new SkillTreeView(skillTreeManager, rect.width, rect.height);
             this._bitmapCache = null;
             this._drawState = "createView";
         }
@@ -1671,15 +1706,11 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         windowWidth() {
-            return Graphics.boxWidth - 240;
+            return this._windowRect.width;
         }
 
         windowHeight() {
-            if (Utils.RPGMAKER_NAME === "MZ") {
-                return Graphics.boxHeight - 150;
-            } else {
-                return Graphics.boxHeight - 110;
-            }
+            return this._windowRect.height;
         }
 
         refresh() {
@@ -1821,22 +1852,23 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     }
 
     class Window_NodeOpen extends Window_Command {
-        initialize(skillTreeManager) {
+        initialize(rect, skillTreeManager) {
+            this._windowRect = rect;
             this._skillTreeManager = skillTreeManager;
             if (Utils.RPGMAKER_NAME === "MZ") {
-                super.initialize(new Rectangle(0, 0, this.windowWidth(), this.windowHeight()));
+                super.initialize(rect);
             } else {
-                super.initialize(0, 0, this.windowWidth(), this.windowHeight());
+                super.initialize(0, 0);
+                this.updatePlacement();
             }
-            this.updatePlacement();
         }
 
         windowWidth() {
-            return 640;
+            return this._windowRect.width;
         }
 
         windowHeight() {
-            return 160;
+            return this._windowRect.height;
         }
 
         numVisibleRows() {
@@ -1844,8 +1876,8 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         updatePlacement() {
-            this.x = Graphics.boxWidth / 2 - this.windowWidth() / 2;
-            this.y = Graphics.boxHeight / 2 - this.windowHeight() / 2;
+            this.x = this._windowRect.x;
+            this.y = this._windowRect.y;
         }
 
         makeCommandList() {
@@ -2023,8 +2055,8 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             const width = Math.ceil(maxPx / this._windowWidth) * this._windowWidth * 1.5;
             const height = Math.ceil(maxPy / this._windowHeight) * this._windowHeight * 1.5;
             const bitmap = new Bitmap(width, height);
-            this.viewDrawNode(bitmap);
             this.viewDrawLine(bitmap);
+            this.viewDrawNode(bitmap);
             return bitmap;
         }
 
