@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc アイテム合成プラグイン v1.0.0
+@plugindesc アイテム合成プラグイン v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -266,12 +266,12 @@ const AlchemyClassAlias = {};
 
         maxMakeItemCount() {
             let minMakeItemCount;
-            minMakeItemCount = (this._price > 0 ? Math.round($gameParty.gold() / this._price) : MaxNumMakeItem);
+            minMakeItemCount = (this._price > 0 ? Math.floor($gameParty.gold() / this._price) : MaxNumMakeItem);
             if (minMakeItemCount === 0) return 0;
             if (minMakeItemCount > MaxNumMakeItem) minMakeItemCount = MaxNumMakeItem;
             for (const tag in this._materials) {
                 const itemInfo = this._materials[tag].itemInfo;
-                const count = Math.round(this.hasItemCount(itemInfo) / this.needItemCount(itemInfo));
+                const count = Math.floor(this.hasItemCount(itemInfo) / this.needItemCount(itemInfo));
                 if (count === 0) return 0;
                 if (count < minMakeItemCount) minMakeItemCount = count;
             }
