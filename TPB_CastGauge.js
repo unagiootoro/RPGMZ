@@ -1,7 +1,8 @@
 /*:
 @target MZ
-@plugindesc スキル発動待機時間をゲージに表示します。
-@author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
+@plugindesc スキル発動待機時間ゲージ表示プラグイン v1.0.1
+@author うなぎおおとろ
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/TPB_CastGauge.js
 
 @param CastGaugeColor1
 @type string
@@ -121,8 +122,23 @@ v1.0.0 新規作成
         this.updateBitmap();
     };
 
+    Sprite_Gauge.prototype.updateFlashing = function() {
+        if (this._statusType === "time" || this._statusType === "cast") {
+            this._flashingCount++;
+            if (this._battler.isInputting()) {
+                if (this._flashingCount % 30 < 15) {
+                    this.setBlendColor(this.flashingColor1());
+                } else {
+                    this.setBlendColor(this.flashingColor2());
+                }
+            } else {
+                this.setBlendColor([0, 0, 0, 0]);
+            }
+        }
+    };
+
     Sprite_Gauge.prototype.smoothness = function() {
-        if (this.isNeedCast() && this._battler._tpbState === "casting") return 2;
+        if (this.isNeedCast() && this._battler._tpbState === "casting") return 1;
         return (this._statusType === "time" || this._statusType === "cast") ? 5 : 20;
     };
 
@@ -138,6 +154,12 @@ v1.0.0 新規作成
                 }
             }
         }
+    };
+
+    const _Sprite_Gauge_gaugeRate = Sprite_Gauge.prototype.gaugeRate;
+    Sprite_Gauge.prototype.gaugeRate = function() {
+        if (this._statusType === "cast" && this._battler._tpbState === "acting") return 1;
+        return _Sprite_Gauge_gaugeRate.call(this);
     };
 
     Sprite_Gauge.prototype.isNeedCast = function() {
