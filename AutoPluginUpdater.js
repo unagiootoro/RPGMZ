@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc プラグイン自動更新プラグイン v0.1.0
+@plugindesc プラグイン自動更新プラグイン v0.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AutoPluginUpdater.js
 
@@ -76,6 +76,7 @@ URLについては、プラグイン内に記載されているURLを抽出し�
 @param WriteUrlLog
 @type boolean
 @default true
+@desc
 trueを設定すると、プラグインのURLを「URL_log.txt」ファイルに保存します。
 */
 
@@ -479,7 +480,7 @@ URLを手動登録するプラグイン名を指定します。拡張子「.js�
             const x = infoMessageRect.x;
             const y = infoMessageRect.y + infoMessageRect.height;
             const w = infoMessageRect.width;
-            const h = 300;
+            const h = Graphics.boxHeight - y - 210;
             return new Rectangle(x, y, w, h);
         }
 
