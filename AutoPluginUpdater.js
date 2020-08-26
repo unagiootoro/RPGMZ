@@ -54,6 +54,9 @@ URLについては、プラグイン内に記載されているURLを抽出し�
 また、GithubのリポジトリのURLであった場合、リポジトリのURL + プラグインのファイル名からなるURLを
 ダウンロード先URLとして扱います。
 
+[ライセンス]
+このプラグインは、MITライセンスの条件の下で利用可能です。
+
 @param BackupDirName
 @type string
 @default backup
