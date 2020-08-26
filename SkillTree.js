@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.3.5
+@plugindesc Skill tree v1.3.6
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -176,7 +176,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.3.5
+@plugindesc スキルツリー v1.3.6
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -1257,17 +1257,12 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         helpWindowRect() {
-            const wx = 0;
-            let wy;
-            if (Utils.RPGMAKER_NAME === "MZ") {
-                wy = 55;
-            } else {
-                wy = 0;
-            }
-            const ww = Graphics.boxWidth;
-            const wh = this.helpAreaHeight();
-            return new Rectangle(wx, wy, ww, wh);
-        };
+            let y = 0;
+            if (Utils.RPGMAKER_NAME === "MZ") y = 55;
+            const w = Graphics.boxWidth;
+            const h = this.helpAreaHeight();
+            return new Rectangle(0, y, w, h);
+        }
 
         createTypeSelectWindow() {
             this._windowTypeSelect = new Window_TypeSelect(this.typeSelectWindowRect(), this.getSkillTreeTypes());
@@ -1281,8 +1276,11 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         typeSelectWindowRect() {
-            if (Utils.RPGMAKER_NAME === "MZ") return new Rectangle(0, 150, 240, 160);
-            return new Rectangle(0, 110, 240, 200);
+            const actorInfoWindowRect = this.actorInfoWindowRect();
+            let y = 110;
+            if (Utils.RPGMAKER_NAME === "MZ") y = 150;
+            const h = actorInfoWindowRect.y - y;
+            return new Rectangle(0, y, 240, h);
         }
 
         resetTypeSelectWindow() {
@@ -1315,7 +1313,10 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         actorInfoWindowRect() {
-            return new Rectangle(0, 310, 240, 200);
+            const skillTreeNodeInfoWindowRect = this.skillTreeNodeInfoWindowRect();
+            const h = 200;
+            const y = skillTreeNodeInfoWindowRect.y - h;
+            return new Rectangle(0, y, 240, h);
         }
 
         resetActorInfoWindow() {
@@ -1335,9 +1336,9 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         skillTreeNodeInfoWindowRect() {
-            const actorInfoWindowRect = this.actorInfoWindowRect();
-            const y = actorInfoWindowRect.y + actorInfoWindowRect.height;
-            return new Rectangle(0, y, 240, Graphics.boxHeight - y);
+            const h = 110;
+            const y = Graphics.boxHeight - h;
+            return new Rectangle(0, y, 240, h);
         }
 
         createSKillTreeWindow() {
@@ -1568,15 +1569,15 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         draw() {
-            const textWidth = this.windowWidth() - this.padding * 2;
-            this.drawActorFace(this.actor(), 0, 0, textWidth, this.windowHeight() - 100);
-            this.drawText(`${this.actor().name()}`, 0, this.windowHeight() - 100, textWidth, "left");
+            const textWidth = this.width - this.padding * 2;
+            this.drawActorFace(this.actor(), 0, 0, textWidth, this.height - 100);
+            this.drawText(`${this.actor().name()}`, 0, this.height - 100, textWidth, "left");
             this.changeTextColor(this.systemColor());
             const nowSp = $skillTreeData.sp(this._actorId);
-            this.drawText(SpName, 0, this.windowHeight() - 70, textWidth);
+            this.drawText(SpName, 0, this.height - 70, textWidth);
             this.resetTextColor();
             const nowSpTextX = this.textWidth(SpName) + (textWidth - this.textWidth(SpName)) / 2;
-            this.drawText(nowSp.toString(), 0, this.windowHeight() - 70, nowSpTextX, "right");
+            this.drawText(nowSp.toString(), 0, this.height - 70, nowSpTextX, "right");
         }
 
         systemColor() {
@@ -1586,14 +1587,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
 
         drawActorFace(actor, x, y, width, height) {
             this.drawFace(actor.faceName(), actor.faceIndex(), x, y, width, height);
-        }
-
-        windowWidth() {
-            return 240;
-        }
-
-        windowHeight() {
-            return 510 - 310;
         }
     }
 
@@ -1615,7 +1608,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
 
         draw() {
-            const textWidth = this.windowWidth() - this.padding * 2;
+            const textWidth = this.width - this.padding * 2;
             const selectNode = this._skillTreeManager.selectNode();
             const skill = selectNode.info().skill();
             this.drawText(skill.name, 0, 0, textWidth, "left");
@@ -1636,14 +1629,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this.changePaintOpacity(true);
         }
 
-        windowWidth() {
-            return 240;
-        }
-
-        windowHeight() {
-            return Graphics.boxHeight - 510;
-        }
-
         crisisColor() {
             if (Utils.RPGMAKER_NAME === "MZ") return ColorManager.crisisColor();
             return super.crisisColor();
@@ -1652,7 +1637,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
 
     class Window_SkillTree extends Window_Selectable {
         initialize(rect, skillTreeManager, windowTypeSelect, windowSkillTreeNodeInfo) {
-            this._windowRect = rect;
             this._skillTreeManager = skillTreeManager;
             this._windowTypeSelect = windowTypeSelect;
             this._windowSkillTreeNodeInfo = windowSkillTreeNodeInfo;
@@ -1705,14 +1689,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             return this._skillTreeView && !this._windowTypeSelect.active;
         }
 
-        windowWidth() {
-            return this._windowRect.width;
-        }
-
-        windowHeight() {
-            return this._windowRect.height;
-        }
-
         refresh() {
             super.refresh();
             this.updateCursor();
@@ -1724,7 +1700,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             if (this._drawState === "undraw") return;
             const view = this.getView();
             const [viewX, viewY] = this._skillTreeView.viewXY();
-            this.contents.blt(view, viewX, viewY, this.windowWidth(), this.windowHeight(), 0, 0);
+            this.contents.blt(view, viewX, viewY, this.width, this.height, 0, 0);
         }
 
         getView() {
