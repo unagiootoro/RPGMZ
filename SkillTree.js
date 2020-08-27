@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.4.0
+@plugindesc Skill tree v1.4.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.4.0
+@plugindesc スキルツリー v1.4.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -521,31 +521,31 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this._iconData = iconData;
             this._helpMessage = helpMessage;
         }
-    
+
         actor() {
             const actor = $gameParty.members().find(actor => actor.actorId() === this._actorId);
             if (!actor) throw new Error(`actor id: ${this._actorId} is not found.`)
             return actor;
         }
-    
+
         skill() {
             const skill = $dataSkills[this._skillId];
             if (!skill) throw new Error(`skill id: ${this._skillId} is not found.`)
             return skill;
         }
-    
+
         canLearn(nowSp) {
             return nowSp >= this._needSp;
         }
-    
+
         learnSkill() {
             this.actor().learnSkill(this._skillId);
         }
-    
+
         forgetSkill() {
             this.actor().forgetSkill(this._skillId);
         }
-    
+
         iconBitmap() {
             if (this._iconData[0] === "img") {
                 return ImageManager.loadPicture(this._iconData[1]);
@@ -565,16 +565,16 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             }
             throw new Error(`Unknown ${this._iconData[0]}`);
         }
-    
+
         needSp() {
             return this._needSp;
         }
-    
+
         helpMessage() {
             return this._helpMessage;
         }
     }
-    
+
     class SkillTreeNode {
         constructor(tag) {
             this._tag = tag
@@ -756,9 +756,9 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     
     class SkillDataType {
         constructor(skillTreeName, actorId, message, helpMessage, enabled) {
-            this._message = message;
             this._skillTreeName = skillTreeName;
-            this._skillTreeTag = `${skillTreeName}_actorId${actorId}`;
+            this._actorId = actorId;
+            this._message = message;
             this._helpMessage = helpMessage;
             this._enabled = enabled;
         }
@@ -772,7 +772,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
     
         skillTreeTag() {
-            return this._skillTreeTag;
+            return `${this._skillTreeName}_actorId${this._actorId}`;
         }
     
         helpMessage() {
@@ -907,7 +907,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         constructor() {
             this._actorSp = {};
             this._topNodes = {};
-            this._actorTypes = {};
+            this._allTypes = {};
         }
     
         sp(actorId) {
@@ -922,25 +922,17 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             const nowSp = this.sp(actorId);
             this.setSp(actorId, nowSp + sp);
         }
-    
-        topNodes() {
-            return this._topNodes;
-        }
-    
+
         topNode(type) {
             return this._topNodes[type.skillTreeTag()];
         }
-    
+
         setTopNode(type, topNode) {
             this._topNodes[type.skillTreeTag()] = topNode;
         }
     
-        actorTypes() {
-            return this._actorTypes;
-        }
-    
         types(actorId) {
-            return this._actorTypes[actorId];
+            return this._allTypes[actorId];
         }
     
         enableTypes(actorId) {
@@ -948,7 +940,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
     
         setTypes(actorId, types) {
-            this._actorTypes[actorId] = types;
+            this._allTypes[actorId] = types;
         }
     
         totalSp(type) {
@@ -1295,7 +1287,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
                     }
                 }
             }
-
             return true;
         }
 
@@ -1724,10 +1715,13 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         update() {
             super.update();
             if (this._drawState === "undraw") this.updateCursor();
-            if (this._drawState != "none") {
-                this.drawView();
-                this._drawState = "none";
-            }
+            this.updateView();
+        }
+
+        updateView() {
+            if (this._drawState === "none") return;
+            this.drawView();
+            this._drawState = "none";
         }
 
         updateHelp() {
@@ -1760,6 +1754,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             super.refresh();
             this.updateCursor();
             this._drawState = "createView";
+            this.updateView();
         }
 
         drawView() {
@@ -2009,7 +2004,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
                     const y = py - ViewRectOfs;
                     if (RectImageFileName) {
                         const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
-                        bitmap.blt(rectImage, 0, 0, IconWidth, IconHeight, x, y);
+                        bitmap.blt(rectImage, 0, 0, rectImage.width, rectImage.height, x, y);
                     } else {
                         const width = IconWidth + ViewRectOfs * 2;
                         const height = IconHeight + ViewRectOfs * 2;
