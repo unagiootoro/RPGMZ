@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.3.6
+@plugindesc Skill tree v1.4.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -17,7 +17,7 @@ Specify the wording of SP in the game.
 Set the maximum value of SP that can be acquired.
 
 @param EnabledSkillTreeSwitchId
-@type number
+@type switch
 @default 0
 @desc
 Specify the ID of the switch that enables/disables the skill tree with the menu command. If you specify 0, the skill tree is always valid.
@@ -118,6 +118,31 @@ Specifies the color of the border surrounding the acquired skill icon.
 @desc
 Specify the coordinate offset of the border or border image that surrounds the acquired skill icon.
 
+@param LearnSkillSeFileName
+@type file
+@dir audio/se
+@default Item3
+@desc
+Specify the file name of the SE to play when the skill is acquired.
+
+@param LearnSkillSeVolume
+@type number
+@default 90
+@desc
+Specify the volume of SE to play when the skill is acquired.
+
+@param LearnSkillSePitch
+@type number
+@default 100
+@desc
+Specify the SE pitch to play when the skill is acquired.
+
+@param LearnSkillSePan
+@type number
+@default 0
+@desc
+Specify the SE pan to play when the skill is acquired.
+
 @param MenuSkillTreeText
 @type string
 @default Skill tree
@@ -176,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.3.6
+@plugindesc スキルツリー v1.4.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -193,7 +218,7 @@ This plugin is available under the terms of the MIT license.
 取得可能なSPの最大値を設定します。
 
 @param EnabledSkillTreeSwitchId
-@type number
+@type switch
 @default 0
 @desc
 メニューコマンドでスキルツリーを有効/無効を設定するスイッチのIDを指定します。0を指定すると常にスキルツリーは有効になります。
@@ -293,6 +318,31 @@ wideを設定すると、横にスキルツリーを表示します。longを設
 @default 1
 @desc
 取得済みスキルのアイコンを囲む枠線または枠画像の座標オフセットを指定します。
+
+@param LearnSkillSeFileName
+@type file
+@dir audio/se
+@default Item3
+@desc
+スキルを習得したときに再生するSEのファイル名を指定します。
+
+@param LearnSkillSeVolume
+@type number
+@default 90
+@desc
+スキルを習得したときに再生するSEのvolumeを指定します。
+
+@param LearnSkillSePitch
+@type number
+@default 100
+@desc
+スキルを習得したときに再生するSEのpitchを指定します。
+
+@param LearnSkillSePan
+@type number
+@default 0
+@desc
+スキルを習得したときに再生するSEのpanを指定します。
 
 @param MenuSkillTreeText
 @type string
@@ -448,6 +498,11 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     const ViewCursorOfs = parseInt(params["ViewCursorOfs"]);
     const ViewRectOfs = parseInt(params["ViewRectOfs"]);
     const ViewRectColor = params["ViewRectColor"];
+
+    const LearnSkillSeFileName = params["LearnSkillSeFileName"];
+    const LearnSkillSeVolume = parseInt(params["LearnSkillSeVolume"]);
+    const LearnSkillSePitch = parseInt(params["LearnSkillSePitch"]);
+    const LearnSkillSePan = parseInt(params["LearnSkillSePan"]);
 
     const MenuSkillTreeText = params["MenuSkillTreeText"];
     const NeedSpText = params["NeedSpText"];
@@ -1295,8 +1350,8 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         typeSelectWindowSetupHandlers() {
             this._windowTypeSelect.setHandler("cancel", this.typeCancel.bind(this));
             this._windowTypeSelect.setHandler("select", this.updateSkillTree.bind(this));
-            this._windowTypeSelect.setHandler("pageup", this.nextActor.bind(this));
-            this._windowTypeSelect.setHandler("pagedown", this.previousActor.bind(this));
+            this._windowTypeSelect.setHandler("pagedown", this.nextActor.bind(this));
+            this._windowTypeSelect.setHandler("pageup", this.previousActor.bind(this));
             this._windowTypeSelect.setHelpWindow(this._helpWindow);
             for (let i = 0; i < this.getSkillTreeTypes().length; i++) {
                 this._windowTypeSelect.setHandler(`type${i}`, this.typeOk.bind(this));
@@ -1403,6 +1458,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
 
         nodeOpenOk() {
             this._skillTreeManager.selectNodeOpen();
+            this.playLearnSkillSe();
             this.changeNodeOpenWindowToSkillTreeWindow();
             this._windowSkillTree.refresh();
             this._windowActorInfo.refresh();
@@ -1483,6 +1539,17 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this._windowTypeSelect.activate();
             this._windowTypeSelect.show();
             this.updateSkillTree();
+        }
+
+        playLearnSkillSe() {
+            if (LearnSkillSeFileName === "") return;
+            const se = {
+                name: LearnSkillSeFileName,
+                pan: LearnSkillSePan,
+                pitch: LearnSkillSePitch,
+                volume: LearnSkillSeVolume,
+            }
+            AudioManager.playSe(se);
         }
     }
 
@@ -1874,6 +1941,11 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             const skillName = this._skillTreeManager.selectNode().info().skill().name;
             const textWidth = this.windowWidth() - this.padding * 2;
             this.drawText(NodeOpenConfirmationText.format(needSp, SpName, skillName), 0, 0, textWidth, "left");
+        }
+
+        // The SE of skill learn is played, so the SE of OK is not played.
+        playOkSound() {
+            if (this.currentSymbol() === "no") super.playOkSound();
         }
     }
 
