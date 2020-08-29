@@ -1,0 +1,279 @@
+/*:
+@target MV MZ
+@plugindesc スキルツリー アイコン拡張 v1.0.0
+@author うなぎおおとろ
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_IconEx.js
+
+@help
+スキルツリーのアイコンを拡張します。
+このプラグインを導入することによって、次のことができるようになります。
+・スキルツリーのアイコンにスキル名を表示
+・スキルツリーのアイコンに背景画像を表示
+・スキル習得時にアイコンに画像を追加
+・スキルツリータイプの選択肢にアイコンを表示
+
+[スキルツリーのアイコンにスキル名を表示]
+アイコン情報に"icon_ex"を適用します。
+アイコンを使用する場合 ["icon_ex", アイコン背景画像, iconIndex]
+iconIndex...使用するアイコンのインデックス
+            iconIndexは省略可能です。省略した場合、スキルに設定されているアイコンが使用されます。
+アイコン背景画像...背景画像のファイル名、または背景のインデックスを指定します。
+                 インデックス指定を行う場合、[背景画像のファイル名、X軸インデックス、Y軸インデックス]
+                 の形式で指定します。
+fileName...画像のファイル名。画像は、「img/pictures」フォルダにインポートしてください。
+
+[スキルツリータイプの選択肢にアイコンを表示]
+スキルツリーのタイプの設定で、タイプ情報にアイコン情報を追加することで、選択肢にアイコンが表示されるようになります。
+この場合、タイプ情報は次の形式で設定します。
+
+[タイプ種別, タイプ名, タイプの説明, タイプ有効/無効, アイコンのインデックス]
+タイプ種別...スキルの派生設定でタイプを識別するためのユニークな識別子を設定します。
+タイプ名...タイプ一覧のウィンドウに表示するタイプ名を設定します。
+タイプの説明...タイプ一覧のウィンドウに表示するタイプの説明を設定します。
+タイプ有効/無効...タイプを有効にする場合は、trueを、無効にする場合は、falseを指定します。
+アイコンのインデックス...使用するアイコンのインデックス
+
+[ライセンス]
+このプラグインは、MITライセンスの条件の下で利用可能です。
+
+@param SkillTreePluginName
+@type string
+@default SkillTree
+@desc
+スキルツリープラグイン本体のファイル名を指定します。
+
+@param EnableOpenedImage
+@type boolean
+@default false
+@desc
+trueを設定すると、習得済みスキルに画像を追加します。
+
+@param OpenedImageFileName
+@type file
+@dir img
+@desc
+習得済みスキルに追加する画像のファイル名を指定します。
+
+@param OpenedImageXOfs
+@type number
+@default 0
+@desc
+習得済みスキルに追加する画像のX座標オフセットを指定します。
+
+@param OpenedImageYOfs
+@type number
+@default 0
+@desc
+習得済みスキルに追加する画像のY座標オフセットを指定します。
+
+@param ChangeOpenedTextColor
+@type boolean
+@default true
+@desc
+trueを設定すると、習得済みスキルの文字の色を変更します。
+
+@param IconFontSize
+@type number
+@default 20
+@desc
+スキルの文字のフォントサイズを指定します。
+
+@help
+スキルツリーのアイコンを拡張します。
+
+[ライセンス]
+このプラグインは、MITライセンスの条件の下で利用可能です。
+*/
+
+(() => {
+    "use strict";
+
+    const pluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+    const params = PluginManager.parameters(pluginName);
+    const SkillTreePluginName = params["SkillTreePluginName"];
+    const EnableOpenedImage = (params["EnableOpenedImage"] === "true" ? true : false);
+    const OpenedImageFileName = params["OpenedImageFileName"];
+    const ChangeOpenedTextColor = (params["ChangeOpenedTextColor"] === "true" ? true : false);
+    const OpenedImageXOfs = parseInt(params["OpenedImageXOfs"]);
+    const OpenedImageYOfs = parseInt(params["OpenedImageYOfs"]);
+    const IconFontSize = parseInt(params["IconFontSize"]);
+
+    const skillTreeParams = PluginManager.parameters(SkillTreePluginName);
+    const IconWidth = parseInt(skillTreeParams["IconWidth"]);
+    const IconHeight = parseInt(skillTreeParams["IconHeight"]);
+    const RectImageFileName = skillTreeParams["RectImageFileName"];
+    const ViewRectColor = skillTreeParams["ViewRectColor"];
+    const ViewRectOfs = parseInt(skillTreeParams["ViewRectOfs"]);
+
+    const SkillTreeNodeInfo = SkillTreeClassAlias.SkillTreeNodeInfo;
+    const SkillTreeNode = SkillTreeClassAlias.SkillTreeNode;
+    const SkillTreeTopNode = SkillTreeClassAlias.SkillTreeTopNode;
+    const SkillDataType = SkillTreeClassAlias.SkillDataType;
+    const SkillTreeMapLoader = SkillTreeClassAlias.SkillTreeMapLoader;
+    const SkillTreeConfigLoadError = SkillTreeClassAlias.SkillTreeConfigLoadError;
+    const SkillTreeConfigLoader = SkillTreeClassAlias.SkillTreeConfigLoader;
+    const SkillTreeData = SkillTreeClassAlias.SkillTreeData;
+    const SkillTreeManager = SkillTreeClassAlias.SkillTreeManager;
+    const Scene_SkillTree = SkillTreeClassAlias.Scene_SkillTree;
+    const Window_TypeSelect = SkillTreeClassAlias.Window_TypeSelect;
+    const Window_ActorInfo = SkillTreeClassAlias.Window_ActorInfo;
+    const Window_SkillTreeNodeInfo = SkillTreeClassAlias.Window_SkillTreeNodeInfo;
+    const Window_SkillTree = SkillTreeClassAlias.Window_SkillTree;
+    const Window_NodeOpen = SkillTreeClassAlias.Window_NodeOpen;
+    const SkillTreeView = SkillTreeClassAlias.SkillTreeView;
+
+    const _Scene_SkillTree_isReady = Scene_SkillTree.prototype.isReady;
+    Scene_SkillTree.prototype.isReady = function() {
+        if (!_Scene_SkillTree_isReady.call(this)) return false;
+        if (OpenedImageFileName) {
+            const openedImage = ImageManager.loadBitmap("img/", OpenedImageFileName);
+            if (!openedImage.isReady()) return false;
+        }
+        return true;
+    };
+
+    SkillTreeNodeInfo.prototype.iconBitmap = function(opened) {
+        if (this._iconData[0] === "img") {
+            return ImageManager.loadPicture(this._iconData[1]);
+        } else if (this._iconData[0] === "icon") {
+            let iconIndex;
+            if (this._iconData.length >= 2) {
+                iconIndex = this._iconData[1];
+            } else {
+                iconIndex = this.skill().iconIndex;
+            }
+            const srcBitmap = ImageManager.loadSystem("IconSet");
+            const dstBitmap = new Bitmap(32, 32);
+            const sx = iconIndex % 16 * 32;
+            const sy = Math.floor(iconIndex / 16) * 32;
+            dstBitmap.blt(srcBitmap, sx, sy, 32, 32, 0, 0);
+            return dstBitmap;
+        } else if (this._iconData[0] === "icon_ex") {
+            return this.iconExBitmap(opened);
+        }
+        throw new Error(`Unknown ${this._iconData[0]}`);
+    };
+
+    SkillTreeNodeInfo.prototype.iconExBitmap = function(opened) {
+        let iconIndex;
+        if (this._iconData.length >= 3) {
+            iconIndex = this._iconData[2];
+        } else {
+            iconIndex = this.skill().iconIndex;
+        }
+        const srcBitmap = ImageManager.loadSystem("IconSet");
+        const dstBitmap = new Bitmap(IconWidth, IconHeight);
+        const sx = iconIndex % 16 * 32;
+        const sy = Math.floor(iconIndex / 16) * 32;
+        const dx = 5;
+        const dy = (IconHeight - 32) / 2;
+        if (this._iconData.length >= 2 && this._iconData[1]) {
+            if (typeof this._iconData[1] === "string") {
+                const backBitmap = ImageManager.loadPicture(this._iconData[1]);
+                if (!backBitmap.isReady()) return backBitmap;
+                dstBitmap.blt(backBitmap, 0, 0, IconWidth, IconHeight, 0, 0);
+            } else {
+                const backBitmap = ImageManager.loadPicture(this._iconData[1][0]);
+                if (!backBitmap.isReady()) return backBitmap;
+                const x = this._iconData[1][1] * IconWidth;
+                const y = this._iconData[1][2] * IconHeight;
+                dstBitmap.blt(backBitmap, x, y, IconWidth, IconHeight, 0, 0);
+            }
+        }
+        dstBitmap.blt(srcBitmap, sx, sy, 32, 32, dx, dy);
+        const textWidth = IconWidth - 32 - dx - 5;
+        dstBitmap.fontSize = IconFontSize;
+        if (ChangeOpenedTextColor && opened) {
+            const tmpTextColor = dstBitmap.textColor;
+            if (Utils.RPGMAKER_NAME === "MZ") {
+                dstBitmap.textColor = ColorManager.crisisColor();
+            } else {
+                const dummyWindow = new Window_Base(0, 0, 0, 0);
+                dstBitmap.textColor = dummyWindow.crisisColor();
+            }
+            dstBitmap.drawText(this.skill().name, 32 + dx + 5, dy, textWidth, 32, "left");
+            dstBitmap.textColor = tmpTextColor;
+        } else {
+            dstBitmap.drawText(this.skill().name, 32 + dx + 5, dy, textWidth, 32, "left");
+        }
+        return dstBitmap;
+    };
+
+    SkillTreeNode.prototype.iconBitmap = function() {
+        return this._info.iconBitmap(this.isOpened());
+    }
+
+    SkillTreeView.prototype.viewDrawNode = function(bitmap) {
+        for (const node of Object.values(this._skillTreeManager.getAllNodes())) {
+            let [px, py] = SkillTreeView.getPixelXY(node.point);
+            if (node.isSelectable()) {
+                this.drawIcon(bitmap, node.iconBitmap(), px, py);
+            } else {
+                this.drawIcon(bitmap, node.iconBitmap(), px, py, 64);
+            }
+            if (node.isOpened()) {
+                if (EnableOpenedImage) {
+                    const x = px + OpenedImageXOfs;
+                    const y = py + OpenedImageYOfs;
+                    const openedImage = ImageManager.loadBitmap("img/", OpenedImageFileName);
+                    bitmap.blt(openedImage, 0, 0, openedImage.width, openedImage.height, x, y);
+                } else {
+                    const x = px - ViewRectOfs;
+                    const y = py - ViewRectOfs;
+                    if (RectImageFileName) {
+                        const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
+                        bitmap.blt(rectImage, 0, 0, rectImage.width, rectImage.height, x, y);
+                    } else {
+                        const width = IconWidth + ViewRectOfs * 2;
+                        const height = IconHeight + ViewRectOfs * 2;
+                        this.drawRect(bitmap, ViewRectColor, x, y, width, height);
+                    }
+                }
+            }
+        }
+    }
+
+    SkillTreeConfigLoader.prototype.loadTypes = function(actorId) {
+        let cfgTypes = null;
+        let typesArray = [];
+        for (let cfg of this._configData.skillTreeTypes) {
+            if (cfg.actorId === actorId) {
+                cfgTypes = cfg.types;
+                break;
+            }
+        }
+        if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
+        for (let cfgType of cfgTypes) {
+            const enabled = (cfgType.length === 3 ? true : cfgType[3]);
+            const type = new SkillDataType(cfgType[0], actorId, cfgType[1], cfgType[2], enabled);
+            type.setIconIndex(cfgType[4] ? cfgType[4] : null);
+            typesArray.push(type);
+        }
+        return typesArray;
+    };
+
+    SkillDataType.prototype.setIconIndex = function(iconIndex) {
+        this._iconIndex = iconIndex;
+    };
+
+    SkillDataType.prototype.iconIndex = function() {
+        return this._iconIndex;
+    };
+
+    Window_TypeSelect.prototype.drawItem = function(index) {
+        let rect;
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            rect = this.itemLineRect(index);
+        } else {
+            rect = this.itemRectForText(index);
+        }
+        this.resetTextColor();
+        this.changePaintOpacity(this.isCommandEnabled(index));
+        const iconIndex = this._types[index].iconIndex();
+        if (iconIndex) {
+            this.drawItemName({ name: this.commandName(index), iconIndex: iconIndex }, rect.x, rect.y);
+        } else {
+            this.drawText(this.commandName(index), rect.x, rect.y, rect.width, this.itemTextAlign());
+        }
+    };
+})();
