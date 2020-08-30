@@ -2,7 +2,7 @@
 @target MV MZ
 @plugindesc スキルツリー 職業拡張 v1.0.0
 @author うなぎおおとろ
-@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_ClassEx.js
 
 @help
 スキルツリーを職業単位で持たせることができるようになります。
