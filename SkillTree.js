@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.4.1
+@plugindesc Skill tree v1.4.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.4.1
+@plugindesc スキルツリー v1.4.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -2231,6 +2231,21 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     };
 
 
+    // Actor gain sp.
+    Game_Party.prototype.gainSp = function(sp) {
+        for (const actor of this.members()) {
+            actor.gainSp(sp);
+        }
+    };
+
+    Game_Actor.prototype.gainSp = function(sp) {
+        $skillTreeData.gainSp(this.actorId(), sp);
+        if ($skillTreeData.sp(this.actorId()) > MaxSp) {
+            $skillTreeData.setSp(this.actorId(), MaxSp);
+        }
+    };
+
+
     // Get the sp when win a battle.
     Game_Enemy.prototype.sp = function() {
         const battleEndGainSp = this.enemy().meta.battleEndGainSp;
@@ -2278,18 +2293,14 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         }
     };
 
-    Game_Party.prototype.gainSp = function(sp) {
-        for (const actor of this.members()) {
-            $skillTreeData.gainSp(actor.actorId(), sp);
-        }
-    };
-
 
     // Get the sp when level up.
+    Game_Actor.enableGetSpWhenLevelUp = EnableGetSpWhenLevelUp;
+
     const _Game_Actor_levelUp = Game_Actor.prototype.levelUp;
     Game_Actor.prototype.levelUp = function() {
         _Game_Actor_levelUp.call(this);
-        if (EnableGetSpWhenLevelUp) {
+        if (Game_Actor.enableGetSpWhenLevelUp) {
             const sp = this.getLevelUpSp(this._level);
             if (sp > 0) this.gainSp(sp);
         }
@@ -2298,7 +2309,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     const _Game_Actor_displayLevelUp = Game_Actor.prototype.displayLevelUp;
     Game_Actor.prototype.displayLevelUp = function(newSkills) {
         _Game_Actor_displayLevelUp.call(this, newSkills);
-        if (EnableGetSpWhenLevelUp) {
+        if (Game_Actor.enableGetSpWhenLevelUp) {
             const sp = this.getLevelUpSp(this._level);
             if (sp > 0) $gameMessage.add(LevelUpGetSpText.format(sp, SpName));
         }
@@ -2315,12 +2326,14 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
         return 0;
     };
 
-    Game_Actor.prototype.gainSp = function(sp) {
-        $skillTreeData.gainSp(this.actorId(), sp);
-        if ($skillTreeData.sp(this.actorId()) > MaxSp) {
-            $skillTreeData.setSp(this.actorId(), MaxSp);
-        }
+    // Prevent SP from increasing due to level-up processing when changing jobs.
+    const _Game_Actor_changeClass = Game_Actor.prototype.changeClass;
+    Game_Actor.prototype.changeClass = function(classId, keepExp) {
+        Game_Actor.enableGetSpWhenLevelUp = false;
+        _Game_Actor_changeClass.call(this, classId, keepExp);
+        Game_Actor.enableGetSpWhenLevelUp = EnableGetSpWhenLevelUp;
     };
+
 
     // Define class alias.
     SkillTreeClassAlias.SkillTreeNodeInfo = SkillTreeNodeInfo;
