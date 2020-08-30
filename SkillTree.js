@@ -400,6 +400,7 @@ wideを設定すると、横にスキルツリーを表示します。longを設
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
+const SkillTreePluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
 const SkillTreeClassAlias = {};
 let $skillTreeData = null;
 let $skillTreeConfigLoader = null;
@@ -475,8 +476,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
 (() => {
     "use strict";
 
-    const pluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
-    const params = PluginManager.parameters(pluginName);
+    const params = PluginManager.parameters(SkillTreePluginName);
     const SpName = params["SpName"];
     const MaxSp = parseInt(params["MaxSp"]);
 
