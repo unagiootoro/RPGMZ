@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.4.2
+@plugindesc Skill tree v1.4.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.4.2
+@plugindesc スキルツリー v1.4.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -1302,14 +1302,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this._windowSkillTree.show();
         }
 
-        helpWindowRect() {
-            let y = 0;
-            if (Utils.RPGMAKER_NAME === "MZ") y = 55;
-            const w = Graphics.boxWidth;
-            const h = this.helpAreaHeight();
-            return new Rectangle(0, y, w, h);
-        }
-
         createTypeSelectWindow() {
             this._windowTypeSelect = new Window_TypeSelect(this.typeSelectWindowRect(), this.getSkillTreeTypes());
             this.typeSelectWindowSetupHandlers();
@@ -1319,14 +1311,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this._windowTypeSelect.hideHelpWindow();
             this._windowTypeSelect.hide();
             this.addWindow(this._windowTypeSelect);
-        }
-
-        typeSelectWindowRect() {
-            const actorInfoWindowRect = this.actorInfoWindowRect();
-            let y = 110;
-            if (Utils.RPGMAKER_NAME === "MZ") y = 150;
-            const h = actorInfoWindowRect.y - y;
-            return new Rectangle(0, y, 240, h);
         }
 
         resetTypeSelectWindow() {
@@ -1358,13 +1342,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this.addWindow(this._windowActorInfo);
         }
 
-        actorInfoWindowRect() {
-            const skillTreeNodeInfoWindowRect = this.skillTreeNodeInfoWindowRect();
-            const h = 200;
-            const y = skillTreeNodeInfoWindowRect.y - h;
-            return new Rectangle(0, y, 240, h);
-        }
-
         resetActorInfoWindow() {
             this._windowActorInfo.reset(this.actor().actorId());
             this._windowActorInfo.refresh();
@@ -1379,12 +1356,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this._windowSkillTreeNodeInfo.deactivate();
             this._windowSkillTreeNodeInfo.hide();
             this.addWindow(this._windowSkillTreeNodeInfo);
-        }
-
-        skillTreeNodeInfoWindowRect() {
-            const h = 110;
-            const y = Graphics.boxHeight - h;
-            return new Rectangle(0, y, 240, h);
         }
 
         createSKillTreeWindow() {
@@ -1402,15 +1373,6 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this.addWindow(this._windowSkillTree);
         }
 
-        skillTreeWindowRect() {            
-            const typeSelectWindowRect = this.typeSelectWindowRect();
-            const x = typeSelectWindowRect.width;
-            const y = typeSelectWindowRect.y;
-            const w = Graphics.boxWidth - x;
-            const h = Graphics.boxHeight - y;
-            return new Rectangle(x, y, w, h);
-        }
-
         createNodeOpenWindow() {
             this._windowNodeOpen = new Window_NodeOpen(this.nodeOpenWindowRect(), this._skillTreeManager);
             this._windowNodeOpen.setHandler("yes", this.nodeOpenOk.bind(this));
@@ -1421,6 +1383,114 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
             this._windowNodeOpen.deactivate();
             this._windowNodeOpen.hide();
             this.addWindow(this._windowNodeOpen);
+        }
+
+        isBottomHelpMode() {
+            return false;
+        }
+
+        isBottomButtonMode() {
+            return false;
+        }
+
+        isRightInputMode() {
+            return false;
+        }
+
+        buttonAreaTop() {
+            if (Utils.RPGMAKER_NAME === "MZ") return super.buttonAreaTop();
+            return this.isBottomButtonMode() ? Graphics.boxHeight : 0;
+        }
+
+        buttonAreaHeight() {
+            if (Utils.RPGMAKER_NAME === "MZ") return super.buttonAreaHeight();
+            return 0;
+        }
+
+        mainCommandWidth() {
+            if (Utils.RPGMAKER_NAME === "MZ") return super.mainCommandWidth();
+            return 240;
+        }
+
+        helpWindowRect() {
+            if (Utils.RPGMAKER_NAME === "MZ") return super.helpWindowRect();
+            return new Rectangle(this._helpWindow.x, this._helpWindow.y, this._helpWindow.width, this._helpWindow.height);
+        }
+
+        typeSelectWindowRect() {
+            const actorInfoWindowRect = this.actorInfoWindowRect();
+            const x = actorInfoWindowRect.x;
+            const w = actorInfoWindowRect.width;
+            let y;
+            if (this.isBottomHelpMode()) {
+                if (this.isBottomButtonMode()) {
+                    y = 0;
+                } else {
+                    y = this.buttonAreaBottom();
+                }
+            } else if (this.isBottomButtonMode()) {
+                const helpWindowRect = this.helpWindowRect();
+                y = helpWindowRect.y + helpWindowRect.height;
+            } else {
+                const helpWindowRect = this.helpWindowRect();
+                y = helpWindowRect.y + helpWindowRect.height;
+            }
+            const h = actorInfoWindowRect.y - y;
+            return new Rectangle(x, y, w, h);
+        }
+
+        actorInfoWindowRect() {
+            const skillTreeNodeInfoWindowRect = this.skillTreeNodeInfoWindowRect();
+            const x = skillTreeNodeInfoWindowRect.x;
+            const w = skillTreeNodeInfoWindowRect.width;
+            const h = 200;
+            const y = skillTreeNodeInfoWindowRect.y - h;
+            return new Rectangle(x, y, w, h);
+        }
+
+        skillTreeNodeInfoWindowRect() {
+            const w = this.mainCommandWidth();
+            let x;
+            if (this.isRightInputMode()) {
+                x = Graphics.boxWidth - w;
+            } else {
+                x = 0;
+            }
+            const h = 110;
+            let y;
+            if (this.isBottomHelpMode()) {
+                const helpWindowRect = this.helpWindowRect();
+                y = helpWindowRect.y - h;
+            } else {
+                if (this.isBottomButtonMode()) {
+                    y = this.buttonAreaTop() - h;
+                } else {
+                    y = Graphics.boxHeight - h;
+                }
+            }
+            return new Rectangle(x, y, w, h);
+        }
+
+        skillTreeWindowRect() {            
+            const typeSelectWindowRect = this.typeSelectWindowRect();
+            let x;
+            if (this.isRightInputMode()) {
+                x = 0;
+            } else {
+                x = typeSelectWindowRect.width;
+            }
+            const w = Graphics.boxWidth - typeSelectWindowRect.width;
+            const y = typeSelectWindowRect.y;
+            let h;
+            if (this.isBottomHelpMode()) {
+                const helpWindowRect = this.helpWindowRect();
+                h = helpWindowRect.y - y;
+            } else if (this.isBottomButtonMode()) {
+                h = this.buttonAreaTop() - y;
+            } else {
+                h = Graphics.boxHeight - y;
+            }
+            return new Rectangle(x, y, w, h);
         }
 
         nodeOpenWindowRect() {
