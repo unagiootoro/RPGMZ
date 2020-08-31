@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc アイテム合成プラグイン v1.0.1
+@plugindesc アイテム合成プラグイン v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -341,27 +341,10 @@ const AlchemyClassAlias = {};
             this.addWindow(this._categoryWindow);
         }
 
-        categoryWindowRect() {
-            const goldWindowRect = this.goldWindowRect();
-            const wx = 0;
-            const wy = this.mainAreaTop();
-            const ww = (EnabledGoldWindow ? Graphics.boxWidth - goldWindowRect.width : Graphics.boxWidth);
-            const wh = this.calcWindowHeight(1, true);
-            return new Rectangle(wx, wy, ww, wh);
-        }
-
         createGoldWindow() {
             const rect = this.goldWindowRect();
             this._goldWindow = new Window_Gold(rect);
             this.addWindow(this._goldWindow);
-        }
-
-        goldWindowRect() {
-            const ww = this.mainCommandWidth();
-            const wh = this.calcWindowHeight(1, true);
-            const wx = Graphics.boxWidth - ww;
-            const wy = this.mainAreaTop();
-            return new Rectangle(wx, wy, ww, wh);
         }
 
         createSelectRecipesWindow() {
@@ -390,20 +373,6 @@ const AlchemyClassAlias = {};
             this.addWindow(this._numberWindow);
         }
 
-        numberWindowRect() {
-            return this.selectRecipesWindowRect();
-        }
-
-        selectRecipesWindowRect() {
-            const categoryWindowRect = this.categoryWindowRect();
-            const helpWindowRect = this.helpWindowRect();
-            const wx = 0;
-            const wy = categoryWindowRect.y + categoryWindowRect.height;
-            const ww = Math.floor(Graphics.boxWidth / 2);
-            const wh = Graphics.boxHeight - helpWindowRect.height - wy;
-            return new Rectangle(wx, wy, ww, wh);
-        }
-
         createRecipeDetailWindow() {
             this._windowRecipeDetail = new Window_RecipeDetail(this.recipeDetailWindowRect());
             this._windowRecipeDetail.setNumberWindow(this._numberWindow);
@@ -412,6 +381,36 @@ const AlchemyClassAlias = {};
             this._windowRecipeDetail.deactivate();
             this._windowRecipeDetail.show();
             this.addWindow(this._windowRecipeDetail);
+        }
+
+        categoryWindowRect() {
+            const goldWindowRect = this.goldWindowRect();
+            const wx = 0;
+            const wy = this.mainAreaTop();
+            const ww = (EnabledGoldWindow ? Graphics.boxWidth - goldWindowRect.width : Graphics.boxWidth);
+            const wh = this.calcWindowHeight(1, true);
+            return new Rectangle(wx, wy, ww, wh);
+        }
+
+        goldWindowRect() {
+            const ww = this.mainCommandWidth();
+            const wh = this.calcWindowHeight(1, true);
+            const wx = Graphics.boxWidth - ww;
+            const wy = this.mainAreaTop();
+            return new Rectangle(wx, wy, ww, wh);
+        }
+
+        numberWindowRect() {
+            return this.selectRecipesWindowRect();
+        }
+
+        selectRecipesWindowRect() {
+            const categoryWindowRect = this.categoryWindowRect();
+            const wx = 0;
+            const wy = categoryWindowRect.y + categoryWindowRect.height;
+            const ww = Math.floor(Graphics.boxWidth / 2);
+            const wh = this.mainAreaBottom() - wy;
+            return new Rectangle(wx, wy, ww, wh);
         }
 
         recipeDetailWindowRect() {
