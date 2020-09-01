@@ -2,6 +2,7 @@
 @target MV MZ
 @plugindesc ステート付与装備 v1.0.2
 @author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipState.js
 
 @help
 アイテムを装備している間、ステートを付与するプラグインです。
