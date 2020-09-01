@@ -1,14 +1,8 @@
 /*:
 @target MV MZ
-@plugindesc スキルツリー アイコン拡張 v1.0.1
+@plugindesc スキルツリー アイコン拡張 v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_IconEx.js
-
-@param SkillTreePluginName
-@type string
-@default SkillTree
-@desc
-スキルツリープラグイン本体のファイル名を指定します。
 
 @param EnableOpenedImage
 @type boolean
@@ -84,7 +78,6 @@ fileName...画像のファイル名。画像は、「img/pictures」フォルダ
 
     const pluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
     const params = PluginManager.parameters(pluginName);
-    const SkillTreePluginName = params["SkillTreePluginName"];
     const EnableOpenedImage = (params["EnableOpenedImage"] === "true" ? true : false);
     const OpenedImageFileName = params["OpenedImageFileName"];
     const ChangeOpenedTextColor = (params["ChangeOpenedTextColor"] === "true" ? true : false);
