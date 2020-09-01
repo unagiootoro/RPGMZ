@@ -1564,7 +1564,10 @@ class Scene_SkillTree extends Scene_MenuBase {
             this._skillTreeManager.setActorId(this.actor().actorId());
             this._skillTreeManager.setType(type);
             this._skillTreeManager.selectTopNode($skillTreeData.topNode(type));
-            if (this._windowSkillTree) this._windowSkillTree.refresh();
+            if (this._windowSkillTree) {
+                this._windowSkillTree.setDrawState("createView");
+                this._windowSkillTree.refresh();
+            }
         } else {
             if (this._windowSkillTree) this._windowSkillTree.setDrawState("undraw");
         }
