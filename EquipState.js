@@ -1,7 +1,7 @@
 /*:
 @target MV MZ
-@plugindesc ステート付与装備 v1.0.2
-@author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
+@plugindesc ステート付与装備 v1.0.3
+@author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipState.js
 
 @help
@@ -86,7 +86,6 @@
         let equipStatesId = [];
         const equipItems = this.allEquipItems();
         if (!equipItems) return;
-        console.log(equipItems);
         for (const equip of this.allEquipItems()) {
             if (!equip.equipStatesId()) continue;
             equipStatesId = equipStatesId.concat(equip.equipStatesId());
