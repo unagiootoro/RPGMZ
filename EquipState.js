@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc ステート付与装備
+@plugindesc ステート付与装備 v1.0.2
 @author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
 
 @help
@@ -19,12 +19,15 @@
 初期装備のステートは、「全回復」コマンドを実行させることで反映させられるため、
 ステート付与装備を初期装備に指定する場合は、ゲーム開始時に「全回復」コマンドを実行してください。
 
+[SimplePassiveSkillMZ.jsとの連携(MZ限定)]
+ツクールMZの準公式プラグイン「SimplePassiveSkillMZ.js」と連携することで、
+パッシブスキル取得時にステートを付与することができます。
+この機能を使用する場合、パッシブスキルで設定した武器または防具のメモ欄に
+<EquipState: ステートID>
+と入力くしてください。
+
 [ライセンス]
 このプラグインは、MITライセンスの条件の下で利用可能です。
-
-[更新履歴]
-v1.1.0 メモ欄の記載内容を変更
-v1.0.0 新規作成
 */
 {
     "use strict";
@@ -65,10 +68,25 @@ v1.0.0 新規作成
         this.updateEquipStates();
     };
 
+    Game_Actor.prototype.allEquipItems = function() {
+        if (!this._equips) return null;
+        const equipItems = this._equips.concat();
+        if (typeof DataManager.processPassiveSkill !== "undefined") {
+            if (!this._skills) return null;
+            for (const skillId of this._skills) {
+                const skill = $dataSkills[skillId];
+                if (skill && skill.passive) equipItems.push(skill.passive);
+            }
+        }
+        return equipItems;
+    }
+
     Game_Actor.prototype.updateEquipStates = function() {
-        if (!this._equips) return;
         let equipStatesId = [];
-        for (const equip of this._equips) {
+        const equipItems = this.allEquipItems();
+        if (!equipItems) return;
+        console.log(equipItems);
+        for (const equip of this.allEquipItems()) {
             if (!equip.equipStatesId()) continue;
             equipStatesId = equipStatesId.concat(equip.equipStatesId());
         }
@@ -86,6 +104,18 @@ v1.0.0 新規作成
     const _Game_Battler_onBattleEnd = Game_Battler.prototype.onBattleEnd;
     Game_Actor.prototype.onBattleEnd = function() {
         _Game_Battler_onBattleEnd.call(this);
+        this.updateEquipStates();
+    }
+
+    const _Game_Actor_learnSkill = Game_Actor.prototype.learnSkill;
+    Game_Actor.prototype.learnSkill = function(skillId) {
+        _Game_Actor_learnSkill.call(this, skillId);
+        this.updateEquipStates();
+    }
+
+    const _Game_Actor_forgetSkill = Game_Actor.prototype.forgetSkill;
+    Game_Actor.prototype.forgetSkill = function(skillId) {
+        _Game_Actor_forgetSkill.call(this, skillId);
         this.updateEquipStates();
     }
 }
