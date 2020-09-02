@@ -1,7 +1,8 @@
 /*:
 @target MV MZ
-@plugindesc 時間経過システム ver1.1.1
-@author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
+@plugindesc 時間経過システム ver1.1.2
+@author うなぎおおとろ
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AdvanceTimeSystem.js
 
 @param TimezoneVariableID
 @default 1
@@ -146,6 +147,8 @@ $gameMap.changeTimezone(0, 1);
     const LateNight = 4;
     const Dawn = 5;
 
+    let $timezoneDatas = null;
+
     class Timezone {
         constructor(steps, tint) {
             this._steps = steps;
@@ -158,7 +161,7 @@ $gameMap.changeTimezone(0, 1);
 
     //class Game_Map
     Game_Map.prototype.getNextTimezoneSteps = function() {
-        return this._timezoneDatas[this.nowTimezone()].steps;
+        return $timezoneDatas[this.nowTimezone()].steps;
     };
 
     const _Game_Map_initialize = Game_Map.prototype.initialize
@@ -170,13 +173,13 @@ $gameMap.changeTimezone(0, 1);
     };
 
     Game_Map.prototype.createTimezoneDatas = function() {
-        this._timezoneDatas = {};
-        this._timezoneDatas[Morning] = new Timezone(MorningSteps, MorningTint);
-        this._timezoneDatas[Noon] = new Timezone(NoonSteps, NoonTint);
-        this._timezoneDatas[Evening] = new Timezone(EveningSteps, EveningTint);
-        this._timezoneDatas[Night] = new Timezone(NightSteps, NightTint);
-        this._timezoneDatas[LateNight] = new Timezone(LateNightSteps, LateNightTint);
-        this._timezoneDatas[Dawn] = new Timezone(DawnSteps, DawnTint);
+        $timezoneDatas = {};
+        $timezoneDatas[Morning] = new Timezone(MorningSteps, MorningTint);
+        $timezoneDatas[Noon] = new Timezone(NoonSteps, NoonTint);
+        $timezoneDatas[Evening] = new Timezone(EveningSteps, EveningTint);
+        $timezoneDatas[Night] = new Timezone(NightSteps, NightTint);
+        $timezoneDatas[LateNight] = new Timezone(LateNightSteps, LateNightTint);
+        $timezoneDatas[Dawn] = new Timezone(DawnSteps, DawnTint);
     }
 
     Game_Map.prototype.getTimezoneValue = function(timezoneName) {
@@ -206,7 +209,7 @@ $gameMap.changeTimezone(0, 1);
             this._noEffectMap = true;
             $gameScreen.startTint([0, 0, 0, 0], 1);
         } else {
-            $gameScreen.startTint(this._timezoneDatas[this.nowTimezone()].tint, 1);
+            $gameScreen.startTint($timezoneDatas[this.nowTimezone()].tint, 1);
             this._noEffectMap = false;
         }
     };
@@ -217,7 +220,7 @@ $gameMap.changeTimezone(0, 1);
 
     Game_Map.prototype.changeTimezone = function(timezone, fadeFrame = FadeFrame) {
         $gameVariables.setValue(TimezoneVariableID, timezone);
-        if (!this._noEffectMap) $gameScreen.startTint(this._timezoneDatas[timezone].tint, fadeFrame);
+        if (!this._noEffectMap) $gameScreen.startTint($timezoneDatas[timezone].tint, fadeFrame);
         this._nextTimezoneSteps = this.getNextTimezoneSteps();
     };
 
