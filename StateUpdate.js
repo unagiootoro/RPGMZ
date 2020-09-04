@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc 更新可能ステート v1.0.0
+@plugindesc 更新可能ステート v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/StateUpdate.js
 
@@ -24,6 +24,7 @@
 例えば、攻撃2段階上昇(ステートID: 2)のときに攻撃1段階上昇(ステートID: 1)を受けると
 攻撃3段階上昇(ステートID: 3)にしたい場合、攻撃2段階上昇ステートのメモ欄で次のように設定します。
 <StateUpdate: [[1, 3]]>
+<NotCoexistanceState: [1, 3]>
 
 [ライセンス]
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -44,7 +45,7 @@ const getStateUpdateInfo = (stateId) => {
 
 const getNotCoexistanceStateId = (stateId) => {
     const state = $dataStates[stateId];
-    if (!state.meta.NotCoexistanceState) return null;
+    if (!state.meta.NotCoexistanceState) return [];
     const notCoexistanceStateId = JSON.parse(state.meta.NotCoexistanceState);
     return notCoexistanceStateId;
 }
