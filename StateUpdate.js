@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc 更新可能ステート v1.0.1
+@plugindesc 更新可能ステート v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/StateUpdate.js
 
@@ -11,7 +11,7 @@
 
 [使用方法]
 ステートのメモ欄に
-<StateUpdate: [[受けたステートID, 更新先ステートID], [受けたステートID, 更新先ステートID], ...]>
+<StateUpdate: [[受けたステートID, 更新先ステートID, 優先するメッセージ], [受けたステートID, 更新先ステートID, 優先するメッセージ], ...]>
 <NotCoexistanceState: [共存不可ステートID1, 共存不可ステートID2]>
 という形式で記載します。
 受けたステートID...ステート更新を行うきっかけとなる受けたステートID
@@ -20,10 +20,14 @@
 共存不可ステートID...共存できないステートIDを設定します。
                     更新先のステートはすべて共存不可ステートになるように設定してください。
                     これを設定しないと、猛毒状態で毒攻撃を受けた時に毒状態と猛毒状態の両方が存在することになってしまいます。
+優先するメッセージ...ステートを更新するとき、受けたステートのメッセージと更新先ステートのメッセージのどちらを優先するかを設定します。
+                   "target"を設定した場合、更新先ステートのメッセージを優先します。
+                   "receive"を設定した場合、受けたステートのメッセージを優先します。
+                   なお、この項目については省略可能です。省略した場合、"target"が設定されます。
 
 例えば、攻撃2段階上昇(ステートID: 2)のときに攻撃1段階上昇(ステートID: 1)を受けると
 攻撃3段階上昇(ステートID: 3)にしたい場合、攻撃2段階上昇ステートのメモ欄で次のように設定します。
-<StateUpdate: [[1, 3]]>
+<StateUpdate: [[1, 3, "receive"]]>
 <NotCoexistanceState: [1, 3]>
 
 [ライセンス]
@@ -38,7 +42,9 @@ const getStateUpdateInfo = (stateId) => {
     if (!state.meta.StateUpdate) return result;
     const stateUpdateInfoArray = JSON.parse(state.meta.StateUpdate);
     for (const info of stateUpdateInfoArray) {
-        result.push({ receiveStateId: info[0], targetStateId: info[1] });
+        let messagePriority = "target";
+        if (info.length >= 3) messagePriority = info[3];
+        result.push({ receiveStateId: info[0], targetStateId: info[1], messagePriority: messagePriority });
     }
     return result;
 }
@@ -56,11 +62,7 @@ Game_Battler.prototype.addState = function(stateId) {
         const notCoexistanceStateId = this.isNotCoexistanceStateAdded(stateId);
         if (notCoexistanceStateId) {
             const updatedStateId = this.updateCurrentState(stateId);
-            if (updatedStateId) {
-                addedStateId = updatedStateId;
-            } else {
-                addedStateId = notCoexistanceStateId;
-            }
+            if (updatedStateId) addedStateId = updatedStateId;
         } else {
             if (!this.isStateAffected(stateId)) {
                 this.addNewState(stateId);
@@ -88,10 +90,11 @@ Game_Battler.prototype.updateCurrentState = function(receiveStateId) {
         const stateInfos = getStateUpdateInfo(stateId);
         for (const stateInfo of stateInfos) {
             if (stateInfo.receiveStateId !== receiveStateId) continue;
+            const resultStateId = (stateInfo.messagePriority === "target" ? stateInfo.targetStateId : receiveStateId);
             this.eraseState(stateId);
             if (stateInfo.targetStateId === 0) return null;
             this.addNewState(stateInfo.targetStateId);
-            return stateInfo.targetStateId
+            return resultStateId;
         }
     }
     return null;
