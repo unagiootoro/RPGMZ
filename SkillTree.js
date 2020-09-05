@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.5.0
+@plugindesc Skill tree v1.5.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -207,7 +207,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.5.0
+@plugindesc スキルツリー v1.5.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -1280,23 +1280,19 @@ class Scene_SkillTree extends Scene_MenuBase {
 
     isReady() {
         if (!super.isReady()) return false;
+        for (const actor of $gameParty.members()) {
+            const faceImage = ImageManager.loadFace(actor.faceName());
+            if (!faceImage.isReady()) return false;
+        }
         if (RectImageFileName) {
             const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
             if (!rectImage.isReady()) return false;
         }
-        if (typeof Array.prototype.flatMap !== "undefined") {
-            const nodes = $gameParty.members()
-                                    .flatMap(actor => $skillTreeData.types(actor.actorId()))
-                                    .flatMap(type => Object.values($skillTreeData.getAllNodesByType(type)));
-            for (const node of nodes) {
-                if (!node.iconBitmap().isReady()) return false;
-            }
-        } else {
-            for (const actor of $gameParty.members()) {
-                for (const type of $skillTreeData.types(actor.actorId())) {
-                    for (const node of Object.values($skillTreeData.getAllNodesByType(type))) {
-                        if (!node.iconBitmap().isReady()) return false;
-                    }
+        // Do not use flatMap because some browsers do not support it.
+        for (const actor of $gameParty.members()) {
+            for (const type of $skillTreeData.types(actor.actorId())) {
+                for (const node of Object.values($skillTreeData.getAllNodesByType(type))) {
+                    if (!node.iconBitmap().isReady()) return false;
                 }
             }
         }
@@ -1789,12 +1785,15 @@ class Window_SkillTree extends Window_Selectable {
         this._windowSkillTreeNodeInfo = windowSkillTreeNodeInfo;
         if (Utils.RPGMAKER_NAME === "MZ") {
             super.initialize(rect);
+            this._viewSprite = new Sprite(new Bitmap(1, 1));
+            this.addInnerChild(this._viewSprite);
         } else {
             super.initialize(rect.x, rect.y, rect.width, rect.height);
+            this._bitmapCache = null;
         }
         this._skillTreeView = new SkillTreeView(skillTreeManager, rect.width, rect.height);
-        this._bitmapCache = null;
         this._drawState = "undraw";
+        this._touchSelected = true;
     }
 
     setDrawState(drawState) {
@@ -1821,11 +1820,24 @@ class Window_SkillTree extends Window_Selectable {
 
     updateCursor() {
         if (this.isCursorVisible() && this._skillTreeManager.type()) {
-            const rect = this._skillTreeView.getCursorRect();
+            const rect = this.getCursorRect();
             this.setCursorRect(rect.x, rect.y, rect.width, rect.height);
         } else {
             this.setCursorRect(0, 0, 0, 0);
         }
+    }
+
+    getCursorRect() {
+        const rect = this._skillTreeView.getCursorRect();
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            rect.x -= this.scrollBaseX();
+            rect.y -= this.scrollBaseY();
+        } else {
+            const [viewX, viewY] = this._skillTreeView.viewXY();
+            rect.x -= viewX;
+            rect.y -= viewY;
+        }
+        return rect;
     }
 
     refreshCursor() {
@@ -1847,15 +1859,38 @@ class Window_SkillTree extends Window_Selectable {
         this.updateView();
     }
 
+    maxScrollX() {
+        const x = this._viewSprite.bitmap.width + this.padding * 2 - this.width;
+        return x < 0 ? 0 : x;
+    }
+
+    maxScrollY() {
+        const y = this._viewSprite.bitmap.height + this.padding * 2 - this.height;
+        return y < 0 ? 0 : y;
+    }
+
     drawView() {
-        this.contents.clear();
-        if (this._drawState === "undraw") return;
-        const view = this.getView();
-        const [viewX, viewY] = this._skillTreeView.viewXY();
-        this.contents.blt(view, viewX, viewY, this.width, this.height, 0, 0);
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            if (this._drawState === "undraw") {
+                this._viewSprite.bitmap = new Bitmap(1, 1);
+            } else if (this._drawState === "createView") {
+                this._viewSprite.bitmap = this.getView();
+                if (this._windowTypeSelect.active) this.scrollTo(0, 0);
+            } else if (this._drawState === "updateScroll") {
+                const [viewX, viewY] = this._skillTreeView.viewXY();
+                this.smoothScrollTo(viewX, viewY);
+            }
+        } else {
+            this.contents.clear();
+            if (this._drawState === "undraw") return;
+            const view = this.getView();
+            const [viewX, viewY] = this._skillTreeView.viewXY();
+            this.contents.blt(view, viewX, viewY, this.width, this.height, 0, 0);
+        }
     }
 
     getView() {
+        if (Utils.RPGMAKER_NAME === "MZ") return this._skillTreeView.createView();
         if (this._drawState === "updateScroll" && this._bitmapCache) return this._bitmapCache;
         const bitmap = this._skillTreeView.createView();
         this._bitmapCache = bitmap;
@@ -1912,6 +1947,7 @@ class Window_SkillTree extends Window_Selectable {
     // This method is used when Utils.RPGMAKER_NAME is MV.
     onTouch(triggered) {
         if (triggered) {
+            this._touchSelected = true;
             this.onTouchOk();
         } else {
             this.onTouchSelect(triggered);
@@ -1926,10 +1962,14 @@ class Window_SkillTree extends Window_Selectable {
         if (moved) {
             this._drawState = "updateScroll";
             this.changeSelectNode();
+            this._touchSelected = false;
+        } else {
+            this._touchSelected = true;
         }
     }
 
     onTouchOk() {
+        if (!this._touchSelected) return;
         const localPos = this.getLocalPos();
         const hitNode = this.hitTest(localPos.x, localPos.y);
         if (!hitNode) return;
@@ -1954,17 +1994,22 @@ class Window_SkillTree extends Window_Selectable {
     }
 
     hitTest(x, y) {
-        const [viewX, viewY] = this._skillTreeView.viewXY(); 
         if (this.isContentsArea(x, y)) {
             const cx = x - this.padding;
             const cy = y - this.padding;
             const nodes = this._skillTreeManager.getAllNodes();
             for (const node of Object.values(nodes)) {
                 let [px, py] = SkillTreeView.getPixelXY(node.point);
-                px -= viewX;
-                py -= viewY;
-                let px2 = px + IconWidth;
-                let py2 = py + IconHeight;
+                if (Utils.RPGMAKER_NAME === "MZ") {
+                    px -= this.scrollX();
+                    py -= this.scrollY();
+                } else {
+                    const [viewX, viewY] = this._skillTreeView.viewXY();
+                    px -= viewX;
+                    py -= viewY;
+                }
+                const px2 = px + IconWidth;
+                const py2 = py + IconHeight;
                 if (px <= cx && cx < px2 && py <= cy && cy < py2) {
                     return node;
                 }
@@ -1974,8 +2019,8 @@ class Window_SkillTree extends Window_Selectable {
     }
 
     isContentsArea(x, y) {
-        if (Utils.RPGMAKER_NAME === "MV") return super.isContentsArea(x, y);
-        return true;
+        if (Utils.RPGMAKER_NAME === "MZ") return true;
+        return super.isContentsArea(x, y);
     }
 }
 
@@ -2098,7 +2143,7 @@ class SkillTreeView {
                 } else {
                     const width = IconWidth + ViewRectOfs * 2;
                     const height = IconHeight + ViewRectOfs * 2;
-                    this.drawRect(bitmap, ViewRectColor, x, y, width, height);
+                    this.drawRect(bitmap, ViewRectColor, x, y, width, height, 2);
                 }
             }
         }
@@ -2185,8 +2230,14 @@ class SkillTreeView {
     createView() {
         this._skillTreeManager.makePoint();
         const [maxPx, maxPy] = this.maxPxy();
-        const width = Math.ceil(maxPx / this._windowWidth) * this._windowWidth * 1.5;
-        const height = Math.ceil(maxPy / this._windowHeight) * this._windowHeight * 1.5;
+        let width, height;
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            width = maxPx + IconWidth + ViewBeginXOffset;
+            height = maxPy + IconHeight + ViewBeginYOffset;
+        } else {
+            width = Math.ceil(maxPx / this._windowWidth) * this._windowWidth + IconWidth + IconSpaceWidth;
+            height = Math.ceil(maxPy / this._windowHeight) * this._windowHeight + IconHeight + IconSpaceHeight;
+        }
         const bitmap = new Bitmap(width, height);
         this.viewDrawLine(bitmap);
         this.viewDrawNode(bitmap);
@@ -2197,13 +2248,11 @@ class SkillTreeView {
         this._skillTreeManager.makePoint();
         const selectNode = this._skillTreeManager.selectNode();
         const [px, py] = SkillTreeView.getPixelXY(selectNode.point);
-        const [viewX, viewY] = this.viewXY();
-        return {
-            x: px - ViewCursorOfs - viewX,
-            y: py - ViewCursorOfs - viewY,
-            width: IconWidth + ViewCursorOfs * 2,
-            height: IconHeight + ViewCursorOfs * 2
-        };
+        const x = px - ViewCursorOfs;
+        const y = py - ViewCursorOfs;
+        const w = IconWidth + ViewCursorOfs * 2;
+        const h = IconHeight + ViewCursorOfs * 2;
+        return new Rectangle(x, y, w, h);
     }
 
     drawLine(bitmap, x1, y1, x2, y2, color) {
@@ -2217,10 +2266,10 @@ class SkillTreeView {
         ctx.stroke();
     }
 
-    drawRect(bitmap, style, x, y, width, height) {
+    drawRect(bitmap, style, x, y, width, height, rectLineWidth) {
         const ctx = bitmap._context;
         ctx.strokeStyle = style;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = rectLineWidth;
         ctx.strokeRect(x, y, width, height);
     }
 
