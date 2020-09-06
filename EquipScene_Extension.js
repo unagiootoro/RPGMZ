@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc 装備シーン拡張 v1.0.0
+@plugindesc 装備シーン拡張 v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipScene_Extension.js
 
@@ -15,11 +15,12 @@
 @desc LayoutMode = 2のときのアクターの顔グラフィックの高さを指定します。
 
 @param DefaultEquipSlots
+@type string
 @default [1, 2, 3, 4, 5]
 @desc デフォルトの装備スロットです。スロット順に装備タイプIDを指定します。
 
 @param WeaponTypes
-@type number
+@type string
 @default [1]
 @desc 武器の装備タイプIDの一覧を指定します。
 
@@ -33,14 +34,26 @@
 @default 1
 @desc 二刀流時に書き換える装備タイプIDを指定します。
 
+@param RemoveEquipText
+@type string
+@default 外す
+@desc 武器を外すときの空枠に表示する文言を指定します。
+
+@param RemoveEquipIconIndex
+@type number
+@default 0
+@desc 武器を外すときの空枠に表示するアイコンを指定します。
+
 @help
 装備シーンを拡張するプラグインです。
 このプラグインを導入することで、装備画面のレイアウト変更と装備スロットの拡張ができるようになります。
+
 
 [レイアウト変更]
 LayoutModeを設定することで、装備スロットと装備アイテムを同時表示するようにレイアウトを変更します。
 LayoutModeに1を設定した場合は、ステータス画面はそのままで、装備アイテムは1行で表示します。
 LayoutModeに2を設定した場合は、ステータス画面を縮小し、装備アイテムを2行で表示します。
+
 
 [装備スロット拡張]
 装備スロットごとに装備タイプを割り当てる機能です。
@@ -60,8 +73,16 @@ LayoutModeに2を設定した場合は、ステータス画面を縮小し、装
 ■複数系統の武器
 プラグインパラメータ「WeaponTypes」で武器系統を複数設定することができます。
 これによって、防具が身体、頭、盾と分かれているのと同じように武器も系統ごとに分けることができるようになります。
-(設定例)
+(プラグインパラメータ「WeaponTypes」の設定例)
 [1, 2]
+
+次に武器に武器タイプを持たせます。
+武器のメモ欄に
+<WeaponType: 武器タイプID>
+という形式で記載します。この設定を記載しなかった場合、武器タイプIDは1になります。
+(武器タイプIDの設定例)
+<WeaponType: 2>
+
 
 [ライセンス]
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -94,13 +115,24 @@ const DualWieldSlot = parseInt(params["DualWieldSlot"]);
 const DefaultEquipSlots = parseNumberArray(params, "DefaultEquipSlots");
 const WeaponTypes = parseNumberArray(params, "WeaponTypes");
 const WeaponTypeWhenDualWield = parseInt(params["WeaponTypeWhenDualWield"]);
-
+const RemoveEquipText = params["RemoveEquipText"];
+const RemoveEquipIconIndex = parseInt(params["RemoveEquipIconIndex"]);
 
 // Change equip layout.
 const _Scene_Equip_start = Scene_Equip.prototype.start;
 Scene_Equip.prototype.start = function() {
     _Scene_Equip_start.call(this);
     if (LayoutMode >= 1) this._itemWindow.show();
+};
+
+const _Scene_Equip_update = Scene_Equip.prototype.update;
+Scene_Equip.prototype.update = function() {
+    _Scene_Equip_update.call(this);
+    if (this._slotWindow.active || this._itemWindow.active) {
+        this._itemWindow.setDrawState("draw");
+    } else {
+        this._itemWindow.setDrawState("undraw");
+    }
 };
 
 Scene_Equip.prototype.slotWindowRect = function() {
@@ -187,6 +219,20 @@ Scene_Equip.prototype.onItemCancel = function() {
     }
 };
 
+Scene_Equip.prototype.onActorChange = function() {
+    Scene_MenuBase.prototype.onActorChange.call(this);
+    this.refreshActor();
+    if (LayoutMode >= 1) {
+        this._itemWindow.deselect();
+        this._itemWindow.deactivate();
+    } else {
+        this.hideItemWindow();
+    }
+    this._slotWindow.deselect();
+    this._slotWindow.deactivate();
+    this._commandWindow.activate();
+};
+
 
 Window_EquipItem.prototype.maxCols = function() {
     if (LayoutMode === 2) return 2;
@@ -204,7 +250,8 @@ Window_EquipStatus.prototype.refresh = function() {
     this.contents.clear();
     if (this._actor) {
         const nameRect = this.itemLineRect(0);
-        this.drawActorName(this._actor, nameRect.x, 0, nameRect.width);
+        nameRect.width = this.width - ImageManager.faceWidth - this.padding * 2;
+        this.drawActorName(this._actor, ImageManager.faceWidth, 0, nameRect.width);
         let faceHeight = ImageManager.faceHeight;
         if (LayoutMode === 2) faceHeight = ActorFaceHeight;
         let faceY = nameRect.height;
@@ -223,22 +270,60 @@ Window_EquipStatus.prototype.paramY = function(index) {
     }
 };
 
-Scene_Equip.prototype.onActorChange = function() {
-    Scene_MenuBase.prototype.onActorChange.call(this);
-    this.refreshActor();
-    if (LayoutMode >= 1) {
-        this._itemWindow.deselect();
-        this._itemWindow.deactivate();
-    } else {
-        this.hideItemWindow();
+const _Window_EquipItem_initialize = Window_EquipItem.prototype.initialize;
+Window_EquipItem.prototype.initialize = function(rect) {
+    _Window_EquipItem_initialize.call(this, rect);
+    this._drawState = "undraw";
+}
+
+// drawState is "undraw" or "draw".
+Window_EquipItem.prototype.setDrawState = function(drawState) {
+    if (this._drawState !== drawState) {
+        this._drawState = drawState;
+        this.refresh();
     }
-    this._slotWindow.deselect();
-    this._slotWindow.deactivate();
-    this._commandWindow.activate();
+}
+
+Window_EquipItem.prototype.drawItem = function(index) {
+    const item = this.itemAt(index);
+    if (item) {
+        const numberWidth = this.numberWidth();
+        const rect = this.itemLineRect(index);
+        this.changePaintOpacity(this.isEnabled(item));
+        this.drawItemName(item, rect.x, rect.y, rect.width - numberWidth);
+        this.drawItemNumber(item, rect.x, rect.y, rect.width);
+        this.changePaintOpacity(1);
+    } else {
+        const numberWidth = this.numberWidth();
+        const rect = this.itemLineRect(index);
+        const removeEquip = { name: RemoveEquipText, iconIndex: RemoveEquipIconIndex };
+        this.drawItemName(removeEquip, rect.x, rect.y, rect.width - numberWidth);
+    }
 };
 
+const _Window_EquipItem_makeItemList = Window_EquipItem.prototype.makeItemList;
+Window_EquipItem.prototype.makeItemList = function() {
+    if (this._drawState === "draw") {
+        _Window_EquipItem_makeItemList.call(this);
+    } else {
+        this._data = [];
+    }
+};
 
 // Extend equip slots.
+const _Scene_Boot_start = Scene_Boot.prototype.start;
+Scene_Boot.prototype.start = function() {
+    _Scene_Boot_start.call(this);
+    DataManager.setupWeaponTypes();
+};
+
+DataManager.setupWeaponTypes = function() {
+    for (let i = 1; i < $dataWeapons.length; i++) {
+        const weapon = $dataWeapons[i];
+        if (weapon.meta.WeaponType) weapon.etypeId = parseInt(weapon.meta.WeaponType);
+    }
+};
+
 Game_Actor.prototype.baseEquipSlots = function() {
     if (this.actor().meta.EquipSlots) {
         return JSON.parse(this.actor().meta.EquipSlots);
