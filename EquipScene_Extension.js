@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc 装備シーン拡張 v1.1.0
+@plugindesc 装備シーン拡張 v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipScene_Extension.js
 
@@ -33,6 +33,16 @@
 @type number
 @default 1
 @desc 二刀流時に書き換える装備タイプIDを指定します。
+
+@param NotMultiEquipWeapon
+@type number[]
+@default []
+@desc 複数装備を禁止する武器タイプIDを指定します。
+
+@param NotMultiEquipArmor
+@type number[]
+@default []
+@desc 複数装備を禁止する防具タイプIDを指定します。
 
 @param RemoveEquipText
 @type string
@@ -83,6 +93,11 @@ LayoutModeに2を設定した場合は、ステータス画面を縮小し、装
 (武器タイプIDの設定例)
 <WeaponType: 2>
 
+■同じタイプの武器/防具の装備を禁止する
+この機能は、二刀流のキャラは両手剣を複数装備できないようにしたい場合などに使用します。
+プラグインパラメータ「NotMultiEquipWeapon」または「NotMultiEquipArmor」に
+複数装備を禁止する武器/防具タイプIDを記載すると、
+該当するタイプIDを持つ武器/防具は複数装備ができなくなります。
 
 [ライセンス]
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -99,7 +114,13 @@ const parseNumberArray = (params, paramName) => {
         const param = params[paramName]
         const slots = eval(param);
         for (const i of slots) {
-            if (typeof i !== "number") throw new Error();
+            if (typeof i !== "number") {
+                if (typeof i === "string") {
+                    slots[i] = parseInt(i);
+                } else {
+                    throw new Error();
+                }
+            }
         }
         return slots;
     } catch(e) {
@@ -115,6 +136,8 @@ const DualWieldSlot = parseInt(params["DualWieldSlot"]);
 const DefaultEquipSlots = parseNumberArray(params, "DefaultEquipSlots");
 const WeaponTypes = parseNumberArray(params, "WeaponTypes");
 const WeaponTypeWhenDualWield = parseInt(params["WeaponTypeWhenDualWield"]);
+const NotMultiEquipWeapon = parseNumberArray(params, "NotMultiEquipWeapon");
+const NotMultiEquipArmor = parseNumberArray(params, "NotMultiEquipArmor");
 const RemoveEquipText = params["RemoveEquipText"];
 const RemoveEquipIconIndex = parseInt(params["RemoveEquipIconIndex"]);
 
@@ -345,9 +368,37 @@ Game_Actor.prototype.equipSlots = function() {
     return slots;
 };
 
+Game_Actor.prototype.canMultiEquipWeapon = function(weapon) {
+    if (!NotMultiEquipWeapon.includes(weapon.wtypeId)) return true;
+    const equipWeaponIds = this._equips.filter(equip => DataManager.isWeapon(equip.object()))
+                                      .map(data => data.object().id);
+    return equipWeaponIds.filter(id => id === weapon.id).length === 0;
+    
+};
+
+Game_Actor.prototype.canMultiEquipArmor = function(armor) {
+    if (!NotMultiEquipArmor.includes(armor.atypeId)) return true;
+    const equipArmorIds = this._equips.filter(equip => DataManager.isArmor(equip.object()))
+                                      .map(data => data.object().id);
+    return equipArmorIds.filter(id => id === armor.id).length === 0;
+};
+
 Window_StatusBase.prototype.actorSlotName = function(actor, index) {
     const slots = actor.equipSlots();
     return $dataSystem.equipTypes[slots[index]];
+};
+
+// Prohibit the equipment of multiple same items.
+const _Window_EquipItem_includes = Window_EquipItem.prototype.includes;
+Window_EquipItem.prototype.includes = function(item) {
+    const result = _Window_EquipItem_includes.call(this, item);
+    if (!item) return result;
+    if (!result) return false;
+    if (DataManager.isWeapon(item)) {
+        return this._actor.canMultiEquipWeapon(item);
+    } else {
+        return this._actor.canMultiEquipArmor(item);
+    }
 };
 
 
