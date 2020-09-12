@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc 装備シーン拡張 v1.2.0
+@plugindesc 装備シーン拡張 v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipScene_Extension.js
 
@@ -370,17 +370,42 @@ Game_Actor.prototype.equipSlots = function() {
 
 Game_Actor.prototype.canMultiEquipWeapon = function(weapon) {
     if (!NotMultiEquipWeapon.includes(weapon.wtypeId)) return true;
-    const equipWeaponIds = this._equips.filter(equip => DataManager.isWeapon(equip.object()))
-                                      .map(data => data.object().id);
-    return equipWeaponIds.filter(id => id === weapon.id).length === 0;
+    const equipWeapon = this._equips.filter(equip => DataManager.isWeapon(equip.object()))
+                                      .map(data => data.object());
+    return equipWeapon.filter(weapon => NotMultiEquipWeapon.includes(weapon.wtypeId)).length === 0;
     
 };
 
 Game_Actor.prototype.canMultiEquipArmor = function(armor) {
     if (!NotMultiEquipArmor.includes(armor.atypeId)) return true;
-    const equipArmorIds = this._equips.filter(equip => DataManager.isArmor(equip.object()))
-                                      .map(data => data.object().id);
-    return equipArmorIds.filter(id => id === armor.id).length === 0;
+    const equipArmor = this._equips.filter(equip => DataManager.isArmor(equip.object()))
+                                      .map(data => data.object());
+    return equipArmor.filter(armor => NotMultiEquipArmor.includes(armor.atypeId)).length === 0;
+};
+
+Game_Actor.prototype.canMultiEquip = function(item) {
+    if (DataManager.isWeapon(item)) {
+        return this.canMultiEquipWeapon(item);
+    } else {
+        return this.canMultiEquipArmor(item);
+    }
+};
+
+Game_Actor.prototype.bestEquipItem = function(slotId) {
+    const etypeId = this.equipSlots()[slotId];
+    const items = $gameParty
+        .equipItems()
+        .filter(item => item.etypeId === etypeId && this.canEquip(item) && this.canMultiEquip(item));
+    let bestItem = null;
+    let bestPerformance = -1000;
+    for (let i = 0; i < items.length; i++) {
+        const performance = this.calcEquipItemPerformance(items[i]);
+        if (performance > bestPerformance) {
+            bestPerformance = performance;
+            bestItem = items[i];
+        }
+    }
+    return bestItem;
 };
 
 Window_StatusBase.prototype.actorSlotName = function(actor, index) {
@@ -394,11 +419,7 @@ Window_EquipItem.prototype.includes = function(item) {
     const result = _Window_EquipItem_includes.call(this, item);
     if (!item) return result;
     if (!result) return false;
-    if (DataManager.isWeapon(item)) {
-        return this._actor.canMultiEquipWeapon(item);
-    } else {
-        return this._actor.canMultiEquipArmor(item);
-    }
+    return this._actor.canMultiEquip(item);
 };
 
 
