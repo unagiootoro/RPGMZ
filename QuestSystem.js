@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc クエストシステム v0.1.0
+@plugindesc クエストシステム v0.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 
@@ -751,8 +751,9 @@ const QuestReportMe = params.QuestReportMe;
 const Text = params.Text;
 
 class Scene_QuestSystem extends Scene_MenuBase {
-    prepare(filterCommandList = null) {
+    prepare(filterCommandList, sceneMode) {
         this._filterCommandList = filterCommandList;
+        this._sceneMode = sceneMode;
     }
 
     create() {
@@ -923,20 +924,24 @@ class Scene_QuestSystem extends Scene_MenuBase {
     }
 
     onQuestListOk() {
-        const questData = this._questListWindow.questData();
-        switch(questData.state()) {
-        case "notOrdered":
-            this.change_QuestListWindow_To_QuestOrderWindow();
-            break;
-        case "ordering":
-            this.change_QuestListWindow_To_QuestCancelWindow();
-            break;
-        case "reportable":
-            this.change_QuestListWindow_To_QuestReportWindow();
-            break;
-        default:
+        if (this._sceneMode === "menu") {
             this._questListWindow.activate();
-            break;
+        } else {
+            const questData = this._questListWindow.questData();
+            switch(questData.state()) {
+            case "notOrdered":
+                this.change_QuestListWindow_To_QuestOrderWindow();
+                break;
+            case "ordering":
+                this.change_QuestListWindow_To_QuestCancelWindow();
+                break;
+            case "reportable":
+                this.change_QuestListWindow_To_QuestReportWindow();
+                break;
+            default:
+                this._questListWindow.activate();
+                break;
+            }
         }
     }
 
@@ -1476,7 +1481,7 @@ PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", args => 
     const parser = new PluginParamsParser();
     const params = parser.parse(args, { QuestFilterCommands: ["string"] });
     const filterCommands = (params.QuestFilterCommands.length === 0 ? null : params.QuestFilterCommands);
-    SceneManager.prepareNextScene(filterCommands);
+    SceneManager.prepareNextScene(filterCommands, "guild");
 });
 
 PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", args => {
@@ -1519,7 +1524,7 @@ Scene_Menu.prototype.createCommandWindow = function() {
 
 Scene_Menu.prototype.quest = function() {
     SceneManager.push(Scene_QuestSystem);
-    SceneManager.prepareNextScene(MenuFilterCommands);
+    SceneManager.prepareNextScene(MenuFilterCommands, "menu");
 };
 
 
