@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc クエストシステム v0.1.2
+@plugindesc クエストシステム v0.1.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 
@@ -16,27 +16,56 @@
 各クエストは状態(未受注、報告済み など)を持ち、その状態は変数によって管理します。
 変数の値が持つ意味は以下の通りです。
 0: クエスト未登録
+　　　登録されておらず、一覧に表示されないクエスト
 1: クエスト未受注
-2: クエスト受注中
+　　　未受注のクエスト
+2: クエスト進行中
+　　　受注を行い、進行中のクエスト
 3: クエスト報告可能
+　　　依頼を達成し、報告可能となったクエスト
 4: クエスト報告済み
+　　　報告を行ったクエスト
 5: クエスト失敗
+　　　失敗したクエスト
 6: クエスト期限切れ
+　　　期限切れとなったクエスト
 7: 隠しクエスト
+　　　概要のみ分かる謎のクエスト
 
 ■クエストプラグインが行う状態管理について
 クエストプラグインでは、次の状態管理のみを行います。
-・未受注のクエストを受注中にする
-・報告可能のクエストを報告済みにする
+・クエストを受注したとき、状態を未受注から進行中にする
+・クエストを報告したとき、状態を報告可から報告済みにする
+・進行中のクエストをキャンセルしたとき、状態を進行中から未受注にする
 
 上記以外の状態にする場合はイベントコマンドで変数の値を変更する必要があります。
 
-■クエストシーン開始
-プラグインコマンド「StartQuestScene」を実行すると、クエストシーンを開始します。
+■報酬の受け取り
+クエストの報酬は、報告を行ったタイミングで受け取ります。
 
-フィルターコマンドを指定することで、クエスト一覧にフィルターをかけることができます。
-ここでいうフィルターとは、クエスト一覧から、未受注、報告済みなどのクエストの状態ごとに
-クエストを分類することを表します。
+■クエストシーン開始
+クエストシーンは次の二通りの方法によって開始することができます。
+・メニューから「クエスト管理」を呼び出す
+・プラグインコマンド「StartQuestScene」を実行する
+
+この二つは主に次のように使い分けることを想定しています。
+プラグインコマンド：依頼所のような施設を作り、そこでクエストの受注と報告を行う。
+メニュー：各クエストの状況を確認する。
+
+■クエストコマンド
+クエストコマンドは、クエストの分類、およびクエストの受注と報告を行うための
+コマンドを管理するために使用します。
+
+クエストコマンドには以下の種類があります。
+all: 全てのクエストを表示する
+notOrdered: 未受注のクエストを表示する
+ordering: 進行中のクエストを表示する
+cancelOrder: 進行中のクエストについて、クエストの受注をキャンセルする
+reportable: 報告可能なクエストについて、報告済みにして報酬を受け取る
+reported: 報告済みのクエストを表示する
+failed: 失敗したクエストを表示する
+expired: 期限切れのクエストを表示する
+hidden: 隠しクエストを表示する
 
 
 【ライセンス】
@@ -432,13 +461,13 @@
 
 @param OrderingStateText
 @type string
-@default 受注中
+@default 進行中
 @desc
 受注中の状態のテキストを指定します。
 
 @param ReportableStateText
 @type string
-@default 報告可能
+@default 報告可
 @desc
 報告可能の状態のテキストを指定します。
 
@@ -629,33 +658,6 @@ class RewardData {
 }
 
 class QuestData {
-    static get STATE_TABLE() {
-        // none: Cannot accept orders
-        // notOrdered: Not ordered
-        // ordering: In the middle of ordering
-        // reportable: Can report
-        // reported: Report completed
-        // failed: The quest failed
-        // expired: Expired quest
-        // hidden: Hidden quest
-        return [
-            ["none", 0, ""],
-            ["notOrdered", 1, Text.NotOrderedStateText, Text.NotOrderedCommandText],
-            ["ordering", 2, Text.OrderingStateText, Text.OrderingCommandText],
-            ["reportable", 3, Text.ReportableStateText, Text.ReportableCommandText],
-            ["reported", 4, Text.ReportedStateText, Text.ReportedCommandText],
-            ["failed", 5, Text.FailedStateText, Text.FailedCommandText],
-            ["expired", 6, Text.ExpiredStateText, Text.ExpiredCommandText],
-            ["hidden", 7, Text.HiddenStateText, Text.HiddenCommandText],
-        ];
-    }
-
-    static commandText(state) {
-        const data = QuestData.stateTable().find(data => data[0] === state);
-        if (!data) throw new Error(`${state} is not found`);
-        return data[3];
-    }
-
     static fromParam(questDataParam) {
         const variableId = questDataParam.VariableId;
         const title = questDataParam.Title;
@@ -700,12 +702,12 @@ class QuestData {
     set detail(_detail) { this._detail = _detail; }
 
     state() {
-        const data = QuestData.STATE_TABLE[$gameVariables.value(this._variableId)];
+        const data = STATE_LIST.find(data => data[1] === $gameVariables.value(this._variableId));
         return data ? data[0] : "none";
     }
 
     setState(state) {
-        const data = QuestData.STATE_TABLE.find(data => data[0] === state);
+        const data = STATE_LIST.find(data => data[0] === state);
         if (data) $gameVariables.setValue(this._variableId, data[1]);
     }
 
@@ -716,7 +718,7 @@ class QuestData {
     }
 
     stateText() {
-        const data = QuestData.STATE_TABLE.find(data => data[0] === this.state());
+        const data = STATE_LIST.find(data => data[0] === this.state());
         return data[2];
     }
 }
@@ -751,10 +753,32 @@ const QuestOrderSe = params.QuestOrderSe;
 const QuestReportMe = params.QuestReportMe;
 const Text = params.Text;
 
+const STATE_LIST = [
+    ["none", 0, ""],
+    ["notOrdered", 1, Text.NotOrderedStateText, Text.NotOrderedCommandText],
+    ["ordering", 2, Text.OrderingStateText, Text.OrderingCommandText],
+    ["reportable", 3, Text.ReportableStateText, Text.ReportableCommandText],
+    ["reported", 4, Text.ReportedStateText, Text.ReportedCommandText],
+    ["failed", 5, Text.FailedStateText, Text.FailedCommandText],
+    ["expired", 6, Text.ExpiredStateText, Text.ExpiredCommandText],
+    ["hidden", 7, Text.HiddenStateText, Text.HiddenCommandText],
+];
+
+const COMMAND_TABLE = {
+    "all": [null, Text.AllCommandText],
+    "notOrdered": [["notOrdered"], Text.NotOrderedCommandText],
+    "ordering": [["ordering", "reportable"], Text.OrderingCommandText],
+    "cancelOrder": [["ordering"], Text.CancelCommandText],
+    "reportable": [["reportable"], Text.ReportableCommandText],
+    "reported": [["reported"], Text.ReportedCommandText],
+    "failed": [["failed"], Text.FailedCommandText],
+    "expired": [["expired"], Text.ExpiredCommandText],
+    "hidden": [["hidden"], Text.HiddenCommandText],
+};
+
 class Scene_QuestSystem extends Scene_MenuBase {
-    prepare(commandList, sceneMode) {
+    prepare(commandList) {
         this._commandList = commandList;
-        this._sceneMode = sceneMode;
     }
 
     create() {
@@ -1093,20 +1117,6 @@ class Scene_QuestSystem extends Scene_MenuBase {
 }
 
 class Window_QuestCommand extends Window_Command {
-    static get COMMAND_LIST() {
-        return {
-            "all": [null, Text.AllCommandText],
-            "notOrdered": [["notOrdered"], Text.NotOrderedCommandText],
-            "ordering": [["ordering", "reportable"], Text.OrderingCommandText],
-            "cancelOrder": [["ordering"], Text.CancelCommandText],
-            "reportable": [["reportable"], Text.ReportableCommandText],
-            "reported": [["reported"], Text.ReportedCommandText],
-            "failed": [["failed"], Text.FailedCommandText],
-            "expired": [["expired"], Text.ExpiredCommandText],
-            "hidden": [["hidden"], Text.HiddenCommandText],
-        };
-    }
-
     initialize(rect, commandList) {
         this._commandList = commandList;
         super.initialize(rect);
@@ -1121,7 +1131,7 @@ class Window_QuestCommand extends Window_Command {
 
     makeCommandList() {
         for (const command of this._commandList) {
-            const commandData = Window_QuestCommand.COMMAND_LIST[command];
+            const commandData = COMMAND_TABLE[command];
             if (commandData) {
                 this.addCommand(commandData[1], command);
             } else {
@@ -1132,7 +1142,7 @@ class Window_QuestCommand extends Window_Command {
 
     filterQuestList() {
         if (this.currentSymbol() === "all") return QuestDatas.filter(data => data.state() !== "none");
-        const commandData = Window_QuestCommand.COMMAND_LIST[this.currentSymbol()];
+        const commandData = COMMAND_TABLE[this.currentSymbol()];
         return QuestDatas.filter(quest => commandData[0].includes(quest.state()));
     }
 }
@@ -1489,7 +1499,7 @@ PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", args => 
     const parser = new PluginParamsParser();
     const params = parser.parse(args, { QuestCommands: ["string"] });
     const commands = (params.QuestCommands.length === 0 ? null : params.QuestCommands);
-    SceneManager.prepareNextScene(commands, "guild");
+    SceneManager.prepareNextScene(commands);
 });
 
 PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", args => {
@@ -1532,7 +1542,7 @@ Scene_Menu.prototype.createCommandWindow = function() {
 
 Scene_Menu.prototype.quest = function() {
     SceneManager.push(Scene_QuestSystem);
-    SceneManager.prepareNextScene(MenuCommands, "menu");
+    SceneManager.prepareNextScene(MenuCommands);
 };
 
 
