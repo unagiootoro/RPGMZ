@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc クエストシステム v0.1.1
+@plugindesc クエストシステム v0.1.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 
@@ -60,7 +60,7 @@
 @desc
 メニューのクエスト管理画面の有効/無効を判定するスイッチIDを指定します。
 
-@param MenuFilterCommands
+@param MenuCommands
 @type string[]
 @default ["all"]
 @desc
@@ -122,7 +122,7 @@
 @text クエストシーン開始
 @desc クエストシーンを開始します。
 
-@arg QuestFilterCommands
+@arg QuestCommands
 @type string[]
 @text フィルターコマンド
 @desc フィルターコマンドを指定します。
@@ -364,7 +364,7 @@
 @desc
 報酬を受け取った時に表示するメッセージを指定します。
 
-@param AllQuestText
+@param AllCommandText
 @type string
 @default 全クエスト
 @desc
@@ -385,6 +385,12 @@
 @param OrderingCommandText
 @type string
 @default 進行中のクエスト
+@desc
+受注中のテキストを指定します。
+
+@param CancelCommandText
+@type string
+@default クエストのキャンセル
 @desc
 受注中のテキストを指定します。
 
@@ -623,7 +629,7 @@ class RewardData {
 }
 
 class QuestData {
-    static stateTable() {
+    static get STATE_TABLE() {
         // none: Cannot accept orders
         // notOrdered: Not ordered
         // ordering: In the middle of ordering
@@ -642,12 +648,6 @@ class QuestData {
             ["expired", 6, Text.ExpiredStateText, Text.ExpiredCommandText],
             ["hidden", 7, Text.HiddenStateText, Text.HiddenCommandText],
         ];
-    }
-
-    static stateText(state) {
-        const data = QuestData.stateTable().find(data => data[0] === state);
-        if (!data) throw new Error(`${state} is not found`);
-        return data[2];
     }
 
     static commandText(state) {
@@ -700,12 +700,12 @@ class QuestData {
     set detail(_detail) { this._detail = _detail; }
 
     state() {
-        const data = QuestData.stateTable()[$gameVariables.value(this._variableId)];
+        const data = QuestData.STATE_TABLE[$gameVariables.value(this._variableId)];
         return data ? data[0] : "none";
     }
 
     setState(state) {
-        const data = QuestData.stateTable().find(data => data[0] === state);
+        const data = QuestData.STATE_TABLE.find(data => data[0] === state);
         if (data) $gameVariables.setValue(this._variableId, data[1]);
     }
 
@@ -716,12 +716,13 @@ class QuestData {
     }
 
     stateText() {
-        return QuestData.stateText(this.state());
+        const data = QuestData.STATE_TABLE.find(data => data[0] === this.state());
+        return data[2];
     }
 }
 
 const type = {
-    MenuFilterCommands: ["string"],
+    MenuCommands: ["string"],
     QuestDatas: [{
         Rewards: [{}],
     }],
@@ -734,7 +735,7 @@ const params = new PluginParamsParser().parse(PluginManager.parameters(QuestSyst
 
 const EnabledQuestMenu = params.EnabledQuestMenu;
 const EnabledQuestMenuSwitchId = params.EnabledQuestMenuSwitchId;
-const MenuFilterCommands = params.MenuFilterCommands;
+const MenuCommands = params.MenuCommands;
 const DisplayDifficulty = params.DisplayDifficulty;
 const DisplayPlace = params.DisplayPlace;
 const DisplayTimeLimit = params.DisplayTimeLimit;
@@ -751,14 +752,14 @@ const QuestReportMe = params.QuestReportMe;
 const Text = params.Text;
 
 class Scene_QuestSystem extends Scene_MenuBase {
-    prepare(filterCommandList, sceneMode) {
-        this._filterCommandList = filterCommandList;
+    prepare(commandList, sceneMode) {
+        this._commandList = commandList;
         this._sceneMode = sceneMode;
     }
 
     create() {
         super.create();
-        if (UseFilterWindow) this.createQuestFilterWindow();
+        if (UseFilterWindow) this.createQuestCommandWindow();
         this.createQuestListWindow();
         this.createQuestDetailWindow();
         this.createQuestOrderWindow();
@@ -770,8 +771,8 @@ class Scene_QuestSystem extends Scene_MenuBase {
     start() {
         super.start();
         if (UseFilterWindow) {
-            this._questFilterWindow.activate();
-            this._questFilterWindow.select(0);
+            this._questCommandWindow.activate();
+            this._questCommandWindow.select(0);
             this._questDetailWindow.setDrawState("undraw");
         } else {
             this._questListWindow.activate();
@@ -783,7 +784,7 @@ class Scene_QuestSystem extends Scene_MenuBase {
             this._questListWindow.hide();
             this._questListWindow.deactivate();
         }
-        this._questFilterWindow.refresh();
+        this._questCommandWindow.refresh();
         this.resetQuestList();
     }
 
@@ -791,12 +792,12 @@ class Scene_QuestSystem extends Scene_MenuBase {
         super.update();
     }
 
-    createQuestFilterWindow() {
-        this._questFilterWindow = new Window_QuestFilter(this.questFilterWindowRect(), this._filterCommandList);
-        this._questFilterWindow.setHandler("ok", this.onQuestFilterOk.bind(this));
-        this._questFilterWindow.setHandler("cancel", this.onQuestFilterCancel.bind(this));
-        this._questFilterWindow.setHandler("select", this.onQuestFilterSelect.bind(this));
-        this.addWindow(this._questFilterWindow);
+    createQuestCommandWindow() {
+        this._questCommandWindow = new Window_QuestCommand(this.questCommandWindowRect(), this._commandList);
+        this._questCommandWindow.setHandler("ok", this.onQuestCommandOk.bind(this));
+        this._questCommandWindow.setHandler("cancel", this.onQuestCommandCancel.bind(this));
+        this._questCommandWindow.setHandler("select", this.onQuestCommandSelect.bind(this));
+        this.addWindow(this._questCommandWindow);
     }
 
     createQuestListWindow() {
@@ -843,7 +844,7 @@ class Scene_QuestSystem extends Scene_MenuBase {
     }
 
     // Window rectangle
-    questFilterWindowRect() {
+    questCommandWindowRect() {
         const x = 0;
         let y = 0;
         if (!this.isBottomButtonMode()) y += this.buttonAreaHeight();
@@ -855,10 +856,10 @@ class Scene_QuestSystem extends Scene_MenuBase {
     }
 
     questListWindowRect() {
-        const questFilterWindowRect = this.questFilterWindowRect();
+        const questCommandWindowRect = this.questCommandWindowRect();
         const x = 0;
-        let y = questFilterWindowRect.y + questFilterWindowRect.height;
-        if (!ShowFilterWindowAndListWindow) y = questFilterWindowRect.y;
+        let y = questCommandWindowRect.y + questCommandWindowRect.height;
+        if (!ShowFilterWindowAndListWindow) y = questCommandWindowRect.y;
         const w = 300;
         let h = Graphics.boxHeight - y;
         if (this.isBottomButtonMode()) h -= this.buttonAreaHeight();
@@ -866,19 +867,19 @@ class Scene_QuestSystem extends Scene_MenuBase {
     }
 
     questDetailWindowRect() {
-        const questFilterWindowRect = this.questFilterWindowRect();
+        const questCommandWindowRect = this.questCommandWindowRect();
         const questListWindowRect = this.questListWindowRect();
         const x = questListWindowRect.x + questListWindowRect.width;
         let y;
         if (UseFilterWindow && ShowFilterWindowAndListWindow) {
-            y = questFilterWindowRect.y;
+            y = questCommandWindowRect.y;
         } else {
             y = questListWindowRect.y;
         }
         const w = Graphics.boxWidth - x;
         let h;
         if (UseFilterWindow && ShowFilterWindowAndListWindow) {
-            h = questFilterWindowRect.height + questListWindowRect.height;
+            h = questCommandWindowRect.height + questListWindowRect.height;
         } else {
             h = questListWindowRect.height;
         }
@@ -910,44 +911,39 @@ class Scene_QuestSystem extends Scene_MenuBase {
     }
 
     // Define window handlers
-    onQuestFilterOk() {
-        this.change_QuestFilterWindow_To_QuestListWindow();
+    onQuestCommandOk() {
+        this.change_QuestCommandWindow_To_QuestListWindow();
         this.onQuestListSelect();
     }
 
-    onQuestFilterCancel() {
+    onQuestCommandCancel() {
         this.popScene();
     }
 
-    onQuestFilterSelect() {
+    onQuestCommandSelect() {
         this.resetQuestList();
     }
 
     onQuestListOk() {
-        if (this._sceneMode === "menu") {
+        switch(this._questCommandWindow.currentSymbol()) {
+        case "notOrdered":
+            this.change_QuestListWindow_To_QuestOrderWindow();
+            break;
+        case "cancelOrder":
+            this.change_QuestListWindow_To_QuestCancelWindow();
+            break;
+        case "reportable":
+            this.change_QuestListWindow_To_QuestReportWindow();
+            break;
+        default:
             this._questListWindow.activate();
-        } else {
-            const questData = this._questListWindow.questData();
-            switch(questData.state()) {
-            case "notOrdered":
-                this.change_QuestListWindow_To_QuestOrderWindow();
-                break;
-            case "ordering":
-                this.change_QuestListWindow_To_QuestCancelWindow();
-                break;
-            case "reportable":
-                this.change_QuestListWindow_To_QuestReportWindow();
-                break;
-            default:
-                this._questListWindow.activate();
-                break;
-            }
+            break;
         }
     }
 
     onQuestListCancel() {
         if (UseFilterWindow) {
-            this.change_QuestListWindow_To_QuestFilterWindow();
+            this.change_QuestListWindow_To_QuestCommandWindow();
         } else {
             this.popScene();
         }
@@ -1011,21 +1007,21 @@ class Scene_QuestSystem extends Scene_MenuBase {
     }
 
     // Change window
-    change_QuestFilterWindow_To_QuestListWindow() {
-        this._questFilterWindow.deactivate();
+    change_QuestCommandWindow_To_QuestListWindow() {
+        this._questCommandWindow.deactivate();
         this._questListWindow.show();
         this._questListWindow.activate();
         this._questListWindow.select(0);
     }
 
-    change_QuestListWindow_To_QuestFilterWindow() {
+    change_QuestListWindow_To_QuestCommandWindow() {
         this._questDetailWindow.setQuestData(null);
         this._questDetailWindow.setDrawState("undraw");
         this._questDetailWindow.refresh();
         if (!ShowFilterWindowAndListWindow) this._questListWindow.hide();
         this._questListWindow.deactivate();
         this._questListWindow.select(-1);
-        this._questFilterWindow.activate();
+        this._questCommandWindow.activate();
     }
 
     change_QuestListWindow_To_QuestOrderWindow() {
@@ -1090,17 +1086,29 @@ class Scene_QuestSystem extends Scene_MenuBase {
 
     // Reset quest list window.
     resetQuestList() {
-        const questList = (UseFilterWindow ? this._questFilterWindow.filterQuestList()
+        const questList = (UseFilterWindow ? this._questCommandWindow.filterQuestList()
                                            : QuestDatas.filter(data => data.state() !== "none"));
         this._questListWindow.resetQuestList(questList);
     }
 }
 
-class Window_QuestFilter extends Window_Command {
-    static get ALL_FILTER_COMMANDS() { return ["all", "notOrdered", "ordering", "reportable", "reported", "failed", "expired", "hidden"]; }
+class Window_QuestCommand extends Window_Command {
+    static get COMMAND_LIST() {
+        return {
+            "all": [null, Text.AllCommandText],
+            "notOrdered": [["notOrdered"], Text.NotOrderedCommandText],
+            "ordering": [["ordering", "reportable"], Text.OrderingCommandText],
+            "cancelOrder": [["ordering"], Text.CancelCommandText],
+            "reportable": [["reportable"], Text.ReportableCommandText],
+            "reported": [["reported"], Text.ReportedCommandText],
+            "failed": [["failed"], Text.FailedCommandText],
+            "expired": [["expired"], Text.ExpiredCommandText],
+            "hidden": [["hidden"], Text.HiddenCommandText],
+        };
+    }
 
-    initialize(rect, filterCommandList) {
-        this._filterCommandList = filterCommandList || Window_QuestFilter.ALL_FILTER_COMMANDS;
+    initialize(rect, commandList) {
+        this._commandList = commandList;
         super.initialize(rect);
         this.deactivate();
         this.select(-1);
@@ -1112,20 +1120,20 @@ class Window_QuestFilter extends Window_Command {
     }
 
     makeCommandList() {
-        for (const command of this._filterCommandList) {
-            if (command === "all") {
-                this.addCommand(Text.AllQuestText, command);
-            } else if (Window_QuestFilter.ALL_FILTER_COMMANDS.includes(command)) {
-                this.addCommand(QuestData.commandText(command), command);
+        for (const command of this._commandList) {
+            const commandData = Window_QuestCommand.COMMAND_LIST[command];
+            if (commandData) {
+                this.addCommand(commandData[1], command);
             } else {
-                throw new Error(`Unknow filter command ${command}`);
+                throw new Error(`Unknow quest command ${command}`);
             }
         }
     }
 
     filterQuestList() {
         if (this.currentSymbol() === "all") return QuestDatas.filter(data => data.state() !== "none");
-        return QuestDatas.filter(quest => quest.state() === this.currentSymbol());
+        const commandData = Window_QuestCommand.COMMAND_LIST[this.currentSymbol()];
+        return QuestDatas.filter(quest => commandData[0].includes(quest.state()));
     }
 }
 
@@ -1479,9 +1487,9 @@ class Window_QuestGetReward extends Window_Selectable {
 PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", args => {
     SceneManager.push(Scene_QuestSystem);
     const parser = new PluginParamsParser();
-    const params = parser.parse(args, { QuestFilterCommands: ["string"] });
-    const filterCommands = (params.QuestFilterCommands.length === 0 ? null : params.QuestFilterCommands);
-    SceneManager.prepareNextScene(filterCommands, "guild");
+    const params = parser.parse(args, { QuestCommands: ["string"] });
+    const commands = (params.QuestCommands.length === 0 ? null : params.QuestCommands);
+    SceneManager.prepareNextScene(commands, "guild");
 });
 
 PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", args => {
@@ -1524,7 +1532,7 @@ Scene_Menu.prototype.createCommandWindow = function() {
 
 Scene_Menu.prototype.quest = function() {
     SceneManager.push(Scene_QuestSystem);
-    SceneManager.prepareNextScene(MenuFilterCommands, "menu");
+    SceneManager.prepareNextScene(MenuCommands, "menu");
 };
 
 
@@ -1534,7 +1542,7 @@ return {
     RewardData: RewardData,
     QuestData: QuestData,
     Scene_QuestSystem: Scene_QuestSystem,
-    Window_QuestFilter: Window_QuestFilter,
+    Window_QuestCommand: Window_QuestCommand,
     Window_QuestList: Window_QuestList,
     Window_QuestDetail: Window_QuestDetail,
     Window_QuestOrder: Window_QuestOrder,
