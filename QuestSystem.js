@@ -1530,6 +1530,10 @@ class Window_QuestGetReward extends Window_Selectable {
         this._questData = null;
     }
 
+    onTouchOk() {
+        this.processOk();
+    }
+
     setQuestData(questData) {
         this._questData = questData;
     }
