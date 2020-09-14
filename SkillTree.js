@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.5.1
+@plugindesc Skill tree v1.5.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -20,7 +20,7 @@ Set the maximum value of SP that can be acquired.
 @type switch
 @default 0
 @desc
-Specify the ID of the switch that enables/disables the skill tree with the menu command. If you specify 0, the skill tree is always valid.
+Specify the ID of the switch that enables/disables the skill tree with the menu command.
 
 @param EnableGetSpWhenBattleEnd
 @type boolean
@@ -38,7 +38,7 @@ If you set true, you will be able to get SP when you level up.
 @type string
 @default wide
 @desc
-If you set wide, the skill tree will be displayed next to it. If long is set, the skill tree will be displayed vertically.
+wide: Skill tree will be displayed next to it. long: Skill tree will be displayed vertically.
 
 @param EnableMZLayout
 @type boolean
@@ -50,7 +50,7 @@ Set to true to match the layout format of RPG Maker MZ. (MZ limited)
 @type file
 @dir img
 @desc
-Specify the file name of the image that surrounds the acquired skill icon. If left blank, enclose the icon in a straight frame.
+Specify the file name of the image that surrounds the acquired skill icon.
 
 @param IconWidth
 @type number
@@ -159,7 +159,7 @@ Specify the skill tree command name to be displayed in the menu command.
 @type string
 @default Required %1:
 @desc
-Specify the required SP text to be displayed in the skill tree window. The SP name is entered in %1.
+Specify the required SP text to be displayed in the skill tree window. %1:SP name
 
 @param OpenedNodeText
 @type string
@@ -171,7 +171,7 @@ Specifies the text to display in place of the required SP if the skill is alread
 @type string
 @default Do you consume %1%2 and get %3?
 @desc
-The confirmation text is displayed on the screen for selecting whether to acquire skills. %1 is the SP value to be consumed, %2 is the SP name, and %3 is the skill name to be acquired.
+Specifies the text for skill acquisition selection. %1:SP value, %2:SP name, %3:skill name to be acquired
 
 @param NodeOpenYesText
 @type string
@@ -189,13 +189,13 @@ In the selection screen of whether to acquire the skill, specify the text when t
 @type string
 @default I got %1%2.
 @desc
-Specifies the text to display when the SP is obtained at the end of the battle. The acquired SP value will be entered in %1, and the SP name will be entered in %2.
+Specifies the text to display when the SP is obtained at the end of the battle. %1:SP value, %2:SP name
 
 @param LevelUpGetSpText
 @type string
 @default I got %1%2.
 @desc
-Specify the text to display when you get the SP when you level up. The acquired SP value will be entered in %1, and the SP name will be entered in %2.
+Specify the text to display when you get the SP when you level up. %1:SP value, %2:SP name
 
 @help
 A plugin that introduces a skill tree.
@@ -207,7 +207,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.5.1
+@plugindesc スキルツリー v1.5.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -366,7 +366,7 @@ trueを設定すると、RPGツクールMZのレイアウト形式に合わせ�
 @type string
 @default 必要%1：
 @desc
-スキルツリーウィンドウに表示する必要SPのテキストを指定します。%1にはSP名が入ります。
+スキルツリーウィンドウに表示する必要SPのテキストを指定します。%1:SP名
 
 @param OpenedNodeText
 @type string
@@ -378,7 +378,7 @@ trueを設定すると、RPGツクールMZのレイアウト形式に合わせ�
 @type string
 @default %1%2を消費して%3を取得しますか？
 @desc
-スキル取得有無の選択画面で、確認用のテキストを表示します。%1には消費するSP値が、%2にはSP名が、%3には取得するスキル名入ります。
+スキル取得有無の選択画面で、確認用のテキストを表示します。%1:消費するSP値, %2:SP名, %3:取得するスキル名
 
 @param NodeOpenYesText
 @type string
@@ -396,13 +396,13 @@ trueを設定すると、RPGツクールMZのレイアウト形式に合わせ�
 @type string
 @default %1%2を入手した。
 @desc
-戦闘終了時にSPを入手したときに表示するテキストを指定します。%1には取得したSP値が、%2にはSP名が入ります。
+戦闘終了時にSPを入手したときに表示するテキストを指定します。%1:入手するSP値, %2:SP名
 
 @param LevelUpGetSpText
 @type string
 @default %1%2を入手した。
 @desc
-レベルアップ時にSPを入手したときに表示するテキストを指定します。%1には取得したSP値が、%2にはSP名が入ります。
+レベルアップ時にSPを入手したときに表示するテキストを指定します。%1:入手するSP値, %2:SP名
 
 @help
 スキルツリーを導入するプラグインです。
@@ -413,12 +413,11 @@ trueを設定すると、RPGツクールMZのレイアウト形式に合わせ�
 */
 
 const SkillTreePluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
-const SkillTreeClassAlias = {};
 let $skillTreeData = null;
 let $skillTreeConfigLoader = null;
 
 const skt_gainSp = (actorId, value)=> {
-    const actor = $gameParty.members().find(actor => actor.actorId() === actorId);
+    const actor = $gameActors.actor(actorId);
     actor.gainSp(value);
 };
 
@@ -485,7 +484,7 @@ const skt_migrationType = (actorId, fromTypeName, toTypeName, reset) => {
     }
 };
 
-(() => {
+const SkillTreeClassAlias = (() => {
 "use strict";
 
 const params = PluginManager.parameters(SkillTreePluginName);
@@ -536,7 +535,7 @@ class SkillTreeNodeInfo {
     }
 
     actor() {
-        const actor = $gameParty.members().find(actor => actor.actorId() === this._actorId);
+        const actor = $gameActors.actor(this._actorId);
         if (!actor) throw new Error(`actor id: ${this._actorId} is not found.`)
         return actor;
     }
@@ -1019,8 +1018,7 @@ class SkillTreeData {
 
     makeSaveContents() {
         let contents = {};
-        for (const actor of $gameParty.members()) {
-            const actorId = actor.actorId();
+        for (const actorId in this._actorSp) {
             contents[actorId] = { sp: this.sp(actorId) };
             for (const type of this.types(actorId)) {
                 const openeStatus = {};
@@ -1041,8 +1039,8 @@ class SkillTreeData {
     }
 
     loadSaveContents(contents) {
-        for (const actor of $gameParty.members()) {
-            const actorId = actor.actorId();
+        for (let actorId = 1; actorId < $dataActors.length; actorId++) {
+            if (!contents[actorId]) continue;
             this.setSp(actorId, contents[actorId].sp);
             for (const type of this.types(actorId)) {
                 type.setEnabled(contents[type.skillTreeTag()].enabled);
@@ -1706,7 +1704,7 @@ class Window_ActorInfo extends Window_Base {
     }
 
     actor() {
-        const actor = $gameParty.members().find(actor => actor.actorId() === this._actorId);
+        const actor = $gameActors.actor(this._actorId);
         if (!actor) throw new Error(`actor id: ${this._actorId} is not found.`)
         return actor;
     }
@@ -2330,7 +2328,7 @@ Game_Party.prototype.addActor = function(actorId) {
 const _Window_MenuCommand_addOriginalCommands = Window_MenuCommand.prototype.addOriginalCommands;
 Window_MenuCommand.prototype.addOriginalCommands = function() {
     _Window_MenuCommand_addOriginalCommands.call(this);
-    this.addCommand(MenuSkillTreeText, "skillTree", this.isEnabledSkillTree());
+    if (MenuSkillTreeText !== "") this.addCommand(MenuSkillTreeText, "skillTree", this.isEnabledSkillTree());
 };
 
 Window_MenuCommand.prototype.isEnabledSkillTree = function() {
@@ -2475,20 +2473,23 @@ Game_Actor.prototype.changeClass = function(classId, keepExp) {
 
 
 // Define class alias.
-SkillTreeClassAlias.SkillTreeNodeInfo = SkillTreeNodeInfo;
-SkillTreeClassAlias.SkillTreeNode = SkillTreeNode;
-SkillTreeClassAlias.SkillTreeTopNode = SkillTreeTopNode;
-SkillTreeClassAlias.SkillDataType = SkillDataType;
-SkillTreeClassAlias.SkillTreeMapLoader = SkillTreeMapLoader;
-SkillTreeClassAlias.SkillTreeConfigLoadError = SkillTreeConfigLoadError;
-SkillTreeClassAlias.SkillTreeConfigLoader = SkillTreeConfigLoader;
-SkillTreeClassAlias.SkillTreeData = SkillTreeData;
-SkillTreeClassAlias.SkillTreeManager = SkillTreeManager;
-SkillTreeClassAlias.Scene_SkillTree = Scene_SkillTree;
-SkillTreeClassAlias.Window_TypeSelect = Window_TypeSelect;
-SkillTreeClassAlias.Window_ActorInfo = Window_ActorInfo;
-SkillTreeClassAlias.Window_SkillTreeNodeInfo = Window_SkillTreeNodeInfo;
-SkillTreeClassAlias.Window_SkillTree = Window_SkillTree;
-SkillTreeClassAlias.Window_NodeOpen = Window_NodeOpen;
-SkillTreeClassAlias.SkillTreeView = SkillTreeView;
+return {
+    SkillTreeNodeInfo: SkillTreeNodeInfo,
+    SkillTreeNode: SkillTreeNode,
+    SkillTreeTopNode: SkillTreeTopNode,
+    SkillDataType: SkillDataType,
+    SkillTreeMapLoader: SkillTreeMapLoader,
+    SkillTreeConfigLoadError: SkillTreeConfigLoadError,
+    SkillTreeConfigLoader: SkillTreeConfigLoader,
+    SkillTreeData: SkillTreeData,
+    SkillTreeManager: SkillTreeManager,
+    Scene_SkillTree: Scene_SkillTree,
+    Window_TypeSelect: Window_TypeSelect,
+    Window_ActorInfo: Window_ActorInfo,
+    Window_SkillTreeNodeInfo: Window_SkillTreeNodeInfo,
+    Window_SkillTree: Window_SkillTree,
+    Window_NodeOpen: Window_NodeOpen,
+    SkillTreeView: SkillTreeView,
+}
+
 })();
