@@ -1,19 +1,21 @@
 /*:
 @target MZ
-@plugindesc クエストシステム v0.1.3
+@plugindesc クエストシステム v1.0.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
-
 @help
-※このプラグインは現在開発中です。
 クエストシステムを導入するプラグインです。
 
 【使用方法】
 ■クエストの作成
-クエストはプラグインパラメータ「QuestDatas」を編集することによって作成します。
+クエストはプラグインパラメータ「QuestDatas」を
+編集することによって作成します。
+このパラメータによってクエストに必要な「依頼者」「報酬」「クエストの内容」
+などの項目を設定します。
 
 ■クエストの状態管理
-各クエストは状態(未受注、報告済み など)を持ち、その状態は変数によって管理します。
+各クエストは状態(未受注、進行中、報告済み など)を持ち、
+その状態は変数によって管理します。
 変数の値が持つ意味は以下の通りです。
 0: クエスト未登録
 　　　登録されておらず、一覧に表示されないクエスト
@@ -30,7 +32,7 @@
 6: クエスト期限切れ
 　　　期限切れとなったクエスト
 7: 隠しクエスト
-　　　概要のみ分かる謎のクエスト
+　　　概要のみ分かる隠しクエスト
 
 ■クエストプラグインが行う状態管理について
 クエストプラグインでは、次の状態管理のみを行います。
@@ -38,7 +40,8 @@
 ・クエストを報告したとき、状態を報告可から報告済みにする
 ・進行中のクエストをキャンセルしたとき、状態を進行中から未受注にする
 
-上記以外の状態にする場合はイベントコマンドで変数の値を変更する必要があります。
+上記以外の状態にする場合はイベントコマンドで
+変数の値を変更する必要があります。
 
 ■報酬の受け取り
 クエストの報酬は、報告を行ったタイミングで受け取ります。
@@ -53,20 +56,21 @@
 メニュー：各クエストの状況を確認する。
 
 ■クエストコマンド
-クエストコマンドは、クエストの分類、およびクエストの受注と報告を行うための
+クエストコマンドは、クエストの分類、およびクエストの受注と報告を行う
 コマンドを管理するために使用します。
+※プラグインコマンドとメニューで設定するクエストコマンドはデフォルトで
+　設定されているため、基本的な使い方をするのであれば特に変更の必要はありません。
 
 クエストコマンドには以下の種類があります。
 all: 全てのクエストを表示する
-notOrdered: 未受注のクエストを表示する
-ordering: 進行中のクエストを表示する
-cancelOrder: 進行中のクエストについて、クエストの受注をキャンセルする
-reportable: 報告可能なクエストについて、報告済みにして報酬を受け取る
-reported: 報告済みのクエストを表示する
-failed: 失敗したクエストを表示する
-expired: 期限切れのクエストを表示する
-hidden: 隠しクエストを表示する
-
+questOrder: 未受注のクエストを表示する
+orderingQuest: 進行中のクエストを表示する
+questCancel: 進行中のクエストについて、クエストの受注をキャンセルする
+questReport: 報告可能なクエストについて、報告済みにして報酬を受け取る
+reportedQuest: 報告済みのクエストを表示する
+failedQuest: 失敗したクエストを表示する
+expiredQuest: 期限切れのクエストを表示する
+hiddenQuest: 隠しクエストを表示する
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -74,6 +78,7 @@ hidden: 隠しクエストを表示する
 
 @param QuestDatas
 @type struct<QuestData>[]
+@default []
 @desc
 クエストのデータを登録します。
 
@@ -91,7 +96,7 @@ hidden: 隠しクエストを表示する
 
 @param MenuCommands
 @type string[]
-@default ["all"]
+@default ["orderingQuest","reportedQuest","all"]
 @desc
 メニューのクエスト管理画面で使用するフィルターコマンドを指定します。
 
@@ -113,32 +118,35 @@ hidden: 隠しクエストを表示する
 @desc
 クエストの有効期限の表示有無を指定します。
 
-@param UseFilterWindow
-@type boolean
-@default true
-@desc
-フィルターウィンドウの使用有無を指定します。
-
-@param ShowFilterWindowAndListWindow
-@type boolean
-@default true
-@desc
-フィルターウィンドウとリストウィンドウの同時表示有無を設定します。
-
 @param QuestOrderSe
 @type struct<QuestOrderSe>
+@default {"FileName":"Skill1","Volume":"90","Pitch":"100","Pan":"0"}
 @desc
 クエストを受注したときに再生するSEを設定します。
 
 @param QuestReportMe
 @type struct<QuestReportMe>
+@default {"FileName":"Item","Volume":"90","Pitch":"100","Pan":"0"}
 @desc
 クエストを報告したときに再生するMEを設定します。
 
+@param WindowSize
+@type struct<WindowSize>
+@default {"CommandWindowWidth":"300","CommandWindowHeight":"160","DialogWindowWidth":"400","DialogWindowHeight":"160","GetRewardWindowWidth":"540","GetRewardWindowHeight":"160"}
+@desc
+各種ウィンドウのサイズを設定します。
+
 @param Text
 @type struct<Text>
+@default {"MenuQuestSystemText":"クエスト確認","QuestOrderText":"このクエストを受けますか？","QuestOrderYesText":"受ける","QuestOrderNoText":"受けない","QuestCancelText":"このクエストをキャンセルしますか？","QuestCancelYesText":"キャンセルする","QuestCancelNoText":"キャンセルしない","QuestReportText":"このクエストを報告しますか？","QuestReportYesText":"報告する","QuestReportNoText":"報告しない","NothingQuestText":"該当するクエストはありません。","GetRewardText":"報酬として次のアイテムを受け取りました。","HiddenTitleText":"？？？？？？","AllCommandText":"全クエスト","QuestOrderCommandText":"クエストを受ける","OrderingQuestCommandText":"進行中のクエスト","QuestCancelCommandText":"クエストのキャンセル","QuestReportCommandText":"クエストを報告する","ReportedQuestCommandText":"報告済みのクエスト","FailedQuestCommandText":"失敗したクエスト","ExpiredQuestCommandText":"期限切れのクエスト","HiddenQuestCommandText":"未知のクエスト","NotOrderedStateText":"未受注","OrderingStateText":"進行中","ReportableStateText":"報告可","ReportedStateText":"報告済み","FailedStateText":"失敗","ExpiredStateText":"期限切れ","RequesterText":"【依頼者】：","RewardText":"【報酬】：","DifficultyText":"【難易度】：","PlaceText":"【場所】：","TimeLimitText":"【期間】："}
 @desc
 ゲーム中で使用されるテキストを設定します。
+
+@param TextColor
+@type struct<TextColor>
+@default {"NotOrderedStateColor":"#ffffff","OrderingStateColor":"#ffffff","ReportableStateColor":"#ffffff","ReportedStateColor":"#ffffff","FailedStateColor":"#ffffff","ExpiredStateColor":"#ff0000"}
+@desc
+ゲーム中で使用されるテキストのカラーを設定します。
 
 @param GoldIcon
 @type number
@@ -153,8 +161,19 @@ hidden: 隠しクエストを表示する
 
 @arg QuestCommands
 @type string[]
-@text フィルターコマンド
-@desc フィルターコマンドを指定します。
+@default ["questOrder","questCancel","questReport"]
+@text クエストコマンド
+@desc クエストコマンドを指定します。
+
+
+@command GetRewards
+@text 報酬を入手
+@desc クエストの報酬を入手します。
+
+@arg VariableId
+@type number
+@text 変数ID
+@desc 報酬を入手するクエストの変数IDを指定します。
 
 
 @command ChangeDetail
@@ -320,6 +339,45 @@ hidden: 隠しクエストを表示する
 */
 
 
+/*~struct~WindowSize:
+@param CommandWindowWidth
+@type number
+@default 300
+@desc
+コマンドウィンドウの横幅を指定します。
+
+@param CommandWindowHeight
+@type number
+@default 160
+@desc
+コマンドウィンドウの縦幅を指定します。
+
+@param DialogWindowWidth
+@type number
+@default 400
+@desc
+ダイアログウィンドウの横幅を指定します。
+
+@param DialogWindowHeight
+@type number
+@default 160
+@desc
+ダイアログウィンドウの縦幅を指定します。
+
+@param GetRewardWindowWidth
+@type number
+@default 540
+@desc
+報酬入手ウィンドウの横幅を指定します。
+
+@param GetRewardWindowHeight
+@type number
+@default 160
+@desc
+報酬入手ウィンドウの縦幅を指定します。
+*/
+
+
 /*~struct~Text:
 @param MenuQuestSystemText
 @type string
@@ -393,65 +451,65 @@ hidden: 隠しクエストを表示する
 @desc
 報酬を受け取った時に表示するメッセージを指定します。
 
-@param AllCommandText
-@type string
-@default 全クエスト
-@desc
-全クエストを表示する場合のコマンド名を指定します。
-
 @param HiddenTitleText
 @type string
 @default ？？？？？？
 @desc
 隠しクエストのタイトルを指定します。
 
-@param NotOrderedCommandText
+@param AllCommandText
+@type string
+@default 全クエスト
+@desc
+全クエストを表示する場合のコマンド名を指定します。
+
+@param QuestOrderCommandText
 @type string
 @default クエストを受ける
 @desc
-未受注のテキストを指定します。
+クエストを受ける場合のコマンド名を指定します。
 
-@param OrderingCommandText
+@param OrderingQuestCommandText
 @type string
 @default 進行中のクエスト
 @desc
-受注中のテキストを指定します。
+進行中のクエストを確認する場合のコマンド名を指定します。
 
-@param CancelCommandText
+@param QuestCancelCommandText
 @type string
 @default クエストのキャンセル
 @desc
-受注中のテキストを指定します。
+進行中のクエストをキャンセルする場合のコマンド名を指定します。
 
-@param ReportableCommandText
+@param QuestReportCommandText
 @type string
 @default クエストを報告する
 @desc
-報告可能のコマンドのテキストを指定します。
+クエストを報告する場合のコマンド名を指定します。
 
-@param ReportedCommandText
+@param ReportedQuestCommandText
 @type string
 @default 報告済みのクエスト
 @desc
-報告済みのコマンドのテキストを指定します。
+報告済みのクエストを確認する場合のコマンド名を指定します。
 
-@param FailedCommandText
+@param FailedQuestCommandText
 @type string
 @default 失敗したクエスト
 @desc
-失敗のコマンドのテキストを指定します。
+失敗したクエストを確認する場合のコマンド名を指定します。
 
-@param ExpiredCommandText
+@param ExpiredQuestCommandText
 @type string
 @default 期限切れのクエスト
 @desc
-期限切れのコマンドのテキストを指定します。
+期限切れのクエストを確認する場合のコマンド名を指定します。
 
-@param HiddenCommandText
+@param HiddenQuestCommandText
 @type string
 @default 未知のクエスト
 @desc
-隠しのコマンドのテキストを指定します。
+隠しクエストを確認する場合のコマンド名を指定します。
 
 @param NotOrderedStateText
 @type string
@@ -463,7 +521,7 @@ hidden: 隠しクエストを表示する
 @type string
 @default 進行中
 @desc
-受注中の状態のテキストを指定します。
+進行中の状態のテキストを指定します。
 
 @param ReportableStateText
 @type string
@@ -488,12 +546,6 @@ hidden: 隠しクエストを表示する
 @default 期限切れ
 @desc
 期限切れの状態のテキストを指定します。
-
-@param HiddenStateText
-@type string
-@default ？？？
-@desc
-隠しの状態のテキストを指定します。
 
 @param RequesterText
 @type string
@@ -526,12 +578,55 @@ hidden: 隠しクエストを表示する
 期間のテキストを指定します。
 */
 
+
+/*~struct~TextColor:
+@param NotOrderedStateColor
+@type string
+@default #aaaaaa
+@desc
+未受注の状態のテキストのカラーを指定します。
+
+@param OrderingStateColor
+@type string
+@default #ffffff
+@desc
+進行中の状態のテキストのカラーを指定します。
+
+@param ReportableStateColor
+@type string
+@default #ffff00
+@desc
+報告可能の状態のテキストのカラーを指定します。
+
+@param ReportedStateColor
+@type string
+@default #60ff60
+@desc
+報告済みの状態のテキストのカラーを指定します。
+
+@param FailedStateColor
+@type string
+@default #0000ff
+@desc
+失敗の状態のテキストのカラーを指定します。
+
+@param ExpiredStateColor
+@type string
+@default #ff0000
+@desc
+期限切れの状態のテキストのカラーを指定します。
+*/
+
 const QuestSystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
 
 const QuestSystemAlias = (() => {
 "use strict";
 
 class PluginParamsParser {
+    static parse(params, typeData, predictEnable = true) {
+        return new PluginParamsParser(predictEnable).parse(params, typeData);
+    }
+
     constructor(predictEnable = true) {
         this._predictEnable = predictEnable;
     }
@@ -609,11 +704,6 @@ class ItemInfo {
     set type(_type) { this._type = _type; }
     get id() { return this._id; }
     set id(_id) { this._id = _id; }
-
-    // Tag to completely specify the item.
-    tag() {
-        return `${this._type}_${this._id}`;
-    }
 
     itemData() {
         switch (this._type) {
@@ -702,13 +792,13 @@ class QuestData {
     set detail(_detail) { this._detail = _detail; }
 
     state() {
-        const data = STATE_LIST.find(data => data[1] === $gameVariables.value(this._variableId));
-        return data ? data[0] : "none";
+        const data = STATE_LIST.find(data => data.value === $gameVariables.value(this._variableId));
+        return data ? data.state : "none";
     }
 
     setState(state) {
-        const data = STATE_LIST.find(data => data[0] === state);
-        if (data) $gameVariables.setValue(this._variableId, data[1]);
+        const data = STATE_LIST.find(data => data.state === state);
+        if (data) $gameVariables.setValue(this._variableId, data.value);
     }
 
     getRewards() {
@@ -718,22 +808,34 @@ class QuestData {
     }
 
     stateText() {
-        const data = STATE_LIST.find(data => data[0] === this.state());
-        return data[2];
+        const data = STATE_LIST.find(data => data.state === this.state());
+        return data.text;
+    }
+
+    stateTextColor() {
+        const data = STATE_LIST.find(data => data.state === this.state());
+        return data.color;
     }
 }
 
-const type = {
+// Parse plugin parameters.
+const typeDefine = {
     MenuCommands: ["string"],
     QuestDatas: [{
         Rewards: [{}],
     }],
     QuestOrderSe: {},
     QuestReportMe: {},
-    Text: {}
+    WindowSize: {},
+    Text: {},
+    TextColor: {},
 };
 
-const params = new PluginParamsParser().parse(PluginManager.parameters(QuestSystemPluginName), type);
+const params = PluginParamsParser.parse(PluginManager.parameters(QuestSystemPluginName), typeDefine);
+
+const QuestDatas = params.QuestDatas.map(questDataParam => {
+    return QuestData.fromParam(questDataParam);
+});
 
 const EnabledQuestMenu = params.EnabledQuestMenu;
 const EnabledQuestMenuSwitchId = params.EnabledQuestMenuSwitchId;
@@ -741,39 +843,35 @@ const MenuCommands = params.MenuCommands;
 const DisplayDifficulty = params.DisplayDifficulty;
 const DisplayPlace = params.DisplayPlace;
 const DisplayTimeLimit = params.DisplayTimeLimit;
-const UseFilterWindow = params.UseFilterWindow;
-const ShowFilterWindowAndListWindow = params.ShowFilterWindowAndListWindow;
 const GoldIcon = params.GoldIcon;
-
-const QuestDatas = params.QuestDatas.map(questDataParam => {
-    return QuestData.fromParam(questDataParam);
-});
 
 const QuestOrderSe = params.QuestOrderSe;
 const QuestReportMe = params.QuestReportMe;
+const WindowSize = params.WindowSize;
 const Text = params.Text;
+const TextColor = params.TextColor;
 
 const STATE_LIST = [
-    ["none", 0, ""],
-    ["notOrdered", 1, Text.NotOrderedStateText, Text.NotOrderedCommandText],
-    ["ordering", 2, Text.OrderingStateText, Text.OrderingCommandText],
-    ["reportable", 3, Text.ReportableStateText, Text.ReportableCommandText],
-    ["reported", 4, Text.ReportedStateText, Text.ReportedCommandText],
-    ["failed", 5, Text.FailedStateText, Text.FailedCommandText],
-    ["expired", 6, Text.ExpiredStateText, Text.ExpiredCommandText],
-    ["hidden", 7, Text.HiddenStateText, Text.HiddenCommandText],
+    { state: "none", value: 0, text: "" },
+    { state: "notOrdered", value: 1, text: Text.NotOrderedStateText, color: TextColor.NotOrderedStateColor },
+    { state: "ordering", value: 2, text: Text.OrderingStateText, color: TextColor.OrderingStateColor },
+    { state: "reportable", value: 3, text: Text.ReportableStateText, color: TextColor.ReportableStateColor },
+    { state: "reported", value: 4, text: Text.ReportedStateText, color: TextColor.ReportedStateColor },
+    { state: "failed", value: 5, text: Text.FailedStateText, color: TextColor.FailedStateColor },
+    { state: "expired", value: 6, text: Text.ExpiredStateText, color: TextColor.ExpiredStateColor },
+    { state: "hidden", value: 7, text: "", color: "#ffffff" },
 ];
 
 const COMMAND_TABLE = {
-    "all": [null, Text.AllCommandText],
-    "notOrdered": [["notOrdered"], Text.NotOrderedCommandText],
-    "ordering": [["ordering", "reportable"], Text.OrderingCommandText],
-    "cancelOrder": [["ordering"], Text.CancelCommandText],
-    "reportable": [["reportable"], Text.ReportableCommandText],
-    "reported": [["reported"], Text.ReportedCommandText],
-    "failed": [["failed"], Text.FailedCommandText],
-    "expired": [["expired"], Text.ExpiredCommandText],
-    "hidden": [["hidden"], Text.HiddenCommandText],
+    "all": { state: null, text: Text.AllCommandText },
+    "questOrder": { state: ["notOrdered"], text: Text.QuestOrderCommandText },
+    "orderingQuest": { state: ["ordering", "reportable"], text: Text.OrderingQuestCommandText },
+    "questCancel": { state: ["ordering"], text: Text.QuestCancelCommandText },
+    "questReport": { state: ["reportable"], text: Text.QuestReportCommandText },
+    "reportedQuest": { state: ["reported"], text: Text.ReportedQuestCommandText },
+    "failedQuest": { state: ["failed"], text: Text.FailedQuestCommandText },
+    "expiredQuest": { state: ["expired"], text: Text.ExpiredQuestCommandText },
+    "hiddenQuest": { state: ["hidden"], text: Text.HiddenQuestCommandText },
 };
 
 class Scene_QuestSystem extends Scene_MenuBase {
@@ -783,7 +881,7 @@ class Scene_QuestSystem extends Scene_MenuBase {
 
     create() {
         super.create();
-        if (UseFilterWindow) this.createQuestCommandWindow();
+        this.createQuestCommandWindow();
         this.createQuestListWindow();
         this.createQuestDetailWindow();
         this.createQuestOrderWindow();
@@ -794,20 +892,9 @@ class Scene_QuestSystem extends Scene_MenuBase {
 
     start() {
         super.start();
-        if (UseFilterWindow) {
-            this._questCommandWindow.activate();
-            this._questCommandWindow.select(0);
-            this._questDetailWindow.setDrawState("undraw");
-        } else {
-            this._questListWindow.activate();
-            this._questListWindow.select(0);
-            this._questDetailWindow.setQuestData(QuestDatas.find(data => data.state() !== "none"));
-            this._questDetailWindow.setDrawState("draw");
-        }
-        if (!ShowFilterWindowAndListWindow) {
-            this._questListWindow.hide();
-            this._questListWindow.deactivate();
-        }
+        this._questCommandWindow.activate();
+        this._questCommandWindow.select(0);
+        this._questDetailWindow.setDrawState("undraw");
         this._questCommandWindow.refresh();
         this.resetQuestList();
     }
@@ -872,21 +959,18 @@ class Scene_QuestSystem extends Scene_MenuBase {
         const x = 0;
         let y = 0;
         if (!this.isBottomButtonMode()) y += this.buttonAreaHeight();
-        const w = 300;
-        let h = 200;
-        if (this.isBottomButtonMode()) h -= this.buttonAreaHeight();
-        if (!UseFilterWindow) return new Rectangle(x, y, w, 0);
+        const w = WindowSize.CommandWindowWidth;
+        const h = WindowSize.CommandWindowHeight;
         return new Rectangle(x, y, w, h);
     }
 
     questListWindowRect() {
         const questCommandWindowRect = this.questCommandWindowRect();
         const x = 0;
-        let y = questCommandWindowRect.y + questCommandWindowRect.height;
-        if (!ShowFilterWindowAndListWindow) y = questCommandWindowRect.y;
-        const w = 300;
-        let h = Graphics.boxHeight - y;
-        if (this.isBottomButtonMode()) h -= this.buttonAreaHeight();
+        const y = questCommandWindowRect.y + questCommandWindowRect.height;
+        const w = WindowSize.CommandWindowWidth;
+        const bottom = (this.isBottomButtonMode() ? Graphics.boxHeight - this.buttonAreaHeight() : Graphics.boxHeight);
+        const h = bottom - y;
         return new Rectangle(x, y, w, h);
     }
 
@@ -894,25 +978,15 @@ class Scene_QuestSystem extends Scene_MenuBase {
         const questCommandWindowRect = this.questCommandWindowRect();
         const questListWindowRect = this.questListWindowRect();
         const x = questListWindowRect.x + questListWindowRect.width;
-        let y;
-        if (UseFilterWindow && ShowFilterWindowAndListWindow) {
-            y = questCommandWindowRect.y;
-        } else {
-            y = questListWindowRect.y;
-        }
+        const y = questCommandWindowRect.y;
         const w = Graphics.boxWidth - x;
-        let h;
-        if (UseFilterWindow && ShowFilterWindowAndListWindow) {
-            h = questCommandWindowRect.height + questListWindowRect.height;
-        } else {
-            h = questListWindowRect.height;
-        }
+        const h = questCommandWindowRect.height + questListWindowRect.height;
         return new Rectangle(x, y, w, h);
     }
 
     questOrderWindowRect() {
-        const w = 400;
-        const h = 160;
+        const w = WindowSize.DialogWindowWidth;
+        const h = WindowSize.DialogWindowHeight;
         const x = Graphics.boxWidth / 2 - w / 2;
         const y = Graphics.boxHeight / 2 - h / 2;
         return new Rectangle(x, y, w, h);
@@ -923,8 +997,8 @@ class Scene_QuestSystem extends Scene_MenuBase {
     }
 
     questGetRewardWindowRect() {
-        const w = 540;
-        const h = 160;
+        const w = WindowSize.GetRewardWindowWidth;
+        const h = WindowSize.GetRewardWindowHeight;
         const x = Graphics.boxWidth / 2 - w / 2;
         const y = Graphics.boxHeight / 2 - h / 2;
         return new Rectangle(x, y, w, h);
@@ -950,13 +1024,13 @@ class Scene_QuestSystem extends Scene_MenuBase {
 
     onQuestListOk() {
         switch(this._questCommandWindow.currentSymbol()) {
-        case "notOrdered":
+        case "questOrder":
             this.change_QuestListWindow_To_QuestOrderWindow();
             break;
-        case "cancelOrder":
+        case "questCancel":
             this.change_QuestListWindow_To_QuestCancelWindow();
             break;
-        case "reportable":
+        case "questReport":
             this.change_QuestListWindow_To_QuestReportWindow();
             break;
         default:
@@ -966,11 +1040,7 @@ class Scene_QuestSystem extends Scene_MenuBase {
     }
 
     onQuestListCancel() {
-        if (UseFilterWindow) {
-            this.change_QuestListWindow_To_QuestCommandWindow();
-        } else {
-            this.popScene();
-        }
+        this.change_QuestListWindow_To_QuestCommandWindow();
     }
 
     onQuestListSelect() {
@@ -1042,7 +1112,6 @@ class Scene_QuestSystem extends Scene_MenuBase {
         this._questDetailWindow.setQuestData(null);
         this._questDetailWindow.setDrawState("undraw");
         this._questDetailWindow.refresh();
-        if (!ShowFilterWindowAndListWindow) this._questListWindow.hide();
         this._questListWindow.deactivate();
         this._questListWindow.select(-1);
         this._questCommandWindow.activate();
@@ -1110,9 +1179,7 @@ class Scene_QuestSystem extends Scene_MenuBase {
 
     // Reset quest list window.
     resetQuestList() {
-        const questList = (UseFilterWindow ? this._questCommandWindow.filterQuestList()
-                                           : QuestDatas.filter(data => data.state() !== "none"));
-        this._questListWindow.resetQuestList(questList);
+        this._questListWindow.resetQuestList(this._questCommandWindow.filterQuestList());
     }
 }
 
@@ -1133,7 +1200,7 @@ class Window_QuestCommand extends Window_Command {
         for (const command of this._commandList) {
             const commandData = COMMAND_TABLE[command];
             if (commandData) {
-                this.addCommand(commandData[1], command);
+                this.addCommand(commandData.text, command);
             } else {
                 throw new Error(`Unknow quest command ${command}`);
             }
@@ -1143,7 +1210,7 @@ class Window_QuestCommand extends Window_Command {
     filterQuestList() {
         if (this.currentSymbol() === "all") return QuestDatas.filter(data => data.state() !== "none");
         const commandData = COMMAND_TABLE[this.currentSymbol()];
-        return QuestDatas.filter(quest => commandData[0].includes(quest.state()));
+        return QuestDatas.filter(quest => commandData.state.includes(quest.state()));
     }
 }
 
@@ -1264,6 +1331,8 @@ class Window_QuestDetail extends Window_Selectable {
             const text = { name: this._questData.title, iconIndex: this._questData.iconIndex };
             this.drawItemName(text, this.padding, this.startY(startLine), width - 120);
         }
+        // TextColor
+        this.changeTextColor(this._questData.stateTextColor());
         this.drawText(this._questData.stateText(), this.padding, this.startY(startLine), width, "right");
         this.resetTextColor();
     }
@@ -1496,23 +1565,27 @@ class Window_QuestGetReward extends Window_Selectable {
 // Register plugin command.
 PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", args => {
     SceneManager.push(Scene_QuestSystem);
-    const parser = new PluginParamsParser();
-    const params = parser.parse(args, { QuestCommands: ["string"] });
+    const params = PluginParamsParser.parse(args, { QuestCommands: ["string"] });
     const commands = (params.QuestCommands.length === 0 ? null : params.QuestCommands);
     SceneManager.prepareNextScene(commands);
 });
 
+PluginManager.registerCommand(QuestSystemPluginName, "GetRewards", args => {
+    const params = PluginParamsParser.parse(args, { VariableId: "number" });
+    const questData = QuestDatas.find(data => data.variableId === params.VariableId);
+    if (!questData) return;
+    questData.getRewards();
+});
+
 PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", args => {
-    const parser = new PluginParamsParser();
-    const params = parser.parse(args, { VariableId: "number", Detail: "string" });
+    const params = PluginParamsParser.parse(args, { VariableId: "number", Detail: "string" });
     const questData = QuestDatas.find(data => data.variableId === params.VariableId);
     if (!questData) return;
     questData.detail = params.Detail;
 });
 
 PluginManager.registerCommand(QuestSystemPluginName, "ChangeRewards", args => {
-    const parser = new PluginParamsParser();
-    const params = parser.parse(args, { Rewards: [{}] });
+    const params = PluginParamsParser.parse(args, { Rewards: [{}] });
     const questData = QuestDatas.find(data => data.variableId === params.VariableId);
     if (!questData) return;
     const rewards = params.Rewards.map(rewardParam => {
