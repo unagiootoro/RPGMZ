@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc クエストシステム v1.0.0
+@plugindesc クエストシステム v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -52,14 +52,16 @@
 ・プラグインコマンド「StartQuestScene」を実行する
 
 この二つは主に次のように使い分けることを想定しています。
-プラグインコマンド：依頼所のような施設を作り、そこでクエストの受注と報告を行う。
+プラグインコマンド：依頼所のような施設を作り、
+　　　　　　　　　　そこでクエストの受注と報告を行う。
 メニュー：各クエストの状況を確認する。
 
 ■クエストコマンド
 クエストコマンドは、クエストの分類、およびクエストの受注と報告を行う
 コマンドを管理するために使用します。
-※プラグインコマンドとメニューで設定するクエストコマンドはデフォルトで
-　設定されているため、基本的な使い方をするのであれば特に変更の必要はありません。
+※プラグインコマンドとメニューで設定するクエストコマンドは
+　デフォルトで設定されているため、
+　基本的な使い方をするのであれば特に変更の必要はありません。
 
 クエストコマンドには以下の種類があります。
 all: 全てのクエストを表示する
@@ -77,78 +79,106 @@ hiddenQuest: 隠しクエストを表示する
 
 
 @param QuestDatas
+@text クエストデータ
 @type struct<QuestData>[]
 @default []
 @desc
 クエストのデータを登録します。
 
 @param EnabledQuestMenu
+@text クエストメニュー有効化
 @type boolean
+@on 表示
+@off 非表示
 @default true
 @desc
 メニューへのクエスト管理画面の追加有無を指定します。
 
 @param EnabledQuestMenuSwitchId
+@text クエストメニュー有効化スイッチID
 @type switch
 @default 0
 @desc
 メニューのクエスト管理画面の有効/無効を判定するスイッチIDを指定します。
 
 @param MenuCommands
-@type string[]
+@text メニュー表示コマンド
+@type select[]
+@option all
+@option questOrder
+@option orderingQuest
+@option questCancel
+@option questReport
+@option reportedQuest
+@option failedQuest
+@option expiredQuest
+@option hiddenQuest
 @default ["orderingQuest","reportedQuest","all"]
 @desc
-メニューのクエスト管理画面で使用するフィルターコマンドを指定します。
+メニューのクエスト管理画面で使用するフィルターコマンドを指定します。ヘルプのクエストコマンド参照
 
 @param DisplayDifficulty
+@text 難易度の表示
 @type boolean
+@on 表示
+@off 非表示
 @default true
 @desc
 クエスト難易度の表示有無を指定します。
 
 @param DisplayPlace
+@text 場所の表示
 @type boolean
 @default true
 @desc
 クエストの依頼場所の表示有無を指定します。
 
 @param DisplayTimeLimit
+@text 有効期限の表示
 @type boolean
+@on 表示
+@off 非表示
 @default true
 @desc
 クエストの有効期限の表示有無を指定します。
 
 @param QuestOrderSe
+@text クエスト受注SE
 @type struct<QuestOrderSe>
 @default {"FileName":"Skill1","Volume":"90","Pitch":"100","Pan":"0"}
 @desc
 クエストを受注したときに再生するSEを設定します。
 
 @param QuestReportMe
+@text クエスト報告ME
 @type struct<QuestReportMe>
 @default {"FileName":"Item","Volume":"90","Pitch":"100","Pan":"0"}
 @desc
 クエストを報告したときに再生するMEを設定します。
 
 @param WindowSize
+@text ウィンドウのサイズ
 @type struct<WindowSize>
 @default {"CommandWindowWidth":"300","CommandWindowHeight":"160","DialogWindowWidth":"400","DialogWindowHeight":"160","GetRewardWindowWidth":"540","GetRewardWindowHeight":"160"}
 @desc
 各種ウィンドウのサイズを設定します。
 
 @param Text
+@text 表示テキスト
 @type struct<Text>
 @default {"MenuQuestSystemText":"クエスト確認","QuestOrderText":"このクエストを受けますか？","QuestOrderYesText":"受ける","QuestOrderNoText":"受けない","QuestCancelText":"このクエストをキャンセルしますか？","QuestCancelYesText":"キャンセルする","QuestCancelNoText":"キャンセルしない","QuestReportText":"このクエストを報告しますか？","QuestReportYesText":"報告する","QuestReportNoText":"報告しない","NothingQuestText":"該当するクエストはありません。","GetRewardText":"報酬として次のアイテムを受け取りました。","HiddenTitleText":"？？？？？？","AllCommandText":"全クエスト","QuestOrderCommandText":"クエストを受ける","OrderingQuestCommandText":"進行中のクエスト","QuestCancelCommandText":"クエストのキャンセル","QuestReportCommandText":"クエストを報告する","ReportedQuestCommandText":"報告済みのクエスト","FailedQuestCommandText":"失敗したクエスト","ExpiredQuestCommandText":"期限切れのクエスト","HiddenQuestCommandText":"未知のクエスト","NotOrderedStateText":"未受注","OrderingStateText":"進行中","ReportableStateText":"報告可","ReportedStateText":"報告済み","FailedStateText":"失敗","ExpiredStateText":"期限切れ","RequesterText":"【依頼者】：","RewardText":"【報酬】：","DifficultyText":"【難易度】：","PlaceText":"【場所】：","TimeLimitText":"【期間】："}
 @desc
 ゲーム中で使用されるテキストを設定します。
 
 @param TextColor
+@text 表示テキスト色
 @type struct<TextColor>
 @default {"NotOrderedStateColor":"#ffffff","OrderingStateColor":"#ffffff","ReportableStateColor":"#ffffff","ReportedStateColor":"#ffffff","FailedStateColor":"#ffffff","ExpiredStateColor":"#ff0000"}
 @desc
 ゲーム中で使用されるテキストのカラーを設定します。
 
 @param GoldIcon
+@text ゴールドのアイコン
 @type number
 @default 314
 @desc
@@ -160,7 +190,16 @@ hiddenQuest: 隠しクエストを表示する
 @desc クエストシーンを開始します。
 
 @arg QuestCommands
-@type string[]
+@type select[]
+@option all
+@option questOrder
+@option orderingQuest
+@option questCancel
+@option questReport
+@option reportedQuest
+@option failedQuest
+@option expiredQuest
+@option hiddenQuest
 @default ["questOrder","questCancel","questReport"]
 @text クエストコマンド
 @desc クエストコマンドを指定します。
@@ -209,51 +248,61 @@ hiddenQuest: 隠しクエストを表示する
 
 /*~struct~QuestData:
 @param VariableId
+@text 変数ID
 @type variable
 @desc
 クエストの状態を管理する変数を指定します。
 
 @param Title
+@text タイトル
 @type string
 @desc
 クエストのタイトルを指定します。
 
 @param IconIndex
+@text タイトルアイコン
 @type number
 @desc
 クエストのタイトルに表示するアイコンを指定します。
 
 @param Requester
+@text 依頼者名
 @type string
 @desc
 クエストの依頼者名を指定します。
 
 @param Rewards
+@text 報酬
 @type struct<Reward>[]
 @desc
 クエストの報酬を指定します。
 
 @param Difficulty
+@text 難易度
 @type string
 @desc
 クエストの難易度を指定します。
 
 @param Place
+@text 場所
 @type string
 @desc
 クエストの場所を指定します。
 
 @param TimeLimit
+@text 有効期限
 @type string
 @desc
 クエストの有効期限を指定します。
 
 @param Detail
+@text クエストの情報
 @type multiline_string
 @desc
 クエストの情報を指定します。
 
 @param HiddenDetail
+@text 隠された情報
 @type multiline_string
 @desc
 クエストが隠し状態のときの情報を指定します。
@@ -262,21 +311,33 @@ hiddenQuest: 隠しクエストを表示する
 
 /*~struct~Reward:
 @param Type
-@type string
+@text 報酬のタイプ
+@type select
+@option ゴールド
+@value gold
+@option アイテム
+@value item
+@option 武器
+@value weapon
+@option 防具
+@value armor
 @desc
-報酬のタイプ(gold, item, weapon, armorのいずれか)を指定します。
+報酬のタイプ(ゴールド, アイテム, 武器, 防具のいずれか)を指定します。
 
 @param GoldValue
+@text 報酬ゴールド数
 @type number
 @desc
 報酬のタイプがゴールドの場合に入手するゴールドを指定します。
 
 @param ItemId
+@text 報酬アイテムID
 @type number
 @desc
 報酬のタイプがアイテムの場合に入手するアイテムIDを指定します。
 
 @param ItemCount
+@text 報酬アイテム数
 @type number
 @desc
 報酬のタイプがアイテムの場合に入手するアイテム数を指定します。
@@ -285,6 +346,7 @@ hiddenQuest: 隠しクエストを表示する
 
 /*~struct~QuestOrderSe:
 @param FileName
+@text 受注SE
 @type file
 @dir audio/se
 @default Skill1
@@ -292,18 +354,21 @@ hiddenQuest: 隠しクエストを表示する
 クエストを受注したときに再生するSEのファイル名を指定します。
 
 @param Volume
+@text 受注SE音量
 @type number
 @default 90
 @desc
 クエストを受注したときに再生するSEのvolumeを指定します。
 
 @param Pitch
+@text 受注SEピッチ
 @type number
 @default 100
 @desc
 クエストを受注したときに再生するSEのpitchを指定します。
 
 @param Pan
+@text 受注SE位相
 @type number
 @default 0
 @desc
@@ -313,6 +378,7 @@ hiddenQuest: 隠しクエストを表示する
 
 /*~struct~QuestReportMe:
 @param FileName
+@text 報告ME
 @type file
 @dir audio/me
 @default Item
@@ -320,18 +386,21 @@ hiddenQuest: 隠しクエストを表示する
 クエストを報告したときに再生するMEのファイル名を指定します。
 
 @param Volume
+@text 報告ME音量
 @type number
 @default 90
 @desc
 クエストを報告したときに再生するMEのvolumeを指定します。
 
 @param Pitch
+@text 報告MEピッチ
 @type number
 @default 100
 @desc
 クエストを報告したときに再生するMEのpitchを指定します。
 
 @param Pan
+@text 報告ME位相
 @type number
 @default 0
 @desc
@@ -341,36 +410,42 @@ hiddenQuest: 隠しクエストを表示する
 
 /*~struct~WindowSize:
 @param CommandWindowWidth
+@text コマンドウィンドウ幅
 @type number
 @default 300
 @desc
 コマンドウィンドウの横幅を指定します。
 
 @param CommandWindowHeight
+@text コマンドウィンドウ高
 @type number
 @default 160
 @desc
 コマンドウィンドウの縦幅を指定します。
 
 @param DialogWindowWidth
+@text ダイアログウィンドウ幅
 @type number
 @default 400
 @desc
 ダイアログウィンドウの横幅を指定します。
 
 @param DialogWindowHeight
+@text ダイアログウィンドウ高
 @type number
 @default 160
 @desc
 ダイアログウィンドウの縦幅を指定します。
 
 @param GetRewardWindowWidth
+@text 報酬入手ウィンドウ幅
 @type number
 @default 540
 @desc
 報酬入手ウィンドウの横幅を指定します。
 
 @param GetRewardWindowHeight
+@text 報酬入手ウィンドウ高
 @type number
 @default 160
 @desc
@@ -380,198 +455,231 @@ hiddenQuest: 隠しクエストを表示する
 
 /*~struct~Text:
 @param MenuQuestSystemText
+@text メニュー表示テキスト
 @type string
 @default クエスト確認
 @desc
 メニューに追加するクエスト管理画面の名称を指定します。
 
 @param QuestOrderText
+@text クエスト受注テキスト
 @type string
 @default このクエストを受けますか？
 @desc
 クエストを受注する場合に表示するメッセージを指定します。
 
 @param QuestOrderYesText
+@text 受ける選択肢テキスト
 @type string
 @default 受ける
 @desc
 クエスト受注Yesの場合に表示するメッセージを指定します。
 
 @param QuestOrderNoText
+@text 受けない選択肢テキスト
 @type string
 @default 受けない
 @desc
 クエスト受注Noの場合に表示するメッセージを指定します。
 
 @param QuestCancelText
+@text キャンセル確認メッセージ
 @type string
 @default このクエストをキャンセルしますか？
 @desc
 クエストをキャンセルする場合に表示するメッセージを指定します。
 
 @param QuestCancelYesText
+@text キャンセルする選択肢テキスト
 @type string
 @default キャンセルする
 @desc
 クエスト受注キャンセルYesの場合に表示するメッセージを指定します。
 
 @param QuestCancelNoText
+@text キャンセルしない選択肢テキスト
 @type string
 @default キャンセルしない
 @desc
 クエスト受注キャンセルNoの場合に表示するメッセージを指定します。
 
 @param QuestReportText
+@text 報告確認メッセージ
 @type string
 @default このクエストを報告しますか？
 @desc
 クエスト報告時に表示するメッセージを指定します。
 
 @param QuestReportYesText
+@text 報告する選択肢テキスト
 @type string
 @default 報告する
 @desc
 クエスト報告Yesの場合に表示するメッセージを指定します。
 
 @param QuestReportNoText
+@text 報告しない選択肢テキスト
 @type string
 @default 報告しない
 @desc
 クエスト報告Noの場合に表示するメッセージを指定します。
 
 @param NothingQuestText
+@text クエストなしメッセージ
 @type string
 @default 該当するクエストはありません。
 @desc
 該当するクエストがない場合に表示するメッセージを指定します。
 
 @param GetRewardText
+@text 報酬受取メッセージ
 @type string
 @default 報酬として次のアイテムを受け取りました。
 @desc
 報酬を受け取った時に表示するメッセージを指定します。
 
 @param HiddenTitleText
+@text 隠しクエストのタイトル
 @type string
 @default ？？？？？？
 @desc
 隠しクエストのタイトルを指定します。
 
 @param AllCommandText
+@text 全クエスト表示コマンド
 @type string
 @default 全クエスト
 @desc
 全クエストを表示する場合のコマンド名を指定します。
 
 @param QuestOrderCommandText
+@text クエスト受託コマンド
 @type string
 @default クエストを受ける
 @desc
 クエストを受ける場合のコマンド名を指定します。
 
 @param OrderingQuestCommandText
+@text 進行中クエストコマンド
 @type string
 @default 進行中のクエスト
 @desc
 進行中のクエストを確認する場合のコマンド名を指定します。
 
 @param QuestCancelCommandText
+@text クエストキャンセルコマンド
 @type string
 @default クエストのキャンセル
 @desc
 進行中のクエストをキャンセルする場合のコマンド名を指定します。
 
 @param QuestReportCommandText
+@text クエスト報告コマンド
 @type string
 @default クエストを報告する
 @desc
 クエストを報告する場合のコマンド名を指定します。
 
 @param ReportedQuestCommandText
+@text 報告済クエスト確認コマンド
 @type string
 @default 報告済みのクエスト
 @desc
 報告済みのクエストを確認する場合のコマンド名を指定します。
 
 @param FailedQuestCommandText
+@text 失敗クエスト確認コマンド
 @type string
 @default 失敗したクエスト
 @desc
 失敗したクエストを確認する場合のコマンド名を指定します。
 
 @param ExpiredQuestCommandText
+@text 期限切れクエスト確認コマンド
 @type string
 @default 期限切れのクエスト
 @desc
 期限切れのクエストを確認する場合のコマンド名を指定します。
 
 @param HiddenQuestCommandText
+@text 隠しクエスト確認コマンド
 @type string
 @default 未知のクエスト
 @desc
 隠しクエストを確認する場合のコマンド名を指定します。
 
 @param NotOrderedStateText
+@text 未受注テキスト
 @type string
 @default 未受注
 @desc
 未受注の状態のテキストを指定します。
 
 @param OrderingStateText
+@text 進行中テキスト
 @type string
 @default 進行中
 @desc
 進行中の状態のテキストを指定します。
 
 @param ReportableStateText
+@text 報告可能テキスト
 @type string
 @default 報告可
 @desc
 報告可能の状態のテキストを指定します。
 
 @param ReportedStateText
+@text 報告済みテキスト
 @type string
 @default 報告済み
 @desc
 報告済みの状態のテキストを指定します。
 
 @param FailedStateText
+@text 失敗テキスト
 @type string
 @default 失敗
 @desc
 失敗の状態のテキストを指定します。
 
 @param ExpiredStateText
+@text 期限切れテキスト
 @type string
 @default 期限切れ
 @desc
 期限切れの状態のテキストを指定します。
 
 @param RequesterText
+@text 依頼者テキスト
 @type string
 @default 【依頼者】：
 @desc
 依頼者のテキストを指定します。
 
 @param RewardText
+@text 報酬テキスト
 @type string
 @default 【報酬】：
 @desc
 報酬のテキストを指定します。
 
 @param DifficultyText
+@text 難易度テキスト
 @type string
 @default 【難易度】：
 @desc
 難易度のテキストを指定します。
 
 @param PlaceText
+@text 場所テキスト
 @type string
 @default 【場所】：
 @desc
 場所のテキストを指定します。
 
 @param TimeLimitText
+@text 期限テキスト
 @type string
 @default 【期間】：
 @desc
@@ -581,36 +689,42 @@ hiddenQuest: 隠しクエストを表示する
 
 /*~struct~TextColor:
 @param NotOrderedStateColor
+@text 未受注テキスト色
 @type string
 @default #aaaaaa
 @desc
 未受注の状態のテキストのカラーを指定します。
 
 @param OrderingStateColor
+@text 進行中テキスト色
 @type string
 @default #ffffff
 @desc
 進行中の状態のテキストのカラーを指定します。
 
 @param ReportableStateColor
+@text 報告可能テキスト色
 @type string
 @default #ffff00
 @desc
 報告可能の状態のテキストのカラーを指定します。
 
 @param ReportedStateColor
+@text 報告済みテキスト色
 @type string
 @default #60ff60
 @desc
 報告済みの状態のテキストのカラーを指定します。
 
 @param FailedStateColor
+@text 失敗テキスト色
 @type string
 @default #0000ff
 @desc
 失敗の状態のテキストのカラーを指定します。
 
 @param ExpiredStateColor
+@text 期限切れテキスト色
 @type string
 @default #ff0000
 @desc
