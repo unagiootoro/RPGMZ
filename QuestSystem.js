@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc クエストシステム v1.1.0
+@plugindesc クエストシステム v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -247,7 +247,7 @@ hiddenQuest: 隠しクエストを表示する
 @desc クエストの報酬を入手します。
 
 @arg VariableId
-@type number
+@type variable
 @text 変数ID
 @desc 報酬を入手するクエストの変数IDを指定します。
 
@@ -257,7 +257,7 @@ hiddenQuest: 隠しクエストを表示する
 @desc クエストの詳細を変更します。
 
 @arg VariableId
-@type number
+@type variable
 @text 変数ID
 @desc 詳細を変更するクエストの変数IDを指定します。
 
@@ -272,7 +272,7 @@ hiddenQuest: 隠しクエストを表示する
 @desc クエストの報酬を変更します。
 
 @arg VariableId
-@type number
+@type variable
 @text 変数ID
 @desc 報酬を変更するクエストの変数IDを指定します。
 
@@ -1944,7 +1944,7 @@ Window_MenuCommand.prototype.addOriginalCommands = function() {
 
 Window_MenuCommand.prototype.isEnabledQuestMenu = function() {
     if (EnabledQuestMenuSwitchId === 0) return true;
-    return $gameSwitches.value(EnabledAlchemySwitchId);
+    return $gameSwitches.value(EnabledQuestMenuSwitchId);
 };
 
 const _Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
