@@ -1,6 +1,840 @@
 /*:
 @target MZ
-@plugindesc クエストシステム v1.1.1
+@plugindesc Quest system v1.1.2
+@author unagi ootoro
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
+@help
+It is a plugin that introduces the quest system.
+
+【How to use】
+■ Creating a quest
+Quest uses the plugin parameter "QuestDatas"
+Create by editing.
+"Requester", "Reward", "Quest content" required for the quest according to this parameter
+Set items such as.
+
+■ Quest state management
+Each quest has a status (unordered, in progress, reported, etc.)
+Its state is managed by variables.
+The meanings of variable values ​​are as follows.
+
+0: Quest unregistered
+   Quests that are not registered and are not displayed in the list
+1: Quest unordered
+   Unordered quest
+2: Quest in progress
+   Orders received and ongoing quests
+3: Quest can be reported
+   Quest that fulfilled the request and became reportable
+4: Quest reported
+   The quest that made the report
+5: Quest failure
+   Failed quest reward
+6: Quest expired
+   Expired quest
+7: Hidden quest
+   Hidden quest that only shows the outline
+
+■ About state management performed by the quest plugin
+The quest plugin only manages the following states:
+・ When you receive an order for a quest, change the status from unordered to in progress.
+・ When reporting a quest, change the status from reportable to reported
+・ When canceling an in-progress quest, change the status from in-progress to unordered
+
+If you want to change to a state other than the above, use the event command.
+You need to change the value of the variable.
+
+■ Reward receipt
+Quest rewards will be received when you make a report.
+
+■ Start of quest scene
+The quest scene can be started in two ways:
+・ Call "Quest Management" from the menu
+-Execute the plug-in command "StartQuestScene"
+
+It is assumed that these two are mainly used properly as follows.
+Plugin command: Create a facility like a request office,
+Orders and reports for quests there.
+Menu: Check the status of each quest.
+
+■ Quest command
+The quest command classifies quests and orders and reports quests.
+Used to manage commands.
+* Plug-in commands and quest commands set in the menu
+Because it is set by default
+If you want to use it in a basic way, you do not need to change it.
+
+There are the following types of quest commands.
+all: Show all quests
+questOrder: Show unordered quests
+orderingQuest: View ongoing quests
+questCancel: Cancel quest orders for ongoing quests
+questReport: Report and receive rewards for reportable quests
+reportedQuest: View reported quests
+failedQuest: Show failed quests
+expiredQuest: Show expired quests
+hiddenQuest: Show hidden quests
+
+【License】
+This plugin is available under the terms of the MIT license.
+
+
+@param QuestDatas
+@text quest data
+@type struct<QuestData>[]
+@default []
+@desc
+Register the quest data.
+
+@param EnabledQuestMenu
+@text Quest menu enabled
+@type boolean
+@on display
+@off hidden
+@default true
+@desc
+Specify whether to add the quest management screen to the menu.
+
+@param EnabledQuestMenuSwitchId
+@text Quest menu activation switch ID
+@type switch
+@default 0
+@desc
+Specify the switch ID that determines whether the quest management screen of the menu is valid / invalid.
+
+@param MenuCommands
+@text Menu display command
+@type select[]
+@option all
+@option questOrder
+@option orderingQuest
+@option questCancel
+@option questReport
+@option reportedQuest
+@option failedQuest
+@option expiredQuest
+@option hiddenQuest
+@default ["orderingQuest", "reportedQuest", "all"]
+@desc
+Specify the filter command to be used on the quest management screen of the menu. See help quest command
+
+@param MenuBackgroundImage
+@text menu background image
+@type struct<BackgroundImage>
+@default {"FileName1": "", "FileName2": "", "XOfs": "240", "YOfs": "300"}
+@desc
+Specify the background image of the quest scene in the menu.
+
+@param DisplayRequestor
+@text View requester
+@type boolean
+@on display
+@off hidden
+@default true
+@desc
+Specify whether to display the title.
+
+@param DisplayRewards
+@text Reward display
+@type boolean
+@default true
+@desc
+Specify whether to display the reward request location.
+
+@param DisplayDifficulty
+@text Display of difficulty
+@type boolean
+@on display
+@off hidden
+@default true
+@desc
+Specify whether to display the quest difficulty level.
+
+@param DisplayPlace
+@text Display location
+@type boolean
+@default true
+@desc
+Specify whether to display the request location of the quest.
+
+@param DisplayTimeLimit
+@text Expiration date display
+@type boolean
+@on display
+@off hidden
+@default true
+@desc
+Specify whether to display the expiration date of the quest.
+
+@param QuestOrderSe
+@text Quest Order SE
+@type struct<QuestOrderSe>
+@default {"FileName": "Skill1", "Volume": "90", "Pitch": "100", "Pan": "0"}
+@desc
+Set the SE to play when you receive an order for a quest.
+
+@param QuestReportMe
+@text Quest Report ME
+@type struct<QuestReportMe>
+@default {"FileName": "Item", "Volume": "90", "Pitch": "100", "Pan": "0"}
+@desc
+Set the ME to play when reporting a quest.
+
+@param WindowSize
+@text Window size
+@type struct<WindowSize>
+@default {"CommandWindowWidth": "300", "CommandWindowHeight": "160", "DialogWindowWidth": "400", "DialogWindowHeight": "160", "GetRewardWindowWidth": "540", "GetRewardWindowHeight": "160" }
+@desc
+Set the size of various windows.
+
+@param Text
+@text Display text
+@type struct<Text>
+@default {"MenuQuestSystemText":"Quest confirmation","QuestOrderText":"Do you want to take this quest?","QuestOrderYesText":"Receive","QuestOrderNoText":"not accepted","QuestCancelText":"Do you want to cancel this quest?","QuestCancelYesText":"cancel","QuestCancelNoText":"do not cancel","QuestReportText":"Do you want to report this quest?","QuestReportYesText":"Report","QuestReportNoText":"do not report","NothingQuestText":"There is no corresponding quest.","GetRewardText":"Received the following items as a reward.","HiddenTitleText":"??????????","AllCommandText":"All quests","QuestOrderCommandText":"Receive quest","OrderingQuestCommandText":"quest in progress","QuestCancelCommandText":"quest cancellation","QuestReportCommandText":"Report quest","ReportedQuestCommandText":"Reported quest","FailedQuestCommandText":"quest that failed","ExpiredQuestCommandText":"Expired quest","HiddenQuestCommandText":"unknown quest","NotOrderedStateText":"unordered","OrderingStateText":"in progress","ReportableStateText":"can be reported","ReportedStateText":"reported","FailedStateText":"failure","ExpiredStateText":"expired","RequesterText":"[Requester]:","RewardText":"[Reward]:","DifficultyText":"[Difficulty]:","PlaceText":"[Location]:","TimeLimitText":"[Period]:"}
+@desc
+Sets the text used in the game.
+
+@param TextColor
+@text Display text color
+@type struct<TextColor>
+@default {"NotOrderedStateColor":"#aaaaaa","OrderingStateColor":"#ffffff","ReportableStateColor":"#ffff00","ReportedStateColor":"#60ff60","FailedStateColor":"#0000ff","ExpiredStateColor":"#ff0000"}
+@desc
+Sets the color of the text used in the game.
+
+@param GoldIcon
+@text gold icon
+@type number
+@default 314
+@desc
+Set the gold icon to be displayed in the reward column.
+
+@param ExpIcon
+@text Experience point icon
+@type number
+@default 89
+@desc
+Set the experience value icon to be displayed in the reward column.
+
+
+@command StartQuestScene
+@text Quest scene start
+@desc Start the quest scene.
+
+@arg QuestCommands
+@type select[]
+@option all
+@option questOrder
+@option orderingQuest
+@option questCancel
+@option questReport
+@option reportedQuest
+@option failedQuest
+@option expiredQuest
+@option hiddenQuest
+@default ["questOrder", "questCancel", "questReport"]
+@text quest command
+@desc Specify the quest command.
+
+@arg BackgroundImage
+@text background image
+@type struct<BackgroundImage>
+@default {"FileName1": "", "FileName2": "", "XOfs": "240", "YOfs": "300"}
+@desc
+Specify the background image of the quest scene.
+
+
+@command GetRewards
+@text Get rewards
+@desc Get rewards for quests.
+
+@arg VariableId
+@type variable
+@text variable ID
+@desc Specify the variable ID of the quest to get the reward.
+
+
+@command ChangeDetail
+@text Quest details changed
+@desc Change the quest details.
+
+@arg VariableId
+@type variable
+@text variable ID
+@desc Specifies the variable ID of the quest whose details you want to change.
+
+@arg Detail
+@type string
+@text details
+@desc Set the quest details to change.
+
+
+@command ChangeRewards
+@text Reward change
+@desc Change quest rewards.
+
+@arg VariableId
+@type variable
+@text variable ID
+@desc Specify the variable ID of the quest whose reward you want to change.
+
+@arg Rewards
+@type struct<Reward>[]
+@text reward
+@desc Set the reward for the quest you want to change.
+*/
+
+
+/*~struct~QuestData:
+@param VariableId
+@text variable ID
+@type variable
+@desc
+Specify variables that manage the state of the quest.
+
+@param Title
+@text title
+@type string
+@desc
+Specify the title of the quest.
+
+@param IconIndex
+@text title icon
+@type number
+@desc
+Specify the icon to be displayed in the title of the quest.
+
+@param Requester
+@text Requester name
+@type string
+@desc
+Specify the name of the requester of the quest.
+
+@param Rewards
+@text reward
+@type struct<Reward>[]
+@desc
+Specify the reward for the quest.
+
+@param Difficulty
+@text Difficulty
+@type string
+@desc
+Specify the difficulty level of the quest.
+
+@param Place
+@text location
+@type string
+@desc
+Specify the location of the quest.
+
+@param TimeLimit
+@text expiration date
+@type string
+@desc
+Specify the expiration date of the quest.
+
+@param Detail
+@text Quest information
+@type multiline_string
+@desc
+Specify the quest information.
+
+@param HiddenDetail
+@text Hidden information
+@type multiline_string
+@desc
+Specifies information when the quest is hidden.
+
+@param CommonEventId
+@text Common event ID
+@type common_event
+@default 0
+@desc
+Specify the common event ID that starts immediately after the quest report is completed. If it is 0, it will not start.
+*/
+
+
+/*~struct~Reward:
+@param Type
+@text Reward type
+@type select
+@option gold
+@value gold
+@option Experience points
+@value exp
+@option item
+@value item
+@option Weapon
+@value weapon
+@option armor
+@value armor
+@option optional
+@value any
+@desc
+Specify the type of reward (gold, experience, item, weapon, armor, or whatever).
+
+@param GoldValue
+@text Reward Gold Number
+@type number
+@desc
+Specifies the gold to get if the reward type is gold.
+
+@param ExpValue
+@text Reward experience points
+@type number
+@desc
+Specifies the experience points to obtain if the reward type is experience points.
+
+@param ItemId
+@text Reward item ID
+@type number
+@desc
+Specifies the item ID to get if the reward type is item.
+
+@param ItemCount
+@text Number of reward items
+@type number
+@desc
+Specifies the number of items to obtain if the reward type is item.
+
+@param Text
+@text text
+@type string
+@desc
+Specifies the text to display if the reward type is arbitrary.
+
+@param IconIndex
+@text icon
+@type number
+@desc
+Specifies the icon to display when the reward type is arbitrary.
+*/
+
+
+/*~struct~QuestOrderSe:
+@param FileName
+@text Order SE
+@type file
+@dir audio / se
+@default Skill1
+@desc
+Specify the file name of the SE to be played when the quest is ordered.
+
+@param Volume
+@text Order SE Volume
+@type number
+@default 90
+@desc
+Specify the volume of SE to be played when the quest is ordered.
+
+@param Pitch
+@text Order SE pitch
+@type number
+@default 100
+@desc
+Specify the pitch of the SE to play when the quest is ordered.
+
+@param Pan
+@text Order SE Phase
+@type number
+@default 0
+@desc
+Specify the pan of the SE to be played when the quest is ordered.
+*/
+
+
+/*~struct~QuestReportMe:
+@param FileName
+@text Report ME
+@type file
+@dir audio / me
+@default Item
+@desc
+Specify the filename of the ME to play when reporting the quest.
+
+@param Volume
+@text Report ME Volume
+@type number
+@default 90
+@desc
+Specifies the volume of ME to play when reporting a quest.
+
+@param Pitch
+@text Report ME Pitch
+@type number
+@default 100
+@desc
+Specifies the pitch of the ME to play when reporting a quest.
+
+@param Pan
+@text Report ME Phase
+@type number
+@default 0
+@desc
+Specifies the ME pan to play when reporting a quest.
+*/
+
+
+/*~struct~BackgroundImage:
+@param FileName1
+@text filename 1
+@type file
+@dir img
+@desc
+Specify the file name of the background image.
+
+@param FileName2
+@text filename 2
+@type file
+@dir img
+@desc
+Specify the file name of the image to be added to the background image.
+
+@param XOfs
+@text X coordinate offset
+@type number
+@default 240
+@desc
+Specifies the X coordinate offset of the image to add to the background image.
+
+@param YOfs
+@text Y coordinate offset
+@type number
+@default 300
+@desc
+Specifies the Y coordinate offset of the image to add to the background image.
+*/
+
+
+/*~struct~WindowSize:
+@param CommandWindowWidth
+@text command window width
+@type number
+@default 300
+@desc
+Specifies the width of the command window.
+
+@param CommandWindowHeight
+@text command window height
+@type number
+@default 160
+@desc
+Specifies the vertical width of the command window.
+
+@param DialogWindowWidth
+@text dialog window width
+@type number
+@default 400
+@desc
+Specifies the width of the dialog window.
+
+@param DialogWindowHeight
+@text dialog window height
+@type number
+@default 160
+@desc
+Specifies the vertical width of the dialog window.
+
+@param GetRewardWindowWidth
+@text Reward acquisition window width
+@type number
+@default 540
+@desc
+Specifies the width of the reward acquisition window.
+
+@param GetRewardWindowHeight
+@text Reward acquisition window height
+@type number
+@default 160
+@desc
+Specifies the vertical width of the reward acquisition window.
+*/
+
+
+/*~struct~Text:
+@param MenuQuestSystemText
+@text Menu display text
+@type string
+@default Quest confirmation
+@desc
+Specify the name of the quest management screen to be added to the menu.
+
+@param QuestOrderText
+@text Quest order text
+@type string
+@default Do you want to take this quest?
+@desc
+Specify the message to be displayed when ordering a quest.
+
+@param QuestOrderYesText
+@text Choice text to receive
+@type string
+@default Receive
+@desc
+Specify the message to be displayed when the quest order is Yes.
+
+@param QuestOrderNoText
+@text Choice text not received
+@type string
+@default not accepted
+@desc
+Specify the message to be displayed in the case of quest order No.
+
+@param QuestCancelText
+@text Cancellation confirmation message
+@type string
+@default Do you want to cancel this quest?
+@desc
+Specify the message to be displayed when canceling the quest.
+
+@param QuestCancelYesText
+@text Choice text to cancel
+@type string
+@default cancel
+@desc
+Quest order cancellation Specify the message to be displayed when Yes.
+
+@param QuestCancelNoText
+@text Choice text not to cancel
+@type string
+@default do not cancel
+@desc
+Specify the message to be displayed when the quest order cancellation No.
+
+@param QuestReportText
+@text Report confirmation message
+@type string
+@default Do you want to report this quest?
+@desc
+Specify the message to be displayed when reporting the quest.
+
+@param QuestReportYesText
+@text Choice text to report
+@type string
+@default Report
+@desc
+Quest Report Specify the message to be displayed when Yes.
+
+@param QuestReportNoText
+@text Choice text not to report
+@type string
+@default do not report
+@desc
+Specify the message to be displayed in the case of quest report No.
+
+@param NothingQuestText
+@text No quest message
+@type string
+@default There is no corresponding quest.
+@desc
+Specify the message to be displayed when there is no corresponding quest.
+
+@param GetRewardText
+@text Reward receipt message
+@type string
+@default Received the following items as a reward.
+@desc
+Specifies the message to display when receiving a reward.
+
+@param HiddenTitleText
+@text Hidden quest title
+@type string
+@default ??????????
+@desc
+Specify the title of the hidden quest.
+
+@param AllCommandText
+@text All quest display command
+@type string
+@default All quests
+@desc
+Specify the command name to display all quests.
+
+@param QuestOrderCommandText
+@text Quest consignment command
+@type string
+@default Receive quest
+@desc
+Specify the command name for receiving the quest.
+
+@param OrderingQuestCommandText
+@text In-progress quest command
+@type string
+@default quest in progress
+@desc
+Specify the command name to check the quest in progress.
+
+@param QuestCancelCommandText
+@text quest cancel command
+@type string
+@default quest cancellation
+@desc
+Specify the command name to cancel the quest in progress.
+
+@param QuestReportCommandText
+@text quest report command
+@type string
+@default Report quest
+@desc
+Specify the command name when reporting a quest.
+
+@param ReportedQuestCommandText
+@text Reported quest confirmation command
+@type string
+@default Reported quest
+@desc
+Specify the command name to check the reported quest.
+
+@param FailedQuestCommandText
+@text Failure quest confirmation command
+@type string
+@default quest that failed
+@desc
+Specify the command name to check the failed quest.
+
+@param ExpiredQuestCommandText
+@text Expired quest confirmation command
+@type string
+@default Expired quest
+@desc
+Specify the command name to check the expired quest.
+
+@param HiddenQuestCommandText
+@text Hidden quest confirmation command
+@type string
+@default unknown quest
+@desc
+Specify the command name to check the hidden quest.
+
+@param NotOrderedStateText
+@text Unordered text
+@type string
+@default Unordered
+@desc
+Specifies the text in the unordered state.
+
+@param OrderingStateText
+@text Text in progress
+@type string
+@default Progress
+@desc
+Specifies the text in the in-progress state.
+
+@param ReportableStateText
+@text Reportable text
+@type string
+@default Reportable
+@desc
+Specifies the text in a reportable state.
+
+@param ReportedStateText
+@text Reported text
+@type string
+@default Reported
+@desc
+Specifies the text in the reported state.
+
+@param FailedStateText
+@text Failure text
+@type string
+@default Failure
+@desc
+Specifies the text of the failed state.
+
+@param ExpiredStateText
+@text Expired text
+@type string
+@default Expired
+@desc
+Specifies the expired text.
+
+@param RequesterText
+@text Requester text
+@type string
+@default [Requester]:
+@desc
+Specify the requester's text.
+
+@param RewardText
+@text reward text
+@type string
+@default [Reward]:
+@desc
+Specify the reward text.
+
+@param DifficultyText
+@text Difficulty text
+@type string
+@default [Difficulty]:
+@desc
+Specify the difficulty text.
+
+@param PlaceText
+@text location text
+@type string
+@default [Location]:
+@desc
+Specify the text of the location.
+
+@param TimeLimitText
+@text Deadline text
+@type string
+@default [Period]:
+@desc
+Specify the text of the period.
+*/
+
+
+/*~struct~TextColor:
+@param NotOrderedStateColor
+@text Unordered text color
+@type string
+@default #aaaaaa
+@desc
+Specifies the color of the unordered text.
+
+@param OrderingStateColor
+@text Text color in progress
+@type string
+@default #ffffff
+@desc
+Specifies the color of the text in progress.
+
+@param ReportableStateColor
+@text Reportable text color
+@type string
+@default #ffff00
+@desc
+Specifies the color of the reportable text.
+
+@param ReportedStateColor
+@text Reported text color
+@type string
+@default #60ff60
+@desc
+Specifies the color of the text in the reported state.
+
+@param FailedStateColor
+@text Failed text color
+@type string
+@default #0000ff
+@desc
+Specifies the color of the text in the failed state.
+
+@param ExpiredStateColor
+@text Expired text color
+@type string
+@default #ff0000
+@desc
+Specifies the color of the expired text.
+*/
+
+
+
+
+/*:ja
+@target MZ
+@plugindesc クエストシステム v1.1.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -283,7 +1117,7 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 
-/*~struct~QuestData:
+/*~struct~QuestData:ja
 @param VariableId
 @text 変数ID
 @type variable
@@ -353,7 +1187,7 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 
-/*~struct~Reward:
+/*~struct~Reward:ja
 @param Type
 @text 報酬のタイプ
 @type select
@@ -410,7 +1244,7 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 
-/*~struct~QuestOrderSe:
+/*~struct~QuestOrderSe:ja
 @param FileName
 @text 受注SE
 @type file
@@ -442,7 +1276,7 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 
-/*~struct~QuestReportMe:
+/*~struct~QuestReportMe:ja
 @param FileName
 @text 報告ME
 @type file
@@ -474,7 +1308,7 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 
-/*~struct~BackgroundImage:
+/*~struct~BackgroundImage:ja
 @param FileName1
 @text ファイル名1
 @type file
@@ -505,7 +1339,7 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 
-/*~struct~WindowSize:
+/*~struct~WindowSize:ja
 @param CommandWindowWidth
 @text コマンドウィンドウ幅
 @type number
@@ -550,7 +1384,7 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 
-/*~struct~Text:
+/*~struct~Text:ja
 @param MenuQuestSystemText
 @text メニュー表示テキスト
 @type string
@@ -784,7 +1618,7 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 
-/*~struct~TextColor:
+/*~struct~TextColor:ja
 @param NotOrderedStateColor
 @text 未受注テキスト色
 @type string
@@ -829,6 +1663,8 @@ hiddenQuest: 隠しクエストを表示する
 */
 
 const QuestSystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+
+let $dataQuests = null;
 
 const QuestSystemAlias = (() => {
 "use strict";
@@ -1078,7 +1914,7 @@ const typeDefine = {
 
 const params = PluginParamsParser.parse(PluginManager.parameters(QuestSystemPluginName), typeDefine);
 
-const QuestDatas = params.QuestDatas.map(questDataParam => {
+$dataQuests = params.QuestDatas.map(questDataParam => {
     return QuestData.fromParam(questDataParam);
 });
 
@@ -1543,9 +2379,9 @@ class Window_QuestCommand extends Window_Command {
     }
 
     filterQuestList() {
-        if (this.currentSymbol() === "all") return QuestDatas.filter(data => data.state() !== "none");
+        if (this.currentSymbol() === "all") return $dataQuests.filter(data => data.state() !== "none");
         const commandData = COMMAND_TABLE[this.currentSymbol()];
-        return QuestDatas.filter(quest => commandData.state.includes(quest.state()));
+        return $dataQuests.filter(quest => commandData.state.includes(quest.state()));
     }
 }
 
@@ -1677,15 +2513,16 @@ class Window_QuestDetail extends Window_Selectable {
 
     drawTitle(startLine) {
         this.resetTextColor();
-        const width = this.width - this.padding * 4;
+        const stateWidth = 120;
+        const titleWidth = this.width - this.padding * 4 - stateWidth;
         if (this._questData.iconIndex === 0) {
-            this.drawText(this._questData.title, this.padding, this.startY(startLine), width - 120, "left");
+            this.drawText(this._questData.title, this.padding, this.startY(startLine), titleWidth, "left");
         } else {
             const text = { name: this._questData.title, iconIndex: this._questData.iconIndex };
-            this.drawItemName(text, this.padding, this.startY(startLine), width - 120);
+            this.drawItemName(text, this.padding, this.startY(startLine), titleWidth);
         }
         this.changeTextColor(this._questData.stateTextColor());
-        this.drawText(this._questData.stateText(), this.padding, this.startY(startLine), width, "right");
+        this.drawText(this._questData.stateText(), this.padding + titleWidth, this.startY(startLine), stateWidth, "right");
         this.resetTextColor();
     }
 
@@ -1912,21 +2749,21 @@ PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", args => 
 
 PluginManager.registerCommand(QuestSystemPluginName, "GetRewards", args => {
     const params = PluginParamsParser.parse(args, { VariableId: "number" });
-    const questData = QuestDatas.find(data => data.variableId === params.VariableId);
+    const questData = $dataQuests.find(data => data.variableId === params.VariableId);
     if (!questData) return;
     questData.getRewards();
 });
 
 PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", args => {
     const params = PluginParamsParser.parse(args, { VariableId: "number", Detail: "string" });
-    const questData = QuestDatas.find(data => data.variableId === params.VariableId);
+    const questData = $dataQuests.find(data => data.variableId === params.VariableId);
     if (!questData) return;
     questData.detail = params.Detail;
 });
 
 PluginManager.registerCommand(QuestSystemPluginName, "ChangeRewards", args => {
     const params = PluginParamsParser.parse(args, { Rewards: [{}] });
-    const questData = QuestDatas.find(data => data.variableId === params.VariableId);
+    const questData = $dataQuests.find(data => data.variableId === params.VariableId);
     if (!questData) return;
     const rewards = params.Rewards.map(rewardParam => {
         return RewardData.fromParam(rewardParam);
