@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.0.0
+@plugindesc formation system v1.0.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -308,7 +308,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.0.0
+@plugindesc 陣形システム v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -928,6 +928,7 @@ const ChangeCurrentFormationSe = params.ChangeCurrentFormationSe;
 const WindowSize = params.WindowSize;
 const Text = params.Text;
 
+
 class FormationData {
     static fromParam(id, param) {
         const positionDatas = [];
@@ -1346,12 +1347,20 @@ class FormationController {
         this._lastFormation = null;
     }
 
+    // Generate a position from an actor sprite.
+    reset(actorSprites) {
+        this._actorSprites = actorSprites;
+        this.createActorPositions();
+    }
+
     createActorPositions() {
         let i = 0;
         for (const actor of $gameParty.members()) {
             const actorId = actor.actorId();
-            const sprite = this._actorSprites[i];
-            this._actorPositions[actorId] = new ActorPosition(actorId, sprite);
+            if (!(actorId in this._actorPositions)) {
+                const sprite = this._actorSprites[i];
+                this._actorPositions[actorId] = new ActorPosition(actorId, sprite);
+            }
             i++;
         }
     }
@@ -1360,6 +1369,8 @@ class FormationController {
         if (!this._lastFormation) return;
         for (const actor of $gameParty.members()) {
             const position = this._actorPositions[actor.actorId()];
+            // If an actor has just been added, it will not be updated because there is no position.
+            if (!position) return;
             position.update(this._mode);
         }
     }
@@ -1521,6 +1532,10 @@ class Window_BattleFormationList extends Window_FormationList {
         return 2;
     }
 
+    resetFormationController(actorSprites) {
+        this._formationController.reset(actorSprites);
+    }
+
     makeCommandList() {
         const formations = $gameParty.equipFormations().filter(formation => formation);
         for (const formation of formations) {
@@ -1602,6 +1617,7 @@ Scene_Battle.prototype.change_PartyCommandWindow_To_BattleFormationListWindow = 
     this._partyCommandWindow.hide();
     this._partyCommandWindow.deactivate();
     this._helpWindow.show();
+    this._battleFormationListWindow.resetFormationController(this._spriteset._actorSprites);
     this._battleFormationListWindow.show();
     this._battleFormationListWindow.activate();
 };
@@ -1646,7 +1662,24 @@ class FormationStateUtils {
     }
 }
 
+Game_Actor.prototype.isBattleStarted = function() {
+    return this.actorId() && $gameParty.members().map(actor => actor.actorId()).includes(this.actorId());
+}
+
+const _Game_Actor_onBattleStart = Game_Actor.prototype.onBattleStart;
+Game_Actor.prototype.onBattleStart = function(advantageous) {
+    _Game_Actor_onBattleStart.call(this, advantageous);
+    this.applyFormationEffect();
+};
+
+const _Game_Actor_onBattleEnd = Game_Actor.prototype.onBattleEnd;
+Game_Actor.prototype.onBattleEnd = function() {
+    _Game_Actor_onBattleEnd.call(this);
+    this.clearFormationEffect();
+};
+
 Game_Actor.prototype.applyFormationEffect = function() {
+    if (!this.isBattleStarted()) return;
     const formation = $gameParty.currentFormation();
     if (!(SceneManager._scene instanceof Scene_Battle)) return;
     if (FormationStateUtils.isFormationInvalid()) return;
@@ -1655,6 +1688,7 @@ Game_Actor.prototype.applyFormationEffect = function() {
 };
 
 Game_Actor.prototype.clearFormationEffect = function() {
+    if (!this.isBattleStarted()) return;
     const formation = $gameParty.currentFormation();
     const position = formation.position(this.actorId());
     if (position.stateId) this.eraseState(position.stateId);
@@ -1663,38 +1697,30 @@ Game_Actor.prototype.clearFormationEffect = function() {
 const _Game_Actor_clearStates = Game_Actor.prototype.clearStates;
 Game_Actor.prototype.clearStates = function() {
     _Game_Actor_clearStates.call(this);
+    if (!this.isBattleStarted()) return;
     this.applyFormationEffect();
 };
 
 const _Game_Actor_addNewState = Game_Actor.prototype.addNewState;
 Game_Actor.prototype.addNewState = function(stateId) {
     _Game_Actor_addNewState.call(this, stateId);
+    if (!this.isBattleStarted()) return;
     if (this.isFormationInvalidStateAdded()) FormationStateUtils.clearFormationEffect();
 };
 
 const _Game_Actor_eraseState = Game_Actor.prototype.eraseState;
 Game_Actor.prototype.eraseState = function(stateId) {
     _Game_Actor_eraseState.call(this, stateId);
+    if (!this.isBattleStarted()) return;
     if (FormationStateUtils.isChangeValid(stateId)) FormationStateUtils.applyFormationEffect();
 };
 
 Game_Actor.prototype.isFormationInvalidStateAdded = function() {
+    if (!this.isBattleStarted()) return false;
     for (const stateId of this._states) {
         if (FormationStateUtils.isInvalidState(stateId)) return true;
     }
     return false;
-};
-
-const _BattleManager_updateStart = BattleManager.updateStart;
-BattleManager.updateStart = function() {
-    _BattleManager_updateStart.call(this);
-    FormationStateUtils.applyFormationEffect();
-};
-
-const _BattleManager_updateBattleEnd = BattleManager.updateBattleEnd;
-BattleManager.updateBattleEnd = function() {
-    _BattleManager_updateBattleEnd.call(this);
-    FormationStateUtils.clearFormationEffect();
 };
 
 
