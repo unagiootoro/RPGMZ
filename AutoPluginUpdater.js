@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc プラグイン自動更新プラグイン v0.2.0
+@plugindesc プラグイン自動更新プラグイン v0.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AutoPluginUpdater.js
 
@@ -166,6 +166,16 @@ class HttpRequest {
         if (params) json = JSON.stringify(params);
         xhr.addEventListener("load", (e) => {
             const res = {
+                result: "load",
+                status: xhr.status,
+                response: xhr.response,
+                event: e
+            };
+            this._responseCallback(res);
+        });
+        xhr.addEventListener("error", (e) => {
+            const res = {
+                result: "error",
                 status: xhr.status,
                 response: xhr.response,
                 event: e
@@ -174,7 +184,7 @@ class HttpRequest {
         });
         xhr.send(json);
     }
-}    
+}
 
 class PluginUrlGenerator {
     constructor(fileData) {
@@ -280,7 +290,7 @@ class PluginFileData {
         }
         HttpRequest.get(this._url, (res) => {
             $logger.addHttpResponseLog(this._url, res);
-            if (res.status !== 200) {
+            if (res.result === "error" || res.status !== 200) {
                 this._downloadStatus = "error";
                 return;
             }
