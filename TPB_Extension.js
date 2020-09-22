@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc TPB戦闘拡張プラグイン v1.0.2
+@plugindesc TPB戦闘拡張プラグイン v1.0.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/TPB_Extension.js
 
@@ -194,16 +194,24 @@ const TPBExParams = {};
         this.selectPreviousCommand(false);
     };
 
+    Scene_Battle.prototype.isPartyCommandSelecting = function() {
+        return this._partyCommandWindow.active;
+    };
+
+    Scene_Battle.prototype.isSkillOrItemCommandSelecting = function() {
+        return this._skillWindow.active || this._itemWindow.active;
+    };
+
     Scene_Battle.prototype.isTimeActive = function() {
-        const skillOrItemWindowActive = this._skillWindow.active || this._itemWindow.active;
-        const partyCommandWindowActive = this._partyCommandWindow.active;
+        const skillOrItemWindowSelecting = this.isSkillOrItemCommandSelecting();
+        const partyCommandWindowSelecting = this.isPartyCommandSelecting();
         if (BattleManager.isActiveTpb()) {
             if (TPBExParams.WaitSkillOrItemWindow && TPBExParams.WaitPartyWindow) {
-                return !skillOrItemWindowActive && !partyCommandWindowActive;
+                return !skillOrItemWindowSelecting && !partyCommandWindowSelecting;
             } else if (TPBExParams.WaitSkillOrItemWindow && !TPBExParams.WaitPartyWindow) {
-                return !skillOrItemWindowActive;
+                return !skillOrItemWindowSelecting;
             } else if (!TPBExParams.WaitSkillOrItemWindow && TPBExParams.WaitPartyWindow) {
-                return !partyCommandWindowActive;
+                return !partyCommandWindowSelecting;
             }
             return true;
         } else {
@@ -215,7 +223,7 @@ const TPBExParams = {};
         this.hideSubInputWindows();
         if (BattleManager.isInputting()) {
             if (BattleManager.actor()) {
-                if (!this._partyCommandWindow.active) this.startActorCommandSelection();
+                if (!this.isPartyCommandSelecting()) this.startActorCommandSelection();
             } else {
                 this.startPartyCommandSelection();
             }
@@ -370,5 +378,23 @@ const TPBExParams = {};
 
     Scene_Battle.prototype.arePageButtonsEnabled = function() {
         return this.canChangeActor() && this._actorCommandWindow.active && this._actorCommandWindow.visible;
+    };
+
+
+    // Conflict measures
+    Scene_Battle.prototype.isPartyCommandSelecting = function() {
+        if (typeof FormationSystemPluginName !== "undefined") {
+            return this._partyCommandWindow.active || this._battleFormationListWindow.active;
+        }
+        return this._partyCommandWindow.active;
+    };
+
+    const _Scene_Battle_hideSubInputWindows = Scene_Battle.prototype.hideSubInputWindows;
+    Scene_Battle.prototype.hideSubInputWindows = function() {
+        _Scene_Battle_hideSubInputWindows.call(this);
+        // Show helpWindow hidden by'hideSubInputWindows'.
+        if (typeof FormationSystemPluginName !== "undefined") {
+            if (this._battleFormationListWindow.active) this._helpWindow.show();
+        }
     };
 })();
