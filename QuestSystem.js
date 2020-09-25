@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Quest system v1.1.2
+@plugindesc Quest system v1.2.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -183,7 +183,7 @@ Set the ME to play when reporting a quest.
 @param WindowSize
 @text Window size
 @type struct<WindowSize>
-@default {"CommandWindowWidth": "300", "CommandWindowHeight": "160", "DialogWindowWidth": "400", "DialogWindowHeight": "160", "GetRewardWindowWidth": "540", "GetRewardWindowHeight": "160" }
+@default {"CommandWindowWidth": "300", "CommandWindowHeight": "160", "DialogWindowWidth": "400", "DialogWindowHeight": "160", "GetRewardWindowWidth": "540" }
 @desc
 Set the size of various windows.
 
@@ -214,6 +214,13 @@ Set the gold icon to be displayed in the reward column.
 @default 89
 @desc
 Set the experience value icon to be displayed in the reward column.
+
+@param QuestTitleWrap
+@text Quest title With or without line breaks
+@type boolean
+@default false
+@desc
+Set the presence or absence of line breaks in the quest title.
 
 
 @command StartQuestScene
@@ -263,7 +270,7 @@ Specify the background image of the quest scene.
 @desc Specifies the variable ID of the quest whose details you want to change.
 
 @arg Detail
-@type string
+@type multiline_string
 @text details
 @desc Set the quest details to change.
 
@@ -541,13 +548,6 @@ Specifies the vertical width of the dialog window.
 @default 540
 @desc
 Specifies the width of the reward acquisition window.
-
-@param GetRewardWindowHeight
-@text Reward acquisition window height
-@type number
-@default 160
-@desc
-Specifies the vertical width of the reward acquisition window.
 */
 
 
@@ -831,10 +831,9 @@ Specifies the color of the expired text.
 
 
 
-
 /*:ja
 @target MZ
-@plugindesc クエストシステム v1.1.2
+@plugindesc クエストシステム v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -1016,7 +1015,7 @@ hiddenQuest: 隠しクエストを表示する
 @param WindowSize
 @text ウィンドウのサイズ
 @type struct<WindowSize>
-@default {"CommandWindowWidth":"300","CommandWindowHeight":"160","DialogWindowWidth":"400","DialogWindowHeight":"160","GetRewardWindowWidth":"540","GetRewardWindowHeight":"160"}
+@default {"CommandWindowWidth":"300","CommandWindowHeight":"160","DialogWindowWidth":"400","DialogWindowHeight":"160","GetRewardWindowWidth":"540"}
 @desc
 各種ウィンドウのサイズを設定します。
 
@@ -1047,6 +1046,13 @@ hiddenQuest: 隠しクエストを表示する
 @default 89
 @desc
 報酬欄に表示する経験値のアイコンを設定します。
+
+@param QuestTitleWrap
+@text クエストタイトル改行有無
+@type boolean
+@default false
+@desc
+クエストタイトルの改行有無を設定します。
 
 
 @command StartQuestScene
@@ -1096,7 +1102,7 @@ hiddenQuest: 隠しクエストを表示する
 @desc 詳細を変更するクエストの変数IDを指定します。
 
 @arg Detail
-@type string
+@type multiline_string
 @text 詳細
 @desc 変更するクエスト詳細を設定します。
 
@@ -1374,13 +1380,6 @@ hiddenQuest: 隠しクエストを表示する
 @default 540
 @desc
 報酬入手ウィンドウの横幅を指定します。
-
-@param GetRewardWindowHeight
-@text 報酬入手ウィンドウ高
-@type number
-@default 160
-@desc
-報酬入手ウィンドウの縦幅を指定します。
 */
 
 
@@ -1800,26 +1799,93 @@ class RewardData {
     }
 }
 
+class TextDrawer {
+    static get WINDOW_TEXT_SPACE() { return 64 };
+
+    constructor(window) {
+        this._window = window;
+    }
+
+    drawIconText(text, iconIndex, x, y, width) {
+        return this.drawIconTextByMode(text, iconIndex, x, y, width, "normal");
+    }
+
+    drawIconTextWrap(text, iconIndex, x, y, width) {
+        return this.drawIconTextByMode(text, iconIndex, x, y, width, "ex");
+    }
+
+    drawTextExWrap(text, x, y, width) {
+        this._window.resetFontSettings();
+        const textState = this._window.createTextState(text, x, y, width);
+        const textArray = textState.text.split("");
+        const outTextArray = [];
+        let begin = 0;
+        let turnPoint = 0;
+        for (let i = 0; i < textArray.length; i++) {
+            outTextArray.push(textArray[i]);
+            if (textArray[i] === "\n") {
+                begin += turnPoint;
+                turnPoint = 0;
+            } else if (this.isTextTurn(textArray, begin, turnPoint, width)) {
+                outTextArray.push("\n");
+                begin += turnPoint;
+                turnPoint = 0;
+            } else {
+                turnPoint++;   
+            }
+        }
+        textState.text = outTextArray.join("");
+        this._window.processAllText(textState);
+        return textState.text.split("\n").length;
+    }
+
+    isTextTurn(array, begin, length, width) {
+        const buf = [];
+        for (let i = begin; i < begin + length; i++) {
+            buf.push(array[i]);
+        }
+        const text = buf.join("");
+        if (this._window.textWidth(text) >= width - TextDrawer.WINDOW_TEXT_SPACE) {
+            return true;
+        }
+        return false;
+    }
+
+    drawIconTextByMode(text, iconIndex, x, y, width, mode) {
+        const iconY = y + (this._window.lineHeight() - ImageManager.iconHeight) / 2;
+        const textMargin = ImageManager.iconWidth + 4;
+        const itemWidth = Math.max(0, width - textMargin);
+        this._window.resetTextColor();
+        this._window.drawIcon(iconIndex, x, iconY);
+        if (mode === "normal") {
+            this._window.drawText(text, x + textMargin, y, itemWidth);
+            return 1;
+        } else if (mode === "ex") {
+            return this.drawTextExWrap(text, x + textMargin, y, itemWidth);
+        }
+    }
+}
+
 class RewardWindowDrawer {
     constructor(window, reward) {
         this._window = window;
         this._reward = reward;
+        this._textDrawer = new TextDrawer(window);
     }
 
     drawRewardToWindow(x, y, width) {
         if (this._reward.type === "gold") {
-            const text = { name: `${this._reward.params.value}${TextManager.currencyUnit}`, iconIndex: GoldIcon };
-            this._window.drawItemName(text, x, y, width);
+            const text = `${this._reward.params.value}${TextManager.currencyUnit}`;
+            this._textDrawer.drawIconText(text, GoldIcon, x, y, width);
         } else if (this._reward.type === "item") {
             this._window.drawItemName(this._reward.params.item.itemData(), x, y, width);
             const strItemCount = `×${this._reward.params.count}`;
             this._window.drawText(strItemCount, x, y, width, "right");
         } else if (this._reward.type === "exp") {
-            const text = { name: `${TextManager.exp}＋${this._reward.params.value}`, iconIndex: ExpIcon };
-            this._window.drawItemName(text, x, y, width);
+            const text = `${TextManager.exp}＋${this._reward.params.value}`;
+            this._textDrawer.drawIconText(text, ExpIcon, x, y, width);
         } else if (this._reward.type === "any") {
-            const text = { name: this._reward.params.text, iconIndex: this._reward.params.iconIndex };
-            this._window.drawItemName(text, x, y, width);
+            this._textDrawer.drawIconText(this._reward.params.text, this._reward.params.iconIndex, x, y, width);
         }
     }
 }
@@ -1928,6 +1994,7 @@ const DisplayPlace = params.DisplayPlace;
 const DisplayTimeLimit = params.DisplayTimeLimit;
 const GoldIcon = params.GoldIcon;
 const ExpIcon = params.ExpIcon;
+const QuestTitleWrap = params.QuestTitleWrap;
 
 const QuestOrderSe = params.QuestOrderSe;
 const QuestReportMe = params.QuestReportMe;
@@ -2160,10 +2227,10 @@ class Scene_QuestSystem extends Scene_Message {
     }
 
     questGetRewardWindowRect() {
+        const x = 0;
+        const y = 0;
         const w = WindowSize.GetRewardWindowWidth;
-        const h = WindowSize.GetRewardWindowHeight;
-        const x = Graphics.boxWidth / 2 - w / 2;
-        const y = Graphics.boxHeight / 2 - h / 2;
+        const h = Graphics.boxHeight;
         return new Rectangle(x, y, w, h);
     }
 
@@ -2424,8 +2491,8 @@ class Window_QuestList extends Window_Command {
         if (questData.iconIndex === 0) {
             this.drawText(this.commandName(index), rect.x, rect.y, rect.width, "left");
         } else {
-            const text = { name: this.commandName(index), iconIndex: questData.iconIndex };
-            this.drawItemName(text, rect.x, rect.y, rect.width);
+            const textDrawer = new TextDrawer(this);
+            textDrawer.drawIconText(this.commandName(index), questData.iconIndex, rect.x, rect.y, rect.width);
         }
     }
 }
@@ -2472,8 +2539,8 @@ class Window_QuestDetail extends Window_Selectable {
 
     drawQuestData() {
         let startLine = 0;
-        this.drawTitle(startLine);
-        startLine += 1;
+        const titleRows = this.drawTitle(startLine);
+        startLine += titleRows;
         this.drawHorzLine(this.startY(startLine));
         startLine += 0.25;
         if (DisplayRequestor) {
@@ -2512,18 +2579,27 @@ class Window_QuestDetail extends Window_Selectable {
     }
 
     drawTitle(startLine) {
+        let titleRows = 1;
         this.resetTextColor();
         const stateWidth = 120;
         const titleWidth = this.width - this.padding * 4 - stateWidth;
-        if (this._questData.iconIndex === 0) {
-            this.drawText(this._questData.title, this.padding, this.startY(startLine), titleWidth, "left");
+        if (QuestTitleWrap) {
+            if (this._questData.iconIndex === 0) {
+                titleRows = this.drawTextExWrap(this._questData.title, this.padding, this.startY(startLine), titleWidth);
+            } else {
+                titleRows = this.drawIconTextWrap(this._questData.title, this._questData.iconIndex, this.padding, this.startY(startLine), titleWidth);
+            }
         } else {
-            const text = { name: this._questData.title, iconIndex: this._questData.iconIndex };
-            this.drawItemName(text, this.padding, this.startY(startLine), titleWidth);
+            if (this._questData.iconIndex === 0) {
+                this.drawText(this._questData.title, this.padding, this.startY(startLine), titleWidth);
+            } else {
+                this.drawIconText(this._questData.title, this._questData.iconIndex, this.padding, this.startY(startLine), titleWidth);
+            }
         }
         this.changeTextColor(this._questData.stateTextColor());
         this.drawText(this._questData.stateText(), this.padding + titleWidth, this.startY(startLine), stateWidth, "right");
         this.resetTextColor();
+        return titleRows;
     }
 
     drawRequester(startLine) {
@@ -2569,7 +2645,7 @@ class Window_QuestDetail extends Window_Selectable {
     }
 
     drawDetail(startLine) {
-        this.drawTextEx(this._questData.detail, this.padding, this.startY(startLine), this.width - this.padding * 2);
+        this.drawTextExWrap(this._questData.detail, this.padding, this.startY(startLine), this.width - this.padding * 2);
     }
 
     drawHiddenDetail(startLine) {
@@ -2587,6 +2663,21 @@ class Window_QuestDetail extends Window_Selectable {
         const width = this.innerWidth - padding * 2;
         this.drawRect(x, y, width, 5);
         this.resetTextColor();
+    }
+
+    drawTextExWrap(text, x, y, width) {
+        const textDrawer = new TextDrawer(this);
+        return textDrawer.drawTextExWrap(text, x, y, width);
+    }
+
+    drawIconText(text, iconIndex, x, y, width) {
+        const textDrawer = new TextDrawer(this);
+        return textDrawer.drawIconText(text, iconIndex, x, y, width);
+    }
+
+    drawIconTextWrap(text, iconIndex, x, y, width) {
+        const textDrawer = new TextDrawer(this);
+        return textDrawer.drawIconTextWrap(text, iconIndex, x, y, width);
     }
 
     itemHeight() {
@@ -2708,6 +2799,20 @@ class Window_QuestGetReward extends Window_Selectable {
         this.hide();
         this.close();
         this._questData = null;
+    }
+
+    refresh() {
+        if (this._questData) this.updateWindowRect();
+        super.refresh();
+    }
+
+    updateWindowRect() {
+        const numRewards = this._questData.rewards.length;
+        const w = WindowSize.GetRewardWindowWidth;
+        const h = 80 + numRewards * 40;
+        const x = Graphics.boxWidth / 2 - w / 2;
+        const y = Graphics.boxHeight / 2 - h / 2;
+        this.move(x, y, w, h);
     }
 
     onTouchOk() {
