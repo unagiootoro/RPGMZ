@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Quest system v1.2.0
+@plugindesc Quest system v1.2.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -833,7 +833,7 @@ Specifies the color of the expired text.
 
 /*:ja
 @target MZ
-@plugindesc クエストシステム v1.2.0
+@plugindesc クエストシステム v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -1800,8 +1800,6 @@ class RewardData {
 }
 
 class TextDrawer {
-    static get WINDOW_TEXT_SPACE() { return 64 };
-
     constructor(window) {
         this._window = window;
     }
@@ -1823,15 +1821,16 @@ class TextDrawer {
         let turnPoint = 0;
         for (let i = 0; i < textArray.length; i++) {
             outTextArray.push(textArray[i]);
+            const end = begin + turnPoint + 2; // +2 is length and next char.
             if (textArray[i] === "\n") {
                 begin += turnPoint;
-                turnPoint = 0;
-            } else if (this.isTextTurn(textArray, begin, turnPoint, width)) {
+                turnPoint = 1;
+            } else if (this.isTextTurn(textArray, begin, end, width)) {
                 outTextArray.push("\n");
                 begin += turnPoint;
                 turnPoint = 0;
             } else {
-                turnPoint++;   
+                turnPoint++;
             }
         }
         textState.text = outTextArray.join("");
@@ -1839,15 +1838,9 @@ class TextDrawer {
         return textState.text.split("\n").length;
     }
 
-    isTextTurn(array, begin, length, width) {
-        const buf = [];
-        for (let i = begin; i < begin + length; i++) {
-            buf.push(array[i]);
-        }
-        const text = buf.join("");
-        if (this._window.textWidth(text) >= width - TextDrawer.WINDOW_TEXT_SPACE) {
-            return true;
-        }
+    isTextTurn(array, begin, end, width) {
+        const text = array.slice(begin, end).join("");
+        if (this._window.textWidth(text) >= width) return true;
         return false;
     }
 
@@ -2881,7 +2874,7 @@ PluginManager.registerCommand(QuestSystemPluginName, "ChangeRewards", args => {
 const _Window_MenuCommand_addOriginalCommands = Window_MenuCommand.prototype.addOriginalCommands;
 Window_MenuCommand.prototype.addOriginalCommands = function() {
     _Window_MenuCommand_addOriginalCommands.call(this);
-    if (EnabledQuestMenu || Text.MenuQuestSystemText === "") this.addCommand(Text.MenuQuestSystemText, "quest", this.isEnabledQuestMenu());
+    if (EnabledQuestMenu && Text.MenuQuestSystemText !== "") this.addCommand(Text.MenuQuestSystemText, "quest", this.isEnabledQuestMenu());
 };
 
 Window_MenuCommand.prototype.isEnabledQuestMenu = function() {
@@ -2892,7 +2885,7 @@ Window_MenuCommand.prototype.isEnabledQuestMenu = function() {
 const _Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
 Scene_Menu.prototype.createCommandWindow = function() {
     _Scene_Menu_createCommandWindow.call(this);
-    if (EnabledQuestMenu) this._commandWindow.setHandler("quest", this.quest.bind(this));
+    this._commandWindow.setHandler("quest", this.quest.bind(this));
 };
 
 Scene_Menu.prototype.quest = function() {
