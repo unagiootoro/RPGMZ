@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.5.2
+@plugindesc Skill tree v1.5.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -207,7 +207,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.5.2
+@plugindesc スキルツリー v1.5.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -1041,6 +1041,7 @@ class SkillTreeData {
     loadSaveContents(contents) {
         for (let actorId = 1; actorId < $dataActors.length; actorId++) {
             if (!contents[actorId]) continue;
+            $skillTreeConfigLoader.loadConfig(actorId);
             this.setSp(actorId, contents[actorId].sp);
             for (const type of this.types(actorId)) {
                 type.setEnabled(contents[type.skillTreeTag()].enabled);
@@ -2355,14 +2356,14 @@ Scene_Menu.prototype.onPersonalOk = function() {
 
 // Includes skill tree data in save data.
 const _DataManager_makeSaveContents = DataManager.makeSaveContents;
-DataManager.makeSaveContents = function(){
+DataManager.makeSaveContents = function() {
     const contents = _DataManager_makeSaveContents.call(this);
     contents.skillTreeData = $skillTreeData.makeSaveContents();
     return contents;
 };
 
 const _DataManager_extractSaveContents = DataManager.extractSaveContents;
-DataManager.extractSaveContents = function(contents){
+DataManager.extractSaveContents = function(contents) {
     _DataManager_extractSaveContents.call(this, contents);
     if (contents.skillTreeData) $skillTreeData.loadSaveContents(contents.skillTreeData);
 };
