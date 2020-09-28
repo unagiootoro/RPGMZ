@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.0.1
+@plugindesc formation system v1.0.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -308,7 +308,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.0.1
+@plugindesc 陣形システム v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -895,6 +895,31 @@ class WindowModule_DataListTitle {
     static innerHeight() {
         return Math.max(0, this._height - this._padding * 2 - WindowModule_DataListTitle.TITLE_HEIGHT);
     }
+
+    static isTouchedInsideFrame() {
+        const touchPos = new Point(TouchInput.x, TouchInput.y);
+        const localPos = this.worldTransform.applyInverse(touchPos);
+        return this.innerRect.contains(localPos.x, localPos.y - this._titleSprite.bitmap.height);
+    }
+
+    static hitTest(x, y) {
+        if (this.innerRect.contains(x, y - this._titleSprite.bitmap.height)) {
+            const cx = this.origin.x + x - this.padding;
+            const cy = this.origin.y + y - this.padding;
+            const topIndex = this.topIndex();
+            for (let i = 0; i < this.maxVisibleItems(); i++) {
+                const index = topIndex + i;
+                if (index < this.maxItems()) {
+                    const rect = this.itemRect(index);
+                    rect.y += this._titleSprite.bitmap.height;
+                    if (rect.contains(cx, cy)) {
+                        return index;
+                    }
+                }
+            }
+        }
+        return -1;
+    };
 }
 
 
@@ -1235,6 +1260,14 @@ class Window_EquipFormationList extends Window_FormationList {
     _updateClientArea() {
         WindowModule_DataListTitle._updateClientArea.call(this);
     }
+
+    isTouchedInsideFrame() {
+        return WindowModule_DataListTitle.isTouchedInsideFrame.call(this);
+    }
+
+    hitTest(x, y) {
+        return WindowModule_DataListTitle.hitTest.call(this, x, y);
+    }
 }
 
 Object.defineProperty(Window_EquipFormationList.prototype, "innerHeight", {
@@ -1292,6 +1325,14 @@ class Window_HasFormationList extends Window_FormationList {
 
     _updateClientArea() {
         WindowModule_DataListTitle._updateClientArea.call(this);
+    }
+
+    isTouchedInsideFrame() {
+        return WindowModule_DataListTitle.isTouchedInsideFrame.call(this);
+    }
+
+    hitTest(x, y) {
+        return WindowModule_DataListTitle.hitTest.call(this, x, y);
     }
 }
 
