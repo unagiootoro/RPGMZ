@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc TPB戦闘拡張プラグイン v1.0.3
+@plugindesc TPB戦闘拡張プラグイン v1.0.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/TPB_Extension.js
 
@@ -74,13 +74,13 @@ TPB戦闘を拡張するプラグインです。
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
+const TPB_ExtensionPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
 const TPBExParams = {};
 
 (() => {
     "use strict";
 
-    const pluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
-    const params = PluginManager.parameters(pluginName);
+    const params = PluginManager.parameters(TPB_ExtensionPluginName);
     TPBExParams.FastForwardSpeed = parseInt(params["FastForwardSpeed"]);
     TPBExParams.FastForwardAnimation = (params["FastForwardAnimation"] === "true" ? true : false);
 
@@ -94,7 +94,7 @@ const TPBExParams = {};
 
     TPBExParams.FixedStatusWindow = (params["FixedStatusWindow"] === "true" ? true : false);
 
-    // When the shift key pressed, TPB gauge is fast forward.
+    // シフトキーを押すと、TPBゲージが早送りされる
     BattleManager.isFastForward = function() {
         if (SceneManager._scene instanceof Scene_Battle) return Input.isPressed("shift");
         return false;
@@ -108,7 +108,7 @@ const TPBExParams = {};
     };
 
 
-    // When the shift key pressed, Show animation is fast forward.
+    // Shiftキーを押すと、アニメーションの表示が早送りされる。
     const _Sprite_Animation_updateMain = Sprite_Animation.prototype.updateMain;
     Sprite_Animation.prototype.updateMain = function() {
         if (!TPBExParams.FastForwardAnimation) return _Sprite_Animation_updateMain.call(this);
@@ -180,18 +180,23 @@ const TPBExParams = {};
         return numCanInputMembers >= 2;
     };
 
-    Scene_Battle.prototype.selectPreviousCommand = function(tpbForward = true) {
+    Scene_Battle.prototype.selectPreviousCommand = function() {
+        const canChangePartyCommand = BattleManager.selectPreviousCommand();
+        if (canChangePartyCommand) this.startPartyCommandSelection();
+    };
+
+    Scene_Battle.prototype.changeActor = function(tpbForward = true) {
         if (!this.canChangeActor()) return;
-        BattleManager.selectPreviousCommand(tpbForward);
+        BattleManager.selectPreviousActor(tpbForward);
         this.changeInputWindow();
     };
 
     Scene_Battle.prototype.nextActor = function() {
-        this.selectPreviousCommand(true);
+        this.changeActor(true);
     };
     
     Scene_Battle.prototype.previousActor = function() {
-        this.selectPreviousCommand(false);
+        this.changeActor(false);
     };
 
     Scene_Battle.prototype.isPartyCommandSelecting = function() {
@@ -223,8 +228,14 @@ const TPBExParams = {};
         this.hideSubInputWindows();
         if (BattleManager.isInputting()) {
             if (BattleManager.actor()) {
+                // パーティウィンドウからアクターウィンドウに戻すときに
+                // 前のアクターがどのアクターだったかが分かるようにthis._currentActorをnullにしていない。
+                // そのため、this._currentActorが存在していてもパーティウィンドウの選択中は
+                // アクターウィンドウが表示されないようにしている。
                 if (!this.isPartyCommandSelecting()) this.startActorCommandSelection();
             } else {
+                // アクターウィンドウの入力が終わるとパーティウィンドウが開始するようになっているが、
+                // inputtingではなくなるため、パーティウィンドウは閉じられる。
                 this.startPartyCommandSelection();
             }
         } else {
@@ -232,12 +243,15 @@ const TPBExParams = {};
         }
     };
 
+    // パーティウィンドウを閉じ、アクターウィンドウへ遷移できるようにする。
+    // アクターウィンドウのオープンは、changeInputWindowによって行われる。
     Scene_Battle.prototype.commandFight = function() {
         this.endCommandSelection();
+        this.changeInputWindow();
     };
 
     Scene_Battle.prototype.commandCancel = function() {
-        this.startPartyCommandSelection();
+        this.selectPreviousCommand();
     };
 
     const _Scene_Battle_statusWindowX = Scene_Battle.prototype.statusWindowX;
@@ -319,22 +333,25 @@ const TPBExParams = {};
         return null;
     };
 
-    BattleManager.selectPreviousCommand = function(tpbForward = true) {
+    // パーティウィンドウに変更できるかどうかを返す。
+    BattleManager.selectPreviousCommand = function() {
         if (this._currentActor) {
             if (this._currentActor.selectPreviousCommand()) {
-                return;
+                return false;
             }
-            this.cancelActorInput();
+            return true;
+        } else {
+            // this._currentActorがnullの場合、this._inputtingを更新する。
+            // this._inputtingがfalseであれば、コマンドウィンドウは表示されない。
+            this._inputting = $gameParty.canInput();
         }
-        this.selectPreviousActor(tpbForward);
     };
 
+    // このメソッドはアクター切り替えのみを行い、パーティーウィンドウに移行しない。
     BattleManager.selectPreviousActor = function(tpbForward = true) {
+        if (this._currentActor) this.cancelActorInput();
         if (this.isTpb()) {
             this.changeCurrentActor(tpbForward);
-            if (!this._currentActor) {
-                this._inputting = $gameParty.canInput();
-            }
         } else {
             this.changeCurrentActor(false);
         }
@@ -377,6 +394,7 @@ const TPBExParams = {};
     };
 
     Scene_Battle.prototype.arePageButtonsEnabled = function() {
+        if (this.isPartyCommandSelecting()) return false;
         return this.canChangeActor() && this._actorCommandWindow.active && this._actorCommandWindow.visible;
     };
 
@@ -392,7 +410,7 @@ const TPBExParams = {};
     const _Scene_Battle_hideSubInputWindows = Scene_Battle.prototype.hideSubInputWindows;
     Scene_Battle.prototype.hideSubInputWindows = function() {
         _Scene_Battle_hideSubInputWindows.call(this);
-        // Show helpWindow hidden by'hideSubInputWindows'.
+        // battleFormationListWindowがactiveの場合はhideSubInputWindowsでhelpWindowを閉じない。
         if (typeof FormationSystemPluginName !== "undefined") {
             if (this._battleFormationListWindow.active) this._helpWindow.show();
         }
