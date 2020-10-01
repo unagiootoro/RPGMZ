@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.0.2
+@plugindesc formation system v1.0.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -308,7 +308,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.0.2
+@plugindesc 陣形システム v1.0.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -354,6 +354,10 @@ Specifies the text to display in the empty slot.
 
 作成した陣形は、プラグインパラメータの登録順に(0, 1, 2, ...)という形でIDが振られます。
 このうち、ID0の陣形についてはデフォルトの陣形として使用されます。
+
+陣形のポジションは戦闘に参加するアクターの数だけ用意する必要があります。
+例えば4人戦闘に参加させる場合、4人分のポジションの登録が必要となります。
+なお、1～3人が戦闘に参加するといった場合は3人分のポジションの登録が必要です。
 
 ■陣形の追加効果の設定
 陣形の追加効果はステートによって作成します。
@@ -983,6 +987,8 @@ class FormationData {
     get positions() { return this._positions; }
     get mapId() { return this._mapId; }
 
+    set positions(_positions) { this._positions = _positions; }
+
     position(actorId) {
         const i = $gameParty.members().map(actor => actor.actorId()).indexOf(actorId);
         if (i === -1) throw new Error(`actorId: ${actorId} is not found`);
@@ -1395,20 +1401,20 @@ class FormationController {
     }
 
     createActorPositions() {
-        let i = 0;
-        for (const actor of $gameParty.members()) {
+        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+            const actor = $gameParty.members()[i];
             const actorId = actor.actorId();
             if (!(actorId in this._actorPositions)) {
                 const sprite = this._actorSprites[i];
                 this._actorPositions[actorId] = new ActorPosition(actorId, sprite);
             }
-            i++;
         }
     }
 
     update() {
         if (!this._lastFormation) return;
-        for (const actor of $gameParty.members()) {
+        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+            const actor = $gameParty.members()[i];
             const position = this._actorPositions[actor.actorId()];
             // If an actor has just been added, it will not be updated because there is no position.
             if (!position) return;
@@ -1419,7 +1425,8 @@ class FormationController {
     changeFormation(newFormation, fast = false) {
         if (!newFormation) newFormation = this.defaultFormation();
         this._lastFormation = newFormation;
-        for (const actor of $gameParty.members()) {
+        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+            const actor = $gameParty.members()[i];
             const actorId = actor.actorId();
             const position = this._actorPositions[actorId];
             if (fast) {
@@ -1445,7 +1452,8 @@ class Window_FormationDetail extends Window_Selectable {
     }
 
     createActorSprites() {
-        for (const actor of $gameParty.members()) {
+        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+            const actor = $gameParty.members()[i];
             const sprite = new Sprite_MenuFormationActor(actor);
             sprite.startMotion("walk");
             this._actorSprites.push(sprite);
@@ -1684,19 +1692,19 @@ class FormationStateUtils {
     }
 
     static applyFormationEffect() {
-        for (const actor of $gameParty.members()) {
+        for (const actor of $gameParty.battleMembers()) {
             actor.applyFormationEffect();
         }
     }
     
     static clearFormationEffect() {
-        for (const actor of $gameParty.members()) {
+        for (const actor of $gameParty.battleMembers()) {
             actor.clearFormationEffect();
         }
     }
     
     static isFormationInvalid() {
-        for (const actor of $gameParty.members()) {
+        for (const actor of $gameParty.battleMembers()) {
             if (actor.isFormationInvalidStateAdded()) return true;
         }
         return false;
@@ -1704,7 +1712,7 @@ class FormationStateUtils {
 }
 
 Game_Actor.prototype.isBattleStarted = function() {
-    return this.actorId() && $gameParty.members().map(actor => actor.actorId()).includes(this.actorId());
+    return this.actorId() && $gameParty.battleMembers().map(actor => actor.actorId()).includes(this.actorId());
 }
 
 const _Game_Actor_onBattleStart = Game_Actor.prototype.onBattleStart;
@@ -1800,13 +1808,14 @@ class FormationMapLoader {
 
     setupPositions(formation) {
         const mapData = this.mapData();
-        const positions = formation.positions;
+        const originPositions = formation.positions;
+        formation.positions = new Array(originPositions.length);
         for (let i = 1; i < mapData.events.length; i++) {
             const event = mapData.events[i];
             if (event.note.match(/\d+/)) {
-                const position = positions[parseInt(event.note)];
-                position.x = event.x * 32;
-                position.y = event.y * 48;
+                const stateId = originPositions[parseInt(event.note)].stateId;
+                const newPosition = { x: event.x * 32, y: event.y * 48, stateId: stateId };
+                formation.positions[parseInt(event.note)] = newPosition;
             }
         }
     }
