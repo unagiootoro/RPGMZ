@@ -58,18 +58,21 @@ Activate the cost of the skill.
 @param EquipAbilitySe
 @text Ability Equipment SE
 @type struct <SE>
+@default {"FileName": "Skill1", "Volume": "90", "Pitch": "100", "Pan": "0"}
 @desc
 Specify the SE to play when the ability is equipped.
 
 @param WindowSize
 @text window size
 @type struct <WindowSize>
+@default {"StatusAbilityWindowWidth": "300", "StatusAbilityWindowHeight": "200"}
 @desc
 Set the size of various windows.
 
 @param Text
 @text Display text
 @type struct <Text>
+@default {"MenuAbilitySystemText": "Ability", "CostText": "Cost:", "EmptySlotText": "------"}
 @desc
 Sets the text used in the game.
 
@@ -291,18 +294,21 @@ Specify the cost wording to be displayed on the ability management screen.
 @param EquipAbilitySe
 @text アビリティ装備SE
 @type struct<SE>
+@default {"FileName":"Skill1","Volume":"90","Pitch":"100","Pan":"0"}
 @desc
 アビリティ装備時に再生するSEを指定します。
 
 @param WindowSize
 @text ウィンドウサイズ
 @type struct<WindowSize>
+@default {"StatusAbilityWindowWidth":"300","StatusAbilityWindowHeight":"200"}
 @desc
 各種ウィンドウのサイズを設定します。
 
 @param Text
 @text 表示テキスト
 @type struct<Text>
+@default {"MenuAbilitySystemText":"アビリティ","CostText":"コスト：","EmptySlotText":"------"}
 @desc
 ゲーム中で使用されるテキストを設定します。
 
