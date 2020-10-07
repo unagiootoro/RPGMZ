@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Quest system v1.2.1
+@plugindesc Quest system v1.3.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -183,14 +183,14 @@ Set the ME to play when reporting a quest.
 @param WindowSize
 @text Window size
 @type struct<WindowSize>
-@default {"CommandWindowWidth": "300", "CommandWindowHeight": "160", "DialogWindowWidth": "400", "DialogWindowHeight": "160", "GetRewardWindowWidth": "540" }
+@default {"CommandWindowWidth": "300", "CommandWindowHeight": "160", "DialogWindowWidth": "400", "GetRewardWindowWidth": "540" }
 @desc
 Set the size of various windows.
 
 @param Text
 @text Display text
 @type struct<Text>
-@default {"MenuQuestSystemText":"Quest confirmation","QuestOrderText":"Do you want to take this quest?","QuestOrderYesText":"Receive","QuestOrderNoText":"not accepted","QuestCancelText":"Do you want to cancel this quest?","QuestCancelYesText":"cancel","QuestCancelNoText":"do not cancel","QuestReportText":"Do you want to report this quest?","QuestReportYesText":"Report","QuestReportNoText":"do not report","NothingQuestText":"There is no corresponding quest.","GetRewardText":"Received the following items as a reward.","HiddenTitleText":"??????????","AllCommandText":"All quests","QuestOrderCommandText":"Receive quest","OrderingQuestCommandText":"quest in progress","QuestCancelCommandText":"quest cancellation","QuestReportCommandText":"Report quest","ReportedQuestCommandText":"Reported quest","FailedQuestCommandText":"quest that failed","ExpiredQuestCommandText":"Expired quest","HiddenQuestCommandText":"unknown quest","NotOrderedStateText":"unordered","OrderingStateText":"in progress","ReportableStateText":"can be reported","ReportedStateText":"reported","FailedStateText":"failure","ExpiredStateText":"expired","RequesterText":"[Requester]:","RewardText":"[Reward]:","DifficultyText":"[Difficulty]:","PlaceText":"[Location]:","TimeLimitText":"[Period]:"}
+@default {"MenuQuestSystemText":"Quest confirmation","QuestOrderText":"Do you want to take this quest?","QuestOrderYesText":"Receive","QuestOrderNoText":"not accepted","QuestCancelText":"Do you want to cancel this quest?","QuestCancelYesText":"cancel","QuestCancelNoText":"do not cancel","QuestReportText":"Do you want to report this quest?","QuestReportYesText":"Report","QuestReportNoText":"do not report","NothingQuestText":"There is no corresponding quest.","GetRewardText":"Received the following items as a reward.","ReachedLimitText":"The number of quests has reached the limit.","HiddenTitleText":"??????????","AllCommandText":"All quests","QuestOrderCommandText":"Receive quest","OrderingQuestCommandText":"quest in progress","QuestCancelCommandText":"quest cancellation","QuestReportCommandText":"Report quest","ReportedQuestCommandText":"Reported quest","FailedQuestCommandText":"quest that failed","ExpiredQuestCommandText":"Expired quest","HiddenQuestCommandText":"unknown quest","NotOrderedStateText":"unordered","OrderingStateText":"in progress","ReportableStateText":"can be reported","ReportedStateText":"reported","FailedStateText":"failure","ExpiredStateText":"expired","RequesterText":"[Requester]:","RewardText":"[Reward]:","DifficultyText":"[Difficulty]:","PlaceText":"[Location]:","TimeLimitText":"[Period]:"}
 @desc
 Sets the text used in the game.
 
@@ -221,6 +221,13 @@ Set the experience value icon to be displayed in the reward column.
 @default false
 @desc
 Set the presence or absence of line breaks in the quest title.
+
+@param MaxOrderingQuests
+@text Maximum number of quests that can be ordered
+@type number
+@default 0
+@desc
+Specify the number of quests that can be ordered at one time. If it is 0, you can receive infinite orders.
 
 
 @command StartQuestScene
@@ -358,6 +365,13 @@ Specifies information when the quest is hidden.
 @default 0
 @desc
 Specify the common event ID that starts immediately after the quest report is completed. If it is 0, it will not start.
+
+@param Priority
+@text Priority
+@type number
+@default 0
+@desc
+Specify the display priority of the quest. The higher the value, the higher the priority.
 */
 
 
@@ -535,13 +549,6 @@ Specifies the vertical width of the command window.
 @desc
 Specifies the width of the dialog window.
 
-@param DialogWindowHeight
-@text dialog window height
-@type number
-@default 160
-@desc
-Specifies the vertical width of the dialog window.
-
 @param GetRewardWindowWidth
 @text Reward acquisition window width
 @type number
@@ -635,6 +642,13 @@ Specify the message to be displayed when there is no corresponding quest.
 @default Received the following items as a reward.
 @desc
 Specifies the message to display when receiving a reward.
+
+@param ReachedLimitText
+@text Limit reached message
+@type string
+@default The number of quests has reached the limit.
+@desc
+Specify the message to be displayed when the number of quests reaches the upper limit.
 
 @param HiddenTitleText
 @text Hidden quest title
@@ -833,7 +847,7 @@ Specifies the color of the expired text.
 
 /*:ja
 @target MZ
-@plugindesc クエストシステム v1.2.1
+@plugindesc クエストシステム v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -1015,14 +1029,14 @@ hiddenQuest: 隠しクエストを表示する
 @param WindowSize
 @text ウィンドウのサイズ
 @type struct<WindowSize>
-@default {"CommandWindowWidth":"300","CommandWindowHeight":"160","DialogWindowWidth":"400","DialogWindowHeight":"160","GetRewardWindowWidth":"540"}
+@default {"CommandWindowWidth":"300","CommandWindowHeight":"160","DialogWindowWidth":"400","GetRewardWindowWidth":"540"}
 @desc
 各種ウィンドウのサイズを設定します。
 
 @param Text
 @text 表示テキスト
 @type struct<Text>
-@default {"MenuQuestSystemText":"クエスト確認","QuestOrderText":"このクエストを受けますか？","QuestOrderYesText":"受ける","QuestOrderNoText":"受けない","QuestCancelText":"このクエストをキャンセルしますか？","QuestCancelYesText":"キャンセルする","QuestCancelNoText":"キャンセルしない","QuestReportText":"このクエストを報告しますか？","QuestReportYesText":"報告する","QuestReportNoText":"報告しない","NothingQuestText":"該当するクエストはありません。","GetRewardText":"報酬として次のアイテムを受け取りました。","HiddenTitleText":"？？？？？？","AllCommandText":"全クエスト","QuestOrderCommandText":"クエストを受ける","OrderingQuestCommandText":"進行中のクエスト","QuestCancelCommandText":"クエストのキャンセル","QuestReportCommandText":"クエストを報告する","ReportedQuestCommandText":"報告済みのクエスト","FailedQuestCommandText":"失敗したクエスト","ExpiredQuestCommandText":"期限切れのクエスト","HiddenQuestCommandText":"未知のクエスト","NotOrderedStateText":"未受注","OrderingStateText":"進行中","ReportableStateText":"報告可","ReportedStateText":"報告済み","FailedStateText":"失敗","ExpiredStateText":"期限切れ","RequesterText":"【依頼者】：","RewardText":"【報酬】：","DifficultyText":"【難易度】：","PlaceText":"【場所】：","TimeLimitText":"【期間】："}
+@default {"MenuQuestSystemText":"クエスト確認","QuestOrderText":"このクエストを受けますか？","QuestOrderYesText":"受ける","QuestOrderNoText":"受けない","QuestCancelText":"このクエストをキャンセルしますか？","QuestCancelYesText":"キャンセルする","QuestCancelNoText":"キャンセルしない","QuestReportText":"このクエストを報告しますか？","QuestReportYesText":"報告する","QuestReportNoText":"報告しない","NothingQuestText":"該当するクエストはありません。","GetRewardText":"報酬として次のアイテムを受け取りました。","ReachedLimitText":"クエスト数が上限に達しました。","HiddenTitleText":"？？？？？？","AllCommandText":"全クエスト","QuestOrderCommandText":"クエストを受ける","OrderingQuestCommandText":"進行中のクエスト","QuestCancelCommandText":"クエストのキャンセル","QuestReportCommandText":"クエストを報告する","ReportedQuestCommandText":"報告済みのクエスト","FailedQuestCommandText":"失敗したクエスト","ExpiredQuestCommandText":"期限切れのクエスト","HiddenQuestCommandText":"未知のクエスト","NotOrderedStateText":"未受注","OrderingStateText":"進行中","ReportableStateText":"報告可","ReportedStateText":"報告済み","FailedStateText":"失敗","ExpiredStateText":"期限切れ","RequesterText":"【依頼者】：","RewardText":"【報酬】：","DifficultyText":"【難易度】：","PlaceText":"【場所】：","TimeLimitText":"【期間】："}
 @desc
 ゲーム中で使用されるテキストを設定します。
 
@@ -1053,6 +1067,13 @@ hiddenQuest: 隠しクエストを表示する
 @default false
 @desc
 クエストタイトルの改行有無を設定します。
+
+@param MaxOrderingQuests
+@text 最大受注可能クエスト数
+@type number
+@default 0
+@desc
+一度に受注可能なクエスト数を指定します。0だと無限に受注可能になります。
 
 
 @command StartQuestScene
@@ -1190,6 +1211,13 @@ hiddenQuest: 隠しクエストを表示する
 @default 0
 @desc
 クエスト報告完了直後に起動するコモンイベントIDを指定します。0だと起動しません。
+
+@param Priority
+@text プライオリティ
+@type number
+@default 0
+@desc
+クエストの表示優先度を指定します。値が大きいほど優先度は高くなります。
 */
 
 
@@ -1367,13 +1395,6 @@ hiddenQuest: 隠しクエストを表示する
 @desc
 ダイアログウィンドウの横幅を指定します。
 
-@param DialogWindowHeight
-@text ダイアログウィンドウ高
-@type number
-@default 160
-@desc
-ダイアログウィンドウの縦幅を指定します。
-
 @param GetRewardWindowWidth
 @text 報酬入手ウィンドウ幅
 @type number
@@ -1467,6 +1488,13 @@ hiddenQuest: 隠しクエストを表示する
 @default 報酬として次のアイテムを受け取りました。
 @desc
 報酬を受け取った時に表示するメッセージを指定します。
+
+@param ReachedLimitText
+@text 上限到達メッセージ
+@type string
+@default クエスト数が上限に達しました。
+@desc
+クエスト数が上限に達した時に表示するメッセージを指定します。
 
 @param HiddenTitleText
 @text 隠しクエストのタイトル
@@ -1898,10 +1926,11 @@ class QuestData {
         const detail = questDataParam.Detail;
         const hiddenDetail = questDataParam.HiddenDetail;
         const commonEventId = questDataParam.CommonEventId;
-        return new QuestData(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, commonEventId);
+        const priority = questDataParam.Priority;
+        return new QuestData(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, commonEventId, priority);
     }
 
-    constructor(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, commonEventId) {
+    constructor(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, commonEventId, priority) {
         this._variableId = variableId;
         this._title = title;
         this._iconIndex = iconIndex;
@@ -1913,6 +1942,7 @@ class QuestData {
         this._detail = detail;
         this._hiddenDetail = hiddenDetail;
         this._commonEventId = commonEventId;
+        this._priority = (priority != null ? priority : 0);
     }
 
     get variableId() { return this._variableId; }
@@ -1926,6 +1956,7 @@ class QuestData {
     get detail() { return this._detail; }
     get hiddenDetail() { return this._hiddenDetail; }
     get commonEventId() { return this._commonEventId; }
+    get priority() { return this._priority; }
 
     set rewards(_rewards) { this._rewards = _rewards; }
     set detail(_detail) { this._detail = _detail; }
@@ -1988,6 +2019,7 @@ const DisplayTimeLimit = params.DisplayTimeLimit;
 const GoldIcon = params.GoldIcon;
 const ExpIcon = params.ExpIcon;
 const QuestTitleWrap = params.QuestTitleWrap;
+const MaxOrderingQuests = params.MaxOrderingQuests;
 
 const QuestOrderSe = params.QuestOrderSe;
 const QuestReportMe = params.QuestReportMe;
@@ -2089,6 +2121,7 @@ class Scene_QuestSystem extends Scene_Message {
         this.createQuestListWindow();
         this.createQuestDetailWindow();
         this.createQuestOrderWindow();
+        this.createQuestOrderFailedWindow();
         this.createQuestReportWindow();
         this.createQuestGetRewardWindow();
         this.createQuestCancelWindow();
@@ -2155,6 +2188,13 @@ class Scene_QuestSystem extends Scene_Message {
         this.addWindow(this._questOrderWindow);
     }
 
+    createQuestOrderFailedWindow() {
+        this._questOrderFailedWindow = new Window_QuestOrderFailed(this.questOrderFailedWindowRect());
+        this._questOrderFailedWindow.setHandler("ok", this.onQuestOrderFailedOk.bind(this));
+        this._questOrderFailedWindow.refresh();
+        this.addWindow(this._questOrderFailedWindow);
+    }
+
     createQuestReportWindow() {
         this._questReportWindow = new Window_QuestReport(this.questReportWindowRect());
         this._questReportWindow.setHandler("yes", this.onQuestReportOk.bind(this));
@@ -2209,7 +2249,15 @@ class Scene_QuestSystem extends Scene_Message {
 
     questOrderWindowRect() {
         const w = WindowSize.DialogWindowWidth;
-        const h = WindowSize.DialogWindowHeight;
+        const h = 160;
+        const x = Graphics.boxWidth / 2 - w / 2;
+        const y = Graphics.boxHeight / 2 - h / 2;
+        return new Rectangle(x, y, w, h);
+    }
+
+    questOrderFailedWindowRect() {
+        const w = WindowSize.DialogWindowWidth;
+        const h = 70;
         const x = Graphics.boxWidth / 2 - w / 2;
         const y = Graphics.boxHeight / 2 - h / 2;
         return new Rectangle(x, y, w, h);
@@ -2248,13 +2296,21 @@ class Scene_QuestSystem extends Scene_Message {
     onQuestListOk() {
         switch(this._questCommandWindow.currentSymbol()) {
         case "questOrder":
-            this.change_QuestListWindow_To_QuestOrderWindow();
+            if (MaxOrderingQuests === 0 || this.numOrderingQuests() < MaxOrderingQuests) {
+                this.change_QuestListWindow_To_QuestOrderWindow();
+                SoundManager.playOk();
+            } else {
+                this.change_QuestListWindow_To_QuestOrderFailedWindow();
+                SoundManager.playBuzzer();
+            }
             break;
         case "questCancel":
             this.change_QuestListWindow_To_QuestCancelWindow();
+            SoundManager.playOk();
             break;
         case "questReport":
             this.change_QuestListWindow_To_QuestReportWindow();
+            SoundManager.playOk();
             break;
         default:
             this._questListWindow.activate();
@@ -2283,6 +2339,10 @@ class Scene_QuestSystem extends Scene_Message {
         this.resetQuestList();
         this._questListWindow.select(0);
         this._questDetailWindow.refresh();
+    }
+
+    onQuestOrderFailedOk() {
+        this.change_QuestOrderFailedWindow_To_QuestListWindow();
     }
 
     onQuestOrderCancel() {
@@ -2348,6 +2408,13 @@ class Scene_QuestSystem extends Scene_Message {
         this._questOrderWindow.select(0);
     }
 
+    change_QuestListWindow_To_QuestOrderFailedWindow() {
+        this._questListWindow.deactivate();
+        this._questOrderFailedWindow.show();
+        this._questOrderFailedWindow.open();
+        this._questOrderFailedWindow.activate();
+    }
+
     change_QuestListWindow_To_QuestReportWindow() {
         this._questListWindow.deactivate();
         this._questReportWindow.show();
@@ -2360,6 +2427,12 @@ class Scene_QuestSystem extends Scene_Message {
         this._questOrderWindow.close();
         this._questOrderWindow.deactivate();
         this._questOrderWindow.select(-1);
+        this._questListWindow.activate();
+    }
+
+    change_QuestOrderFailedWindow_To_QuestListWindow() {
+        this._questOrderFailedWindow.close();
+        this._questOrderFailedWindow.deactivate();
         this._questListWindow.activate();
     }
 
@@ -2402,7 +2475,9 @@ class Scene_QuestSystem extends Scene_Message {
 
     // Reset quest list window.
     resetQuestList() {
-        this._questListWindow.resetQuestList(this._questCommandWindow.filterQuestList());
+        const questList = this._questCommandWindow.filterQuestList();
+        questList.sort((a, b) => b.priority - a.priority);
+        this._questListWindow.resetQuestList(questList);
     }
 
     // Start common event.
@@ -2411,6 +2486,13 @@ class Scene_QuestSystem extends Scene_Message {
         if (!commonEventId || commonEventId === 0) return;
         const commonEventData = $dataCommonEvents[commonEventId];
         this._interpreter.setup(commonEventData.list);
+    }
+
+    // Return ordering quest count.
+    numOrderingQuests() {
+        const orderingQuestCommand = COMMAND_TABLE["orderingQuest"];
+        const orderingQuests = $dataQuests.filter(quest => orderingQuestCommand.state.includes(quest.state()));
+        return orderingQuests.length;
     }
 }
 
@@ -2487,6 +2569,10 @@ class Window_QuestList extends Window_Command {
             const textDrawer = new TextDrawer(this);
             textDrawer.drawIconText(this.commandName(index), questData.iconIndex, rect.x, rect.y, rect.width);
         }
+    }
+
+    // Play OK sound on the scene side.
+    playOkSound() {
     }
 }
 
@@ -2716,6 +2802,24 @@ class Window_QuestOrder extends Window_Command {
             volume: QuestOrderSe.Volume,
         }
         AudioManager.playSe(se);
+    }
+}
+
+class Window_QuestOrderFailed extends Window_Selectable {
+    initialize(rect) {
+        super.initialize(rect);
+        this.deactivate();
+        this.hide();
+        this.close();
+    }
+
+    onTouchOk() {
+        this.processOk();
+    }
+
+    drawAllItems() {
+        const rect = this.itemLineRect(0);
+        this.drawText(Text.ReachedLimitText, rect.x, rect.y, rect.width);
     }
 }
 
