@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.0.0
+@plugindesc Skill replacement system v1.0.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -236,7 +236,7 @@ Specify the cost wording to be displayed on the ability management screen.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.0.0
+@plugindesc スキル付け替えシステム v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -1058,13 +1058,13 @@ PluginManager.registerCommand(AbilitySystemPluginName, "GetMaxCost", args => {
     const params = PluginParamsParser.parse(args, { ActorId: "number", VariableId: "number" });
     const actor = $gameActors.actor(params.ActorId);
     const value = actor.maxCost();
-    $dataVariables.setValue(params.VariableId, value);
+    $gameVariables.setValue(params.VariableId, value);
 });
 
 PluginManager.registerCommand(AbilitySystemPluginName, "SetMaxCost", args => {
     const params = PluginParamsParser.parse(args, { ActorId: "number", VariableId: "number", Value: "number" });
-    const value = (VariableId > 0 ? $dataVariables.value(params.VariableId) : params.Value);
-    const actor = $gameActors.actor(actorId);
+    const value = (params.VariableId > 0 ? $gameVariables.value(params.VariableId) : params.Value);
+    const actor = $gameActors.actor(params.ActorId);
     return actor.setMaxCost(value);
 });
 
