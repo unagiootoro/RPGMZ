@@ -2375,6 +2375,7 @@ class Scene_QuestSystem extends superScene_Message {
     }
 
     buttonAreaHeight() {
+        if (Utils.RPGMAKER_NAME === "MZ") return super.buttonAreaHeight();
         return 0;
     }
 
