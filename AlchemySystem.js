@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc アイテム合成プラグイン v1.0.3
+@plugindesc アイテム合成プラグイン v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -15,6 +15,12 @@ trueを設定すると、メニューに合成コマンドを追加します。
 @default 0
 @desc
 メニューの合成の有効/無効を切り替えるスイッチのIDを指定します。0を指定すると、常に合成コマンドは有効になります。
+
+@param EnabledCategoryWindow
+@type boolean
+@default true
+@desc
+trueを設定すると、カテゴリウィンドウを表示します。
 
 @param EnabledGoldWindow
 @type boolean
@@ -145,16 +151,16 @@ trueを設定すると、合成時のカテゴリ選択画面で大事なもの�
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const AlchemyClassAlias = {};
+const AlchemySystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
 
-(() => {
+const AlchemyClassAlias = (() => {
 "use strict";
 
-const pluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
-const params = PluginManager.parameters(pluginName);
+const params = PluginManager.parameters(AlchemySystemPluginName);
 
 const EnabledMenuAlchemy = (params["EnabledMenuAlchemy"] === "true" ? true : false);
 const EnabledAlchemySwitchId = parseInt(params["EnabledAlchemySwitchId"]);
+const EnabledCategoryWindow = (params["EnabledCategoryWindow"] === "true" ? true : false);
 const EnabledGoldWindow = (params["EnabledGoldWindow"] === "true" ? true : false);
 const DisplayKeyItemCategory = (params["DisplayKeyItemCategory"] === "true" ? true : false);
 
@@ -307,18 +313,24 @@ class Scene_Alchemy extends Scene_MenuBase {
         this.createHelpWindow();
         this.createSelectRecipesWindow();
         this.createNumberWindow();
-        this.createCategoryWindow();
+        if (EnabledCategoryWindow) this.createCategoryWindow();
         if (EnabledGoldWindow) this.createGoldWindow();
         this.createRecipeDetailWindow();
     }
 
     start() {
         super.start();
-        this._categoryWindow.open();
-        this._categoryWindow.activate();
         this._windowSelectRecipes.open();
         this._windowRecipeDetail.open();
         this._helpWindow.show();
+        if (EnabledCategoryWindow) {
+            this._categoryWindow.open();
+            this._categoryWindow.activate();
+        } else {
+            this._windowSelectRecipes.refresh();
+            this._windowSelectRecipes.activate();
+            this._windowSelectRecipes.select(0);
+        }
     }
 
     createRecipes() {
@@ -396,7 +408,7 @@ class Scene_Alchemy extends Scene_MenuBase {
         const wx = 0;
         const wy = this.mainAreaTop();
         const ww = (EnabledGoldWindow ? Graphics.boxWidth - goldWindowRect.width : Graphics.boxWidth);
-        const wh = this.calcWindowHeight(1, true);
+        const wh = (EnabledCategoryWindow || EnabledGoldWindow ? this.calcWindowHeight(1, true) : 0);
         return new Rectangle(wx, wy, ww, wh);
     }
 
@@ -446,7 +458,11 @@ class Scene_Alchemy extends Scene_MenuBase {
     }
 
     selectRecipesCancel() {
-        this.changeSelectRecipesWindowToCategoryWindow();
+        if (EnabledCategoryWindow) {
+            this.changeSelectRecipesWindowToCategoryWindow();
+        } else {
+            this.popScene();
+        }
     }
 
     selectRecipesSelect() {
@@ -524,7 +540,11 @@ class Scene_Alchemy extends Scene_MenuBase {
 class Window_SelectRecipes extends Window_Selectable {
     initialize(rect) {
         this._recipes = [];
-        this._category = "none";
+        if (EnabledCategoryWindow) {
+            this._category = "none";
+        } else {
+            this._category = null;
+        }
         super.initialize(rect);
     }
 
@@ -568,10 +588,13 @@ class Window_SelectRecipes extends Window_Selectable {
     };
 
     makeItemList() {
-        if (!this._category) return;
-        this._recipes = $recipes.filter((recipe) => {
-            return recipe.targetItemInfo().type === this._category;
-        });
+        if (EnabledCategoryWindow) {
+            this._recipes = $recipes.filter((recipe) => {
+                return recipe.targetItemInfo().type === this._category;
+            });
+        } else {
+            this._recipes = $recipes;
+        }
     }
 
     select(index) {
@@ -767,7 +790,7 @@ Window_MenuCommand.prototype.isEnabledAlchemy = function() {
 const _Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
 Scene_Menu.prototype.createCommandWindow = function() {
     _Scene_Menu_createCommandWindow.call(this);
-    if (EnabledMenuAlchemy) this._commandWindow.setHandler("alchemy", this.alchemy.bind(this));
+    this._commandWindow.setHandler("alchemy", this.alchemy.bind(this));
 };
 
 Scene_Menu.prototype.alchemy = function() {
@@ -775,17 +798,20 @@ Scene_Menu.prototype.alchemy = function() {
 };
 
 // Register plugin command.
-PluginManager.registerCommand(pluginName, "StartAlchemyScene", () => {
+PluginManager.registerCommand(AlchemySystemPluginName, "StartAlchemyScene", () => {
     SceneManager.push(Scene_Alchemy);
 });
 
 // Define class alias.
-AlchemyClassAlias.ItemInfo = ItemInfo;
-AlchemyClassAlias.Material = Material;
-AlchemyClassAlias.AlchemyRecipe = AlchemyRecipe;
-AlchemyClassAlias.Scene_Alchemy = Scene_Alchemy;
-AlchemyClassAlias.Window_SelectRecipes = Window_SelectRecipes;
-AlchemyClassAlias.Window_AlchemyCategory = Window_AlchemyCategory;
-AlchemyClassAlias.Window_AlchemyNumber = Window_AlchemyNumber;
-AlchemyClassAlias.Window_RecipeDetail = Window_RecipeDetail;
+return {
+    ItemInfo: ItemInfo,
+    Material: Material,
+    AlchemyRecipe: AlchemyRecipe,
+    Scene_Alchemy: Scene_Alchemy,
+    Window_SelectRecipes: Window_SelectRecipes,
+    Window_AlchemyCategory: Window_AlchemyCategory,
+    Window_AlchemyNumber: Window_AlchemyNumber,
+    Window_RecipeDetail: Window_RecipeDetail,
+}
+
 })();
