@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.5.3
+@plugindesc Skill tree v1.6.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -45,12 +45,6 @@ wide: Skill tree will be displayed next to it. long: Skill tree will be displaye
 @default false
 @desc
 Set to true to match the layout format of RPG Maker MZ. (MZ limited)
-
-@param RectImageFileName
-@type file
-@dir img
-@desc
-Specify the file name of the image that surrounds the acquired skill icon.
 
 @param IconWidth
 @type number
@@ -207,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.5.3
+@plugindesc スキルツリー v1.6.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -252,12 +246,6 @@ wideを設定すると、横にスキルツリーを表示します。longを設
 @default false
 @desc
 trueを設定すると、RPGツクールMZのレイアウト形式に合わせます。(MZ限定)
-
-@param RectImageFileName
-@type file
-@dir img
-@desc
-取得済みスキルのアイコンを囲む画像のファイル名を指定します。空欄の場合、直線の枠でアイコンを囲みます。
 
 @param IconWidth
 @type number
@@ -415,25 +403,22 @@ trueを設定すると、RPGツクールMZのレイアウト形式に合わせ�
 const SkillTreePluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
 let $skillTreeData = null;
 let $skillTreeConfigLoader = null;
+const $skillTreeMapLoaders = {};
 
 const skt_gainSp = (actorId, value)=> {
-    const actor = $gameActors.actor(actorId);
-    actor.gainSp(value);
+    const actor = $gameParty.members().find(actor => actor.actorId() === actorId);
+    if (actor) actor.gainSp(value);
 };
 
 const skt_skillReset = (actorId) => {
-    const resetSp = $skillTreeData.totalSpAllTypes(actorId);
+    const totalSp = $skillTreeData.totalSpAllTypes(actorId);
     $skillTreeData.skillResetAllTypes(actorId);
-    $skillTreeData.gainSp(actorId, resetSp);
+    $skillTreeData.gainSp(actorId, totalSp);
 };
 
-const skt_loadMap = (actorId, typeName) => {
-    for (const type of $skillTreeData.types(actorId)) {
-        if (type.skillTreeName() === typeName) {
-            const skillTreeMapLoader = new SkillTreeClassAlias.SkillTreeMapLoader($dataMap, type);
-            skillTreeMapLoader.loadMap();
-        }
-    }
+const skt_totalSp = (actorId, variableId) => {
+    const totalSp = $skillTreeData.totalSpAllTypes(actorId);
+    $gameVariables.setValue(variableId, totalSp)
 };
 
 const skt_enableType = (actorId, typeName) => {
@@ -497,7 +482,6 @@ const EnabledSkillTreeSwitchId = parseInt(params["EnabledSkillTreeSwitchId"]);
 const EnableMZLayout = (params["EnableMZLayout"] === "true" ? true : false);
 
 const ViewMode = params["ViewMode"];
-const RectImageFileName = (params["RectImageFileName"] === "" ? null : params["RectImageFileName"]);
 const IconWidth = parseInt(params["IconWidth"]);
 const IconHeight = parseInt(params["IconHeight"]);
 const IconSpaceWidth = parseInt(params["IconSpaceWidth"]);
@@ -524,6 +508,62 @@ const NodeOpenYesText = params["NodeOpenYesText"];
 const NodeOpenNoText = params["NodeOpenNoText"];
 const BattleEndGetSpText = params["BattleEndGetSpText"];
 const LevelUpGetSpText = params["LevelUpGetSpText"];
+
+class HttpResponse {
+    constructor(result, xhr, event) {
+        this._result = result;
+        this._xhr = xhr;
+        this._event = event;
+    }
+
+    result() {
+        return this._result;
+    }
+
+    status() {
+        return this._xhr.status;
+    }
+
+    response() {
+        return this._xhr.response;
+    }
+}
+
+class HttpRequest {
+    static get(path, opt = { mimeType: null }, responseCallback) {
+        const req = new HttpRequest(path, "GET", opt, responseCallback);
+        req.send();
+        return req;
+    }
+
+    static post(path, params, opt = { mimeType: null }, responseCallback) {
+        const req = new HttpRequest(path, "POST", opt, responseCallback);
+        req.send(params);
+        return req;
+    }
+
+    constructor(path, method, opt = { mimeType: null }, responseCallback) {
+        this._path = path;
+        this._method = method;
+        this._responseCallback = responseCallback;
+        this._mimeType = opt.mimeType;
+    }
+
+    send(params = null) {
+        const xhr = new XMLHttpRequest();
+        xhr.open(this._method, this._path);
+        if (this._mimeType) xhr.overrideMimeType(this._mimeType);
+        let json = null;
+        if (params) json = JSON.stringify(params);
+        xhr.addEventListener("load", (e) => {
+            this._responseCallback(new HttpResponse("load", xhr, e));
+        });
+        xhr.addEventListener("error", (e) => {
+            this._responseCallback(new HttpResponse("error", xhr, e));
+        });
+        xhr.send(json);
+    }
+}
 
 class SkillTreeNodeInfo {
     constructor(actorId, skillId, needSp, iconData, helpMessage) {
@@ -558,6 +598,15 @@ class SkillTreeNodeInfo {
         this.actor().forgetSkill(this._skillId);
     }
 
+    trimIconset(iconIndex) {
+        const srcBitmap = ImageManager.loadSystem("IconSet");
+        const dstBitmap = new Bitmap(32, 32);
+        const sx = iconIndex % 16 * 32;
+        const sy = Math.floor(iconIndex / 16) * 32;
+        dstBitmap.blt(srcBitmap, sx, sy, 32, 32, 0, 0);
+        return dstBitmap;
+    }
+
     iconBitmap() {
         if (this._iconData[0] === "img") {
             return ImageManager.loadPicture(this._iconData[1]);
@@ -568,12 +617,7 @@ class SkillTreeNodeInfo {
             } else {
                 iconIndex = this.skill().iconIndex;
             }
-            const srcBitmap = ImageManager.loadSystem("IconSet");
-            const dstBitmap = new Bitmap(32, 32);
-            const sx = iconIndex % 16 * 32;
-            const sy = Math.floor(iconIndex / 16) * 32;
-            dstBitmap.blt(srcBitmap, sx, sy, 32, 32, 0, 0);
-            return dstBitmap;
+            return this.trimIconset(iconIndex);
         }
         throw new Error(`Unknown ${this._iconData[0]}`);
     }
@@ -668,7 +712,7 @@ class SkillTreeNode {
         return this._opened;
     }
 
-    setOpeneStatus(openStatus) {
+    setOpenedStatus(openStatus) {
         this._opened = openStatus;
     }
 
@@ -801,20 +845,45 @@ class SkillDataType {
 }
 
 class SkillTreeMapLoader {
-    constructor(mapData, type) {
-        this._mapData = mapData;
-        this._type = type;
+    constructor(mapId) {
+        this._mapId = mapId;
+        this._mapData = null;
     }
 
-    loadMap() {
-        const allNodes = $skillTreeData.getAllNodesByType(this._type);
-        for (const eventData of this._mapData.events) {
+    applyMapData(type) {
+        const allNodes = $skillTreeData.getAllNodesByType(type);
+        for (const eventData of this.mapData().events) {
             if (!eventData) continue;
             let nodeTag = eventData.note;
             let node = allNodes[nodeTag];
             if (!node) continue;
             node.setReservedPoint({ x: eventData.x, y: eventData.y });
         }
+    }
+
+    isLoaded() {
+        return this._response;
+    }
+
+    mapData() {
+        return JSON.parse(this._response);
+    }
+
+    loadMap() {
+        const fileName = "Map%1.json".format(this._mapId.padZero(3));
+        this.loadData(fileName);
+    }
+
+    loadData(fileName) {
+        HttpRequest.get(`data/${fileName}`, { mimeType: "application/json" }, (res) => {
+            if (res.result() === "error") {
+                throw new Error(`Unknow file: ${fileName}`);
+            } else if (res.status() === 200) {
+                this._response = res.response();
+            } else {
+                throw new Error(`Load failed: ${fileName}`);
+            }
+        });
     }
 }
 
@@ -922,6 +991,10 @@ class SkillTreeData {
         this._allTypes = {};
     }
 
+    actorIds() {
+        return Object.keys(this._actorSp);
+    }
+
     sp(actorId) {
         return this._actorSp[actorId];
     }
@@ -1018,20 +1091,17 @@ class SkillTreeData {
 
     makeSaveContents() {
         let contents = {};
-        for (const actorId in this._actorSp) {
+        for (const actorId of this.actorIds()) {
             contents[actorId] = { sp: this.sp(actorId) };
             for (const type of this.types(actorId)) {
-                const openeStatus = {};
-                const reservedPoint = {};
+                const openedStatus = {};
                 const nodes = this.getAllNodesByType(type);
                 for (const tag in nodes) {
-                    openeStatus[tag] = nodes[tag].isOpened();
-                    reservedPoint[tag] = nodes[tag].reservedPoint();
+                    openedStatus[tag] = nodes[tag].isOpened();
                 }
                 contents[type.skillTreeTag()] = {
                     enabled: type.enabled(),
-                    openeStatus: openeStatus,
-                    reservedPoint: reservedPoint,
+                    openedStatus: openedStatus,
                 };
             }
         }
@@ -1047,8 +1117,7 @@ class SkillTreeData {
                 type.setEnabled(contents[type.skillTreeTag()].enabled);
                 const nodes = this.getAllNodesByType(type);
                 for (const tag in nodes) {
-                    nodes[tag].setOpeneStatus(contents[type.skillTreeTag()].openeStatus[tag]);
-                    nodes[tag].setReservedPoint(contents[type.skillTreeTag()].reservedPoint[tag]);
+                    nodes[tag].setOpenedStatus(contents[type.skillTreeTag()].openedStatus[tag]);
                 }
             }
         }
@@ -1275,6 +1344,7 @@ class Scene_SkillTree extends Scene_MenuBase {
         this.createSkillTreeNodeInfo();
         this.createSKillTreeWindow();
         this.createNodeOpenWindow();
+        this.applyMapDatas();
     }
 
     isReady() {
@@ -1282,10 +1352,6 @@ class Scene_SkillTree extends Scene_MenuBase {
         for (const actor of $gameParty.members()) {
             const faceImage = ImageManager.loadFace(actor.faceName());
             if (!faceImage.isReady()) return false;
-        }
-        if (RectImageFileName) {
-            const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
-            if (!rectImage.isReady()) return false;
         }
         // Do not use flatMap because some browsers do not support it.
         for (const actor of $gameParty.members()) {
@@ -1308,6 +1374,17 @@ class Scene_SkillTree extends Scene_MenuBase {
         this._windowActorInfo.show();
         this._windowSkillTree.open();
         this._windowSkillTree.show();
+    }
+
+    applyMapDatas() {
+        for (const skillTreeName in $skillTreeMapLoaders) {
+            for (const actorId of $skillTreeData.actorIds()) {
+                const mapLoader = $skillTreeMapLoaders[skillTreeName];
+                const type = $skillTreeData.types(actorId).find(t => t.skillTreeName() === skillTreeName);
+                if (!type) continue;
+                mapLoader.applyMapData(type);
+            }
+        }
     }
 
     createTypeSelectWindow() {
@@ -2131,19 +2208,14 @@ class SkillTreeView {
             if (node.isSelectable()) {
                 this.drawIcon(bitmap, node.iconBitmap(), px, py);
             } else {
-                this.drawIcon(bitmap, node.iconBitmap(), px, py, 64);
+                this.drawIcon(bitmap, node.iconBitmap(), px, py, 96);
             }
             if (node.isOpened()) {
                 const x = px - ViewRectOfs;
                 const y = py - ViewRectOfs;
-                if (RectImageFileName) {
-                    const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
-                    bitmap.blt(rectImage, 0, 0, rectImage.width, rectImage.height, x, y);
-                } else {
-                    const width = IconWidth + ViewRectOfs * 2;
-                    const height = IconHeight + ViewRectOfs * 2;
-                    this.drawRect(bitmap, ViewRectColor, x, y, width, height, 2);
-                }
+                const width = IconWidth + ViewRectOfs * 2;
+                const height = IconHeight + ViewRectOfs * 2;
+                this.drawRect(bitmap, ViewRectColor, x, y, width, height, 2);
             }
         }
     }
@@ -2284,27 +2356,34 @@ class SkillTreeView {
 
 
 // Initialize skill tree.
-const _DataManager_setupNewGame = DataManager.setupNewGame;
-DataManager.setupNewGame = function() {
+const _Scene_Boot_create = Scene_Boot.prototype.create;
+Scene_Boot.prototype.create = function() {
+    _Scene_Boot_create.call(this);
     this.initSkillTree();
-    _DataManager_setupNewGame.call(this);
 };
 
-const _DataManager_setupBattleTest = DataManager.setupBattleTest;
-DataManager.setupBattleTest = function() {
-    this.initSkillTree();
-    _DataManager_setupBattleTest.call(this);
-};
-
-const _DataManager_setupEventTest = DataManager.setupEventTest;
-DataManager.setupEventTest = function() {
-    this.initSkillTree();
-    _DataManager_setupEventTest.call(this);
-};
-
-DataManager.initSkillTree = function() {
+Scene_Boot.prototype.initSkillTree = function() {
     $skillTreeData = new SkillTreeData();
     $skillTreeConfigLoader = new SkillTreeConfigLoader();
+    const skillTreeMapId = $skillTreeConfigLoader.configData().skillTreeMapId;
+    if (skillTreeMapId) {
+        for (const skillTreeName in skillTreeMapId) {
+            const mapId = skillTreeMapId[skillTreeName];
+            if (mapId === 0) continue;
+            const mapLoader = new SkillTreeMapLoader(mapId);
+            mapLoader.loadMap();
+            $skillTreeMapLoaders[skillTreeName] = mapLoader;
+        }
+    }
+};
+
+const _Scene_Boot_isReady = Scene_Boot.prototype.isReady;
+Scene_Boot.prototype.isReady = function() {
+    if (!_Scene_Boot_isReady.call(this)) return false;
+    for (const mapLoader of Object.values($skillTreeMapLoaders)) {
+        if (!mapLoader.isLoaded()) return false;
+    }
+    return true;
 };
 
 const _Game_Party_setupStartingMembers = Game_Party.prototype.setupStartingMembers;
