@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc 装備シーン拡張 v1.2.1
+@plugindesc 装備シーン拡張 v1.2.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipScene_Extension.js
 
@@ -53,6 +53,11 @@
 @type number
 @default 0
 @desc 武器を外すときの空枠に表示するアイコンを指定します。
+
+@param DisableCommandWindow
+@type boolean
+@default false
+@desc trueを設定すると最強装備等を表示するウィンドウを非表示にします。
 
 @help
 装備シーンを拡張するプラグインです。
@@ -140,12 +145,42 @@ const NotMultiEquipWeapon = parseNumberArray(params, "NotMultiEquipWeapon");
 const NotMultiEquipArmor = parseNumberArray(params, "NotMultiEquipArmor");
 const RemoveEquipText = params["RemoveEquipText"];
 const RemoveEquipIconIndex = parseInt(params["RemoveEquipIconIndex"]);
+const DisableCommandWindow = params["DisableCommandWindow"] === "true" ? true : false;
 
 // Change equip layout.
+Scene_Equip.prototype.createCommandWindow = function() {
+    const rect = this.commandWindowRect();
+    this._commandWindow = new Window_EquipCommand(rect);
+    this._commandWindow.setHelpWindow(this._helpWindow);
+    this._commandWindow.setHandler("equip", this.commandEquip.bind(this));
+    this._commandWindow.setHandler("optimize", this.commandOptimize.bind(this));
+    this._commandWindow.setHandler("clear", this.commandClear.bind(this));
+    this._commandWindow.setHandler("cancel", this.popScene.bind(this));
+    this._commandWindow.setHandler("pagedown", this.nextActor.bind(this));
+    this._commandWindow.setHandler("pageup", this.previousActor.bind(this));
+    this.addWindow(this._commandWindow);
+};
+
+const _Scene_Equip_createSlotWindow = Scene_Equip.prototype.createSlotWindow;
+Scene_Equip.prototype.createSlotWindow = function() {
+    _Scene_Equip_createSlotWindow.call(this);
+    this._slotWindow.setHandler("pagedown", this.nextActor.bind(this));
+    this._slotWindow.setHandler("pageup", this.previousActor.bind(this));
+    if (DisableCommandWindow) {
+        this._slotWindow.setHandler("cancel", this.popScene.bind(this));
+    }
+};
+
 const _Scene_Equip_start = Scene_Equip.prototype.start;
 Scene_Equip.prototype.start = function() {
     _Scene_Equip_start.call(this);
     if (LayoutMode >= 1) this._itemWindow.show();
+    if (DisableCommandWindow) {
+        this._slotWindow.select(0);
+        this._slotWindow.activate();
+    } else {
+        this._commandWindow.activate();
+    }
 };
 
 const _Scene_Equip_update = Scene_Equip.prototype.update;
@@ -156,6 +191,20 @@ Scene_Equip.prototype.update = function() {
     } else {
         this._itemWindow.setDrawState("undraw");
     }
+};
+
+const _Scene_Equip_createCommandWindow = Scene_Equip.prototype.createCommandWindow;
+Scene_Equip.prototype.createCommandWindow = function() {
+    if (!DisableCommandWindow) _Scene_Equip_createCommandWindow.call(this);
+};
+
+const _Scene_Equip_commandWindowRect = Scene_Equip.prototype.commandWindowRect;
+Scene_Equip.prototype.commandWindowRect = function() {
+    const rect = _Scene_Equip_commandWindowRect.call(this);
+    if (DisableCommandWindow) {
+        rect.height = 0;
+    }
+    return rect;
 };
 
 Scene_Equip.prototype.slotWindowRect = function() {
@@ -251,9 +300,14 @@ Scene_Equip.prototype.onActorChange = function() {
     } else {
         this.hideItemWindow();
     }
-    this._slotWindow.deselect();
-    this._slotWindow.deactivate();
-    this._commandWindow.activate();
+    if (DisableCommandWindow) {
+        this._slotWindow.select(0);
+        this._slotWindow.activate();
+    } else {
+        this._slotWindow.deselect();
+        this._slotWindow.deactivate();
+        this._commandWindow.activate();
+    }
 };
 
 
