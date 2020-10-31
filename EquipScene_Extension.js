@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc 装備シーン拡張 v1.2.2
+@plugindesc 装備シーン拡張 v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipScene_Extension.js
 
@@ -103,6 +103,25 @@ LayoutModeに2を設定した場合は、ステータス画面を縮小し、装
 プラグインパラメータ「NotMultiEquipWeapon」または「NotMultiEquipArmor」に
 複数装備を禁止する武器/防具タイプIDを記載すると、
 該当するタイプIDを持つ武器/防具は複数装備ができなくなります。
+
+また次の設定を行うことで、武器/防具単位で装備共存禁止の設定を行うことができるようになります。
+武器のメモ欄に
+<NotMultiEquipWeaponIds: [武器ID1, 武器ID2, ...]>
+または防具のメモ欄に
+<NotMultiEquipArmorIds: [防具ID1, 防具ID2, ...]>
+と記載することで装備共存禁止の設定ができるようになります。
+
+例えば、武器ID1と武器ID2の共存禁止設定を行う場合、
+武器ID1のメモ欄に
+<NotMultiEquipWeaponIds: [2]>
+武器ID2のメモ欄に
+<NotMultiEquipWeaponIds: [1]>
+と記載します。装備共存禁止の設定が片方だけにならないように注意してください。
+
+■一つだけ装備可能な武器/防具を設定する
+武器または防具のメモ欄に
+<UniqueEquip>
+と記載することで、一つだけ装備可能な武器/防具を設定することができます。
 
 [ライセンス]
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -422,26 +441,47 @@ Game_Actor.prototype.equipSlots = function() {
     return slots;
 };
 
-Game_Actor.prototype.canMultiEquipWeapon = function(weapon) {
+Game_Actor.prototype.canMultiEquipWeaponByWeaponTypeId = function(weapon) {
     if (!NotMultiEquipWeapon.includes(weapon.wtypeId)) return true;
     const equipWeapon = this._equips.filter(equip => DataManager.isWeapon(equip.object()))
-                                      .map(data => data.object());
+                                    .map(data => data.object());
     return equipWeapon.filter(weapon => NotMultiEquipWeapon.includes(weapon.wtypeId)).length === 0;
-    
 };
 
-Game_Actor.prototype.canMultiEquipArmor = function(armor) {
+Game_Actor.prototype.canMultiEquipWeaponByItemId = function(weapon) {
+    if (!weapon.meta.NotMultiEquipWeaponIds) return true;
+    const notMultiEquipWeaponIds = JSON.parse(weapon.meta.NotMultiEquipWeaponIds);
+    const equipWeapon = this._equips.filter(equip => DataManager.isWeapon(equip.object()))
+                                    .map(data => data.object());
+    return equipWeapon.filter(weapon => notMultiEquipWeaponIds.includes(weapon.id)).length === 0;
+};
+
+Game_Actor.prototype.canMultiEquipArmorByArmorTypeId = function(armor) {
     if (!NotMultiEquipArmor.includes(armor.atypeId)) return true;
     const equipArmor = this._equips.filter(equip => DataManager.isArmor(equip.object()))
-                                      .map(data => data.object());
+                                   .map(data => data.object());
     return equipArmor.filter(armor => NotMultiEquipArmor.includes(armor.atypeId)).length === 0;
 };
 
+Game_Actor.prototype.canMultiEquipArmorByItemId = function(armor) {
+    if (!armor.meta.NotMultiEquipArmorIds) return true;
+    const notMultiEquipArmorIds = JSON.parse(armor.meta.NotMultiEquipArmorIds);
+    const equipArmor = this._equips.filter(equip => DataManager.isArmor(equip.object()))
+                                   .map(data => data.object());
+    return equipArmor.filter(armor => notMultiEquipArmorIds.includes(armor.id)).length === 0;
+};
+
+Game_Actor.prototype.canEquipUniqueItem = function(item) {
+    if (item.meta.UniqueEquip && this.isEquipped(item)) return false;
+    return true;
+};
+
 Game_Actor.prototype.canMultiEquip = function(item) {
+    if (!this.canEquipUniqueItem(item)) return false;
     if (DataManager.isWeapon(item)) {
-        return this.canMultiEquipWeapon(item);
+        return this.canMultiEquipWeaponByWeaponTypeId(item) && this.canMultiEquipWeaponByItemId(item);
     } else {
-        return this.canMultiEquipArmor(item);
+        return this.canMultiEquipArmorByArmorTypeId(item) && this.canMultiEquipArmorByItemId(item);
     }
 };
 
