@@ -1,6 +1,8 @@
 /*:
+@target MV MZ
 @plugindesc その場で行動する戦闘システム v1.4.0
-@author うなぎおおとろ(twitter https://twitter.com/unagiootoro8388)
+@author うなぎおおとろ
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/InterruptBattleSystem.js
 
 @help
 自分のターンが来た時にコマンドを入力できるようにするプラグインです。
