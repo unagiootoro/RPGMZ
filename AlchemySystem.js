@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc アイテム合成プラグイン v1.1.0
+@plugindesc アイテム合成プラグイン v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
