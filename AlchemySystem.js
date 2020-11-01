@@ -1,5 +1,5 @@
 /*:
-@target MZ
+@target MV MZ
 @plugindesc アイテム合成プラグイン v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
@@ -131,7 +131,7 @@ trueを設定すると、合成時のカテゴリ選択画面で大事なもの�
                      ID...通常アイテム/武器/防具のIDを指定します。
 
 例えば、ハイポーション(ID: 8)1つとマジックウォーター(ID: 10)2つを合成してフルポーション(ID: 9)を作成する場合、
-次のように記載します。
+次のように記載します。末尾のカンマに気を付けてください。
 <recipe>
 "material": [["item", 8, 1], ["item", 10, 2]],
 "target": ["item", 9]
@@ -146,6 +146,8 @@ trueを設定すると、合成時のカテゴリ選択画面で大事なもの�
 
 ■合成シーンの開始
 プラグインコマンドで「StartAlchemyScene」を実行すると、合成シーンを開始します。
+ツクールMVの場合、次のコマンドを入力してください。
+AlchemySystem StartAlchemyScene
 
 [ライセンス]
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -176,6 +178,80 @@ const MenuAlchemyText = params["MenuAlchemyText"];
 const NeedMaterialText = params["NeedMaterialText"];
 const NeedPriceText = params["NeedPriceText"];
 const TargetItemText = params["TargetItemText"];
+
+
+// MV compatible
+if (Utils.RPGMAKER_NAME === "MV") {
+    Window_Base.prototype.drawRect = function(x, y, width, height) {
+        const outlineColor = this.contents.outlineColor;
+        const mainColor = this.contents.textColor;
+        this.contents.fillRect(x, y, width, height, outlineColor);
+        this.contents.fillRect(x + 1, y + 1, width - 2, height - 2, mainColor);
+    };
+    
+    Window_Base.prototype.itemPadding = function() {
+        return 8;
+    };
+    
+    Window_Selectable.prototype.itemRectWithPadding = function(index) {
+        const rect = this.itemRect(index);
+        const padding = this.itemPadding();
+        rect.x += padding;
+        rect.width -= padding * 2;
+        return rect;
+    };
+    
+    Window_Selectable.prototype.itemLineRect = function(index) {
+        const rect = this.itemRectWithPadding(index);
+        const padding = (rect.height - this.lineHeight()) / 2;
+        rect.y += padding;
+        rect.height -= padding * 2;
+        return rect;
+    };
+
+    Object.defineProperty(Window.prototype, "innerWidth", {
+        get: function() {
+            return Math.max(0, this._width - this._padding * 2);
+        },
+        configurable: true
+    });
+
+    Object.defineProperty(Window.prototype, "innerHeight", {
+        get: function() {
+            return Math.max(0, this._height - this._padding * 2);
+        },
+        configurable: true
+    });
+
+    Scene_Base.prototype.calcWindowHeight = function(numLines, selectable) {
+        if (selectable) {
+            return Window_Selectable.prototype.fittingHeight(numLines);
+        } else {
+            return Window_Base.prototype.fittingHeight(numLines);
+        }
+    };
+
+    Scene_Base.prototype.mainCommandWidth = function() {
+        return 240;
+    };
+
+    Scene_MenuBase.prototype.mainAreaTop = function() {
+        return this.helpAreaHeight();;
+    };
+
+    Scene_MenuBase.prototype.mainAreaBottom = function() {
+        return this.mainAreaTop() + this.mainAreaHeight();
+    };
+    
+    Scene_MenuBase.prototype.mainAreaHeight = function() {
+        return Graphics.boxHeight;
+    };
+
+    Scene_MenuBase.prototype.helpAreaHeight = function() {
+        return this.calcWindowHeight(2, false);
+    };
+}
+
 
 let $recipes = null;
 
@@ -363,7 +439,7 @@ class Scene_Alchemy extends Scene_MenuBase {
 
     createGoldWindow() {
         const rect = this.goldWindowRect();
-        this._goldWindow = new Window_Gold(rect);
+        this._goldWindow = new Window_Gold_MZMV(rect);
         this.addWindow(this._goldWindow);
     }
 
@@ -545,7 +621,11 @@ class Window_SelectRecipes extends Window_Selectable {
         } else {
             this._category = null;
         }
-        super.initialize(rect);
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            super.initialize(rect);
+        } else {
+            super.initialize(rect.x, rect.y, rect.width, rect.height);
+        }
     }
 
     updateHelp() {
@@ -619,6 +699,36 @@ class Window_SelectRecipes extends Window_Selectable {
 }
 
 class Window_AlchemyCategory extends Window_ItemCategory {
+    initialize(rect) {
+        this._windowRect = rect;
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            super.initialize(rect);
+        } else {
+            super.initialize(rect.x, rect.y, rect.width, rect.height);
+        }
+        this.x = rect.x;
+        this.y = rect.y;
+    }
+
+    windowWidth() {
+        return this._windowRect.width;
+    }
+
+    windowHeight() {
+        return this._windowRect.height;
+    }
+
+    makeCommandList() {
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            super.makeCommandList();
+        } else {
+            this.addCommand(TextManager.item,    "item");
+            this.addCommand(TextManager.weapon,  "weapon");
+            this.addCommand(TextManager.armor,   "armor");
+            if (DisplayKeyItemCategory) this.addCommand(TextManager.keyItem, "keyItem");
+        }
+    };
+
     needsCommand(name) {
         if (!DisplayKeyItemCategory && name === "keyItem") return false;
         return super.needsCommand(name);
@@ -630,11 +740,51 @@ class Window_AlchemyCategory extends Window_ItemCategory {
     }
 }
 
+class Window_Gold_MZMV extends Window_Gold {
+    initialize(rect) {
+        this._windowRect = rect;
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            super.initialize(rect);
+        } else {
+            super.initialize(rect.x, rect.y);
+        }
+    }
+
+    windowWidth() {
+        return this._windowRect.width;
+    }
+
+    windowHeight() {
+        return this._windowRect.height;
+    }
+}
+
 class Window_AlchemyNumber extends Window_ShopNumber {
+    initialize(rect) {
+        this._windowRect = rect;
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            super.initialize(rect);
+        } else {
+            super.initialize(rect.x, rect.y, rect.height);
+        }
+    }
+
+    windowWidth() {
+        return this._windowRect.width;
+    }
+
+    windowHeight() {
+        return this._windowRect.height;
+    }
+
     refresh() {
         Window_Selectable.prototype.refresh.call(this);
-        this.drawItemBackground(0);
-        this.drawCurrentItemName();
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            this.drawItemBackground(0);
+            this.drawCurrentItemName();
+        } else {
+            this.drawItemName(this._item, 0, this.itemY());
+        }
         this.drawMultiplicationSign();
         this.drawNumber();
     }
@@ -647,7 +797,11 @@ class Window_AlchemyNumber extends Window_ShopNumber {
 
 class Window_RecipeDetail extends Window_Base {
     initialize(rect) {
-        super.initialize(rect);
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            super.initialize(rect);
+        } else {
+            super.initialize(rect.x, rect.y, rect.width, rect.height);
+        }
         this._numberWindow = null;
     }
 
@@ -679,7 +833,7 @@ class Window_RecipeDetail extends Window_Base {
         const y = this.itemPadding();
         const width = this.innerWidth - this.itemPadding() - x;
         const possessionWidth = this.textWidth("0000");
-        this.changeTextColor(ColorManager.systemColor());
+        this.changeTextColor(this.systemColor());
         this.drawText(TextManager.possession, x, y, width - possessionWidth);
         this.resetTextColor();
         this.drawText($gameParty.numItems(this._recipe.targetItemData()), x, y, width, "right");
@@ -702,7 +856,7 @@ class Window_RecipeDetail extends Window_Base {
             const item = material.itemInfo.itemData();
             this.drawItemName(item, x, y, width - this.numberWidth());
             if (needItemCount <= hasItemCount) {
-                this.changeTextColor(ColorManager.crisisColor());
+                this.changeTextColor(this.crisisColor());
             } else {
                 this.changePaintOpacity(false);
             }
@@ -714,7 +868,6 @@ class Window_RecipeDetail extends Window_Base {
     }
 
     drawTotalPrice() {
-        console.log(Object.keys(this._recipe.materials()).length);
         const x = this.itemPadding();
         const minY = this.totalPriceYOfs(MaxMaterials);
         let y = this.totalPriceYOfs(Object.keys(this._recipe.materials()).length);
@@ -773,6 +926,14 @@ class Window_RecipeDetail extends Window_Base {
         const width = this.innerWidth - padding * 2;
         this.drawRect(x, y, width, 5);
     }
+
+    crisisColor() {
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            return ColorManager.crisisColor();
+        } else {
+            return super.crisisColor();
+        }
+    }
 }
 
 // Add alchemy to menu command.
@@ -798,9 +959,20 @@ Scene_Menu.prototype.alchemy = function() {
 };
 
 // Register plugin command.
-PluginManager.registerCommand(AlchemySystemPluginName, "StartAlchemyScene", () => {
-    SceneManager.push(Scene_Alchemy);
-});
+if (Utils.RPGMAKER_NAME === "MZ") {
+    PluginManager.registerCommand(AlchemySystemPluginName, "StartAlchemyScene", () => {
+        SceneManager.push(Scene_Alchemy);
+    });
+} else {
+    const _Game_Interpreter_pluginCommand = Game_Interpreter.prototype.pluginCommand;
+    Game_Interpreter.prototype.pluginCommand = function(command, args) {
+        _Game_Interpreter_pluginCommand.call(this, command, args);
+        if (command === "AlchemySystem" && args[0] === "StartAlchemyScene") {
+            SceneManager.push(Scene_Alchemy);
+        }
+    };
+}
+
 
 // Define class alias.
 return {
