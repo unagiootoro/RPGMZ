@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.6.0
+@plugindesc Skill tree v1.6.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.6.0
+@plugindesc スキルツリー v1.6.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -405,7 +405,12 @@ let $skillTreeData = null;
 let $skillTreeConfigLoader = null;
 const $skillTreeMapLoaders = {};
 
-const skt_gainSp = (actorId, value)=> {
+const skt_open = (actorId) => {
+    $gameParty.setMenuActor($gameActors.actor(actorId));
+    SceneManager.push(SkillTreeClassAlias.Scene_SkillTree);
+};
+
+const skt_gainSp = (actorId, value) => {
     const actor = $gameParty.members().find(actor => actor.actorId() === actorId);
     if (actor) actor.gainSp(value);
 };
@@ -530,19 +535,19 @@ class HttpResponse {
 }
 
 class HttpRequest {
-    static get(path, opt = { mimeType: null }, responseCallback) {
+    static get(path, opt, responseCallback) {
         const req = new HttpRequest(path, "GET", opt, responseCallback);
         req.send();
         return req;
     }
 
-    static post(path, params, opt = { mimeType: null }, responseCallback) {
+    static post(path, params, opt, responseCallback) {
         const req = new HttpRequest(path, "POST", opt, responseCallback);
         req.send(params);
         return req;
     }
 
-    constructor(path, method, opt = { mimeType: null }, responseCallback) {
+    constructor(path, method, opt, responseCallback) {
         this._path = path;
         this._method = method;
         this._responseCallback = responseCallback;
@@ -1367,13 +1372,18 @@ class Scene_SkillTree extends Scene_MenuBase {
     start() {
         super.start();
         this._windowTypeSelect.showHelpWindow();
+        this._windowTypeSelect.refresh();
         this._windowTypeSelect.open();
         this._windowTypeSelect.activate();
         this._windowTypeSelect.show();
+        this._windowActorInfo.refresh();
         this._windowActorInfo.open();
         this._windowActorInfo.show();
+        this._windowSkillTree.refresh();
         this._windowSkillTree.open();
         this._windowSkillTree.show();
+        this._windowSkillTreeNodeInfo.refresh();
+        this._windowNodeOpen.refresh();
     }
 
     applyMapDatas() {
@@ -1391,7 +1401,6 @@ class Scene_SkillTree extends Scene_MenuBase {
         this._windowTypeSelect = new Window_TypeSelect(this.typeSelectWindowRect(), this.getSkillTreeTypes());
         this.typeSelectWindowSetupHandlers();
         this._windowTypeSelect.close();
-        this._windowTypeSelect.refresh();
         this._windowTypeSelect.deactivate();
         this._windowTypeSelect.hideHelpWindow();
         this._windowTypeSelect.hide();
@@ -1421,7 +1430,6 @@ class Scene_SkillTree extends Scene_MenuBase {
     createActorInfoWindow() {
         this._windowActorInfo = new Window_ActorInfo(this.actorInfoWindowRect(), this.actor().actorId());
         this._windowActorInfo.close();
-        this._windowActorInfo.refresh();
         this._windowActorInfo.deactivate();
         this._windowActorInfo.hide();
         this.addWindow(this._windowActorInfo);
@@ -1437,7 +1445,6 @@ class Scene_SkillTree extends Scene_MenuBase {
     createSkillTreeNodeInfo() {
         this._windowSkillTreeNodeInfo = new Window_SkillTreeNodeInfo(this.skillTreeNodeInfoWindowRect(), this._skillTreeManager);
         this._windowSkillTreeNodeInfo.close();
-        this._windowSkillTreeNodeInfo.refresh();
         this._windowSkillTreeNodeInfo.deactivate();
         this._windowSkillTreeNodeInfo.hide();
         this.addWindow(this._windowSkillTreeNodeInfo);
@@ -1451,7 +1458,6 @@ class Scene_SkillTree extends Scene_MenuBase {
         this._windowSkillTree.setHandler("ok", this.skillTreeOk.bind(this));
         this._windowSkillTree.setHandler("cancel", this.skillTreeCance.bind(this));
         this._windowSkillTree.setHelpWindow(this._helpWindow);
-        this._windowSkillTree.refresh();
         this._windowSkillTree.deactivate();
         this._windowSkillTree.hideHelpWindow();
         this._windowSkillTree.hide();
@@ -1464,7 +1470,6 @@ class Scene_SkillTree extends Scene_MenuBase {
         this._windowNodeOpen.setHandler("no", this.nodeOpenCancel.bind(this));
         this._windowNodeOpen.setHandler("cancel", this.nodeOpenCancel.bind(this));
         this._windowNodeOpen.close();
-        this._windowNodeOpen.refresh();
         this._windowNodeOpen.deactivate();
         this._windowNodeOpen.hide();
         this.addWindow(this._windowNodeOpen);
@@ -2512,12 +2517,40 @@ BattleManager.displaySp = function() {
 
 
 // Get the sp when level up.
-Game_Actor.enableGetSpWhenLevelUp = EnableGetSpWhenLevelUp;
+const _Game_Temp_initialize = Game_Temp.prototype.initialize;
+Game_Temp.prototype.initialize = function() {
+    _Game_Temp_initialize.call(this);
+    this._enableGetSpWhenLevelUp = EnableGetSpWhenLevelUp;
+    this._prevLevel = null;
+};
+
+Game_Temp.prototype.enableGetSpWhenLevelUp = function() {
+    return this._enableGetSpWhenLevelUp;
+};
+
+Game_Temp.prototype.setEnableGetSpWhenLevelUp = function(enableGetSpWhenLevelUp) {
+    return this._enableGetSpWhenLevelUp = enableGetSpWhenLevelUp;
+};
+
+Game_Temp.prototype.prevLevel = function() {
+    return this._prevLevel;
+};
+
+Game_Temp.prototype.setPrevLevel = function(prevLevel) {
+    return this._prevLevel = prevLevel;
+};
+
+const _Game_Actor_changeExp = Game_Actor.prototype.changeExp;
+Game_Actor.prototype.changeExp = function(exp, show) {
+    $gameTemp.setPrevLevel(this._level);
+    _Game_Actor_changeExp.call(this, exp, show);
+    $gameTemp.setPrevLevel(null);
+};
 
 const _Game_Actor_levelUp = Game_Actor.prototype.levelUp;
 Game_Actor.prototype.levelUp = function() {
     _Game_Actor_levelUp.call(this);
-    if (Game_Actor.enableGetSpWhenLevelUp) {
+    if ($gameTemp.enableGetSpWhenLevelUp()) {
         const sp = this.getLevelUpSp(this._level);
         if (sp > 0) this.gainSp(sp);
     }
@@ -2526,8 +2559,11 @@ Game_Actor.prototype.levelUp = function() {
 const _Game_Actor_displayLevelUp = Game_Actor.prototype.displayLevelUp;
 Game_Actor.prototype.displayLevelUp = function(newSkills) {
     _Game_Actor_displayLevelUp.call(this, newSkills);
-    if (Game_Actor.enableGetSpWhenLevelUp) {
-        const sp = this.getLevelUpSp(this._level);
+    if ($gameTemp.enableGetSpWhenLevelUp()) {
+        let sp = 0;
+        for (let level = $gameTemp.prevLevel() + 1; level <= this._level; level++) {
+            sp += this.getLevelUpSp(level);
+        }
         if (sp > 0) $gameMessage.add(LevelUpGetSpText.format(sp, SpName));
     }
 };
@@ -2546,9 +2582,9 @@ Game_Actor.prototype.getLevelUpSp = function(level) {
 // Prevent SP from increasing due to level-up processing when changing jobs.
 const _Game_Actor_changeClass = Game_Actor.prototype.changeClass;
 Game_Actor.prototype.changeClass = function(classId, keepExp) {
-    Game_Actor.enableGetSpWhenLevelUp = false;
+    $gameTemp.setEnableGetSpWhenLevelUp(false);
     _Game_Actor_changeClass.call(this, classId, keepExp);
-    Game_Actor.enableGetSpWhenLevelUp = EnableGetSpWhenLevelUp;
+    $gameTemp.setEnableGetSpWhenLevelUp(EnableGetSpWhenLevelUp);
 };
 
 
