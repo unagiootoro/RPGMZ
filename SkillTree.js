@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.6.1
+@plugindesc Skill tree v1.6.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.6.1
+@plugindesc スキルツリー v1.6.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -2361,15 +2361,24 @@ class SkillTreeView {
 
 
 // Initialize skill tree.
+const _DataManager_createGameObjects = DataManager.createGameObjects;
+DataManager.createGameObjects = function() {
+    _DataManager_createGameObjects.call(this);
+    $skillTreeData = new SkillTreeData();
+};
+
 const _Scene_Boot_create = Scene_Boot.prototype.create;
 Scene_Boot.prototype.create = function() {
     _Scene_Boot_create.call(this);
-    this.initSkillTree();
+    this.initSkillTreeConfig();
+    this.loadSkillTreeMap();
 };
 
-Scene_Boot.prototype.initSkillTree = function() {
-    $skillTreeData = new SkillTreeData();
+Scene_Boot.prototype.initSkillTreeConfig = function() {
     $skillTreeConfigLoader = new SkillTreeConfigLoader();
+};
+
+Scene_Boot.prototype.loadSkillTreeMap = function() {
     const skillTreeMapId = $skillTreeConfigLoader.configData().skillTreeMapId;
     if (skillTreeMapId) {
         for (const skillTreeName in skillTreeMapId) {
