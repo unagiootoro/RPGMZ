@@ -1138,10 +1138,6 @@ Game_Player.prototype.update = function(sceneActive) {
     if (this._needCountProcess) this.updateCountProcess(sceneActive);
     this._followers.update();
     if (TOUCH_MODE === 1) this.updateTouchPoint();
-    // disableHereEventPointから別の場所に映った場合disableHereEventPointをクリアする
-    if (this._disableHereEventPoint && (this.x !== this._disableHereEventPoint.x || this.y !== this._disableHereEventPoint.y)) {
-        this._disableHereEventPoint = null;
-    }
 };
 
 Game_Player.prototype.updateTouchPoint = function() {
@@ -1196,11 +1192,13 @@ Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
 };
 
 // 一度起動した足元のイベントをすぐに起動しない
+const _Game_Player_checkEventTriggerHere = Game_Player.prototype.checkEventTriggerHere;
 Game_Player.prototype.checkEventTriggerHere = function(triggers) {
-    if (this.canStartLocalEvents() && !this._disableHereEventPoint) {
-        this._disableHereEventPoint = { x: this.x, y: this.y };
-        this.startMapEvent(this.x, this.y, triggers, false);
+    if (this._disableHereEventPoint && (this.x === this._disableHereEventPoint.x && this.y === this._disableHereEventPoint.y)) {
+        return;
     }
+    this._disableHereEventPoint = { x: this.x, y: this.y };
+    _Game_Player_checkEventTriggerHere.call(this, triggers);
 };
 
 // 場所移動してすぐの座標にある足元のイベントを起動しないようにする
