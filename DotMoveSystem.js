@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc ドット移動システム v1.0.0
+@plugindesc ドット移動システム v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -125,10 +125,10 @@ class DotMoveUtils {
         return correctedPoint;
     }
 
-    static calcDistance(deg, speed) {
+    static calcDistance(deg, dpf) {
         const rad = DotMoveUtils.deg2rad(deg);
-        const disX = speed * Math.cos(rad);
-        const disY = speed * Math.sin(rad);
+        const disX = dpf * Math.cos(rad);
+        const disY = dpf * Math.sin(rad);
         return { x: disX, y: disY };
     }
 
@@ -354,11 +354,11 @@ class CharacterCollisionChecker {
 
     checkVehicles(x, y, d) {
         const collisionResults = [];
-        if (!$gamePlayer.isInBoat()) {
+        if ($gameMap.boat()._mapId === $gameMap.mapId() && !$gamePlayer.isInBoat()) {
             const result = this.checkCharacter(x, y, d, $gameMap.boat());
             if (result) collisionResults.push(result);
         }
-        if (!$gamePlayer.isInShip()) {
+        if ($gameMap.ship()._mapId === $gameMap.mapId() && !$gamePlayer.isInShip()) {
             const result = this.checkCharacter(x, y, d, $gameMap.ship());
             if (result) collisionResults.push(result);
         }
@@ -529,7 +529,7 @@ class CharacterController {
         target.y += dis.y;
         if (dis.x < 0) {
             dis = this.correctLeftDistance(target, dis);
-        } else {
+        } else if (dis.x > 0) {
             dis = this.correctRightDistance(target, dis);
         }
         dis = this.slideDistance(dis, target, collisionResults, 315, 45, "x");
@@ -545,7 +545,7 @@ class CharacterController {
         target.x += dis.x;
         if (dis.y < 0) {
             dis = this.correctUpDistance(target, dis);
-        } else {
+        } else if (dis.y > 0) {
             dis = this.correctDownDistance(target, dis);
         }
         dis = this.slideDistance(dis, target, collisionResults, 45, 135, "y");
@@ -561,7 +561,7 @@ class CharacterController {
         target.y += dis.y;
         if (dis.x < 0) {
             dis = this.correctLeftDistance(target, dis);
-        } else {
+        } else if (dis.x > 0) {
             dis = this.correctRightDistance(target, dis);
         }
         dis = this.slideDistance(dis, target, collisionResults, 225, 135, "x");
@@ -577,7 +577,7 @@ class CharacterController {
         target.x += dis.x;
         if (dis.y < 0) {
             dis = this.correctUpDistance(target, dis);
-        } else {
+        } else if (dis.y > 0) {
             dis = this.correctDownDistance(target, dis);
         }
         dis = this.slideDistance(dis, target, collisionResults, 315, 225, "y");
@@ -1043,6 +1043,10 @@ Game_Player.prototype.initMembers = function() {
     _Game_Player_initMembers.call(this);
     this._needCountProcess = false;
     this._gatherStart = false;
+    // 足元のイベント起動を禁止する座標
+    // 少し移動しただけで何度も足元のイベントが起動されるのと
+    // 場所移動時に足元のイベントが起動されるのを防ぐために使用
+    this._disableHereEventPoint = null;
 };
 
 Game_Player.prototype.makeMover = function() {
@@ -1134,6 +1138,10 @@ Game_Player.prototype.update = function(sceneActive) {
     if (this._needCountProcess) this.updateCountProcess(sceneActive);
     this._followers.update();
     if (TOUCH_MODE === 1) this.updateTouchPoint();
+    // disableHereEventPointから別の場所に映った場合disableHereEventPointをクリアする
+    if (this._disableHereEventPoint && (this.x !== this._disableHereEventPoint.x || this.y !== this._disableHereEventPoint.y)) {
+        this._disableHereEventPoint = null;
+    }
 };
 
 Game_Player.prototype.updateTouchPoint = function() {
@@ -1185,6 +1193,21 @@ Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
             $gameTemp.clearDestination();
         }
     }
+};
+
+// 一度起動した足元のイベントをすぐに起動しない
+Game_Player.prototype.checkEventTriggerHere = function(triggers) {
+    if (this.canStartLocalEvents() && !this._disableHereEventPoint) {
+        this._disableHereEventPoint = { x: this.x, y: this.y };
+        this.startMapEvent(this.x, this.y, triggers, false);
+    }
+};
+
+// 場所移動してすぐの座標にある足元のイベントを起動しないようにする
+const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
+Game_Player.prototype.reserveTransfer = function(mapId, x, y, d, fadeType) {
+    this._disableHereEventPoint = { x, y };
+    _Game_Player_reserveTransfer.call(this, mapId, x, y, d, fadeType)
 };
 
 Game_Player.prototype.getOnVehicle = function() {
