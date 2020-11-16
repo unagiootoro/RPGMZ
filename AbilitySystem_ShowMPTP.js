@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc スキル付け替えシステム MP/TP表示 v1.0.0
+@plugindesc スキル付け替えシステム MP/TP表示 v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem_ShowMPTP.js
 
@@ -27,6 +27,7 @@ Window_AbilitiesBase.prototype.drawSkill = function(index) {
     this.drawItemName(skill, rect.x, rect.y, rect.width - costWidth);
     this.drawSkillCost(skill, rect.x, rect.y, rect.width);
     this.changePaintOpacity(1);
+    this.resetTextColor();
 };
 
 Window_AbilitiesBase.prototype.costWidth = function() {
