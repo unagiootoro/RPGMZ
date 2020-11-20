@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc ステート付与装備 v1.0.3
+@plugindesc ステート付与装備 v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipState.js
 
@@ -30,92 +30,108 @@
 [ライセンス]
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
-{
-    "use strict";
+(() => {
+"use strict";
 
-    /* class Game_Item */
-    Game_Item.prototype.equipStatesId = function() {
-        const itemData = this.object();
-        if (!itemData || !this.isEquipItem()) return null;
-        if (!itemData.meta.EquipState) return [];
-        const stateId = JSON.parse(itemData.meta.EquipState);
-        if (typeof stateId === "number") return [stateId];
-        return stateId;
-    };
+/* class Game_Item */
+Game_Item.prototype.equipStatesId = function() {
+    const itemData = this.object();
+    if (!itemData || !this.isEquipItem()) return null;
+    if (!itemData.meta.EquipState) return [];
+    const stateId = JSON.parse(itemData.meta.EquipState);
+    if (typeof stateId === "number") return [stateId];
+    return stateId;
+};
 
 
-    /* class Game_Actor */
-    const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
-    Game_Actor.prototype.initMembers = function() {
-        _Game_Actor_initMembers.call(this);
-        this._equipStatesId = [];
-    };
+/* class Game_Actor */
+const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
+Game_Actor.prototype.initMembers = function() {
+    _Game_Actor_initMembers.call(this);
+    this._equipStatesId = [];
+};
 
-    const _Game_Actor_changeEquip = Game_Actor.prototype.changeEquip;
-    Game_Actor.prototype.changeEquip = function(slotId, item) {
-        _Game_Actor_changeEquip.call(this, slotId, item);
-        this.updateEquipStates();
-    };
+const _Game_Actor_changeEquip = Game_Actor.prototype.changeEquip;
+Game_Actor.prototype.changeEquip = function(slotId, item) {
+    _Game_Actor_changeEquip.call(this, slotId, item);
+    this.updateEquipStates();
+};
 
-    const _Game_Actor_forceChangeEquip = Game_Actor.prototype.forceChangeEquip;
-    Game_Actor.prototype.forceChangeEquip = function(slotId, item) {
-        _Game_Actor_forceChangeEquip.call(this, slotId, item);
-        this.updateEquipStates();
-    };
+const _Game_Actor_forceChangeEquip = Game_Actor.prototype.forceChangeEquip;
+Game_Actor.prototype.forceChangeEquip = function(slotId, item) {
+    _Game_Actor_forceChangeEquip.call(this, slotId, item);
+    this.updateEquipStates();
+};
 
-    const _Game_Actor_clearStates = Game_Actor.prototype.clearStates;
-    Game_Actor.prototype.clearStates = function() {
-        _Game_Actor_clearStates.call(this);
-        this.updateEquipStates();
-    };
-
-    Game_Actor.prototype.allEquipItems = function() {
-        if (!this._equips) return null;
-        const equipItems = this._equips.concat();
-        if (typeof DataManager.processPassiveSkill !== "undefined") {
-            if (!this._skills) return null;
-            for (const skillId of this._skills) {
-                const skill = $dataSkills[skillId];
-                if (skill && skill.passive) equipItems.push(skill.passive);
-            }
-        }
-        return equipItems;
-    }
-
-    Game_Actor.prototype.updateEquipStates = function() {
-        let equipStatesId = [];
-        const equipItems = this.allEquipItems();
-        if (!equipItems) return;
-        for (const equip of this.allEquipItems()) {
-            if (!equip.equipStatesId()) continue;
-            equipStatesId = equipStatesId.concat(equip.equipStatesId());
-        }
-        for (const stateId of equipStatesId) {
-            if (this.isStateAddable(stateId)) this.addState(stateId);
-        }
-        for (const stateId of this._equipStatesId) {
-            if (equipStatesId.indexOf(stateId) === -1) {
-                this.eraseState(stateId);
-            }
-        }
-        this._equipStatesId = equipStatesId;
-    };
-
-    const _Game_Battler_onBattleEnd = Game_Battler.prototype.onBattleEnd;
-    Game_Actor.prototype.onBattleEnd = function() {
-        _Game_Battler_onBattleEnd.call(this);
+const _Game_Actor_clearStates = Game_Actor.prototype.clearStates;
+Game_Actor.prototype.clearStates = function() {
+    _Game_Actor_clearStates.call(this);
+    // 戦闘不能によってステートがクリアされた場合は装備ステートの更新を行わない
+    if (this._hp > 0) {
         this.updateEquipStates();
     }
+};
 
-    const _Game_Actor_learnSkill = Game_Actor.prototype.learnSkill;
-    Game_Actor.prototype.learnSkill = function(skillId) {
-        _Game_Actor_learnSkill.call(this, skillId);
-        this.updateEquipStates();
-    }
+const _Game_Actor_revive = Game_Actor.prototype.revive;
+Game_Actor.prototype.revive = function() {
+    _Game_Actor_revive.call(this);
+    this.updateEquipStates(false);
+};
 
-    const _Game_Actor_forgetSkill = Game_Actor.prototype.forgetSkill;
-    Game_Actor.prototype.forgetSkill = function(skillId) {
-        _Game_Actor_forgetSkill.call(this, skillId);
-        this.updateEquipStates();
+Game_Actor.prototype.allEquipItems = function() {
+    if (!this._equips) return null;
+    const equipItems = this._equips.concat();
+    if (typeof DataManager.processPassiveSkill !== "undefined") {
+        if (!this._skills) return null;
+        for (const skillId of this._skills) {
+            const skill = $dataSkills[skillId];
+            if (skill && skill.passive) equipItems.push(skill.passive);
+        }
     }
-}
+    return equipItems;
+};
+
+Game_Actor.prototype.updateEquipStates = function(checkAddableState = true) {
+    let equipStatesId = [];
+    const equipItems = this.allEquipItems();
+    if (!equipItems) return;
+    for (const equip of this.allEquipItems()) {
+        if (!equip.equipStatesId()) continue;
+        equipStatesId = equipStatesId.concat(equip.equipStatesId());
+    }
+    for (const stateId of equipStatesId) {
+        if (checkAddableState && this.isStateAddable(stateId)) this.addState(stateId);
+    }
+    for (const stateId of this._equipStatesId) {
+        if (equipStatesId.indexOf(stateId) === -1) {
+            this.eraseState(stateId);
+        }
+    }
+    this._equipStatesId = equipStatesId;
+};
+
+const _Game_Actor_removeState = Game_Actor.prototype.removeState;
+Game_Actor.prototype.removeState = function(stateId) {
+    _Game_Actor_removeState.call(this, stateId);
+    this.updateEquipStates();
+};
+
+const _Game_Battler_onBattleEnd = Game_Battler.prototype.onBattleEnd;
+Game_Actor.prototype.onBattleEnd = function() {
+    _Game_Battler_onBattleEnd.call(this);
+    this.updateEquipStates();
+};
+
+const _Game_Actor_learnSkill = Game_Actor.prototype.learnSkill;
+Game_Actor.prototype.learnSkill = function(skillId) {
+    _Game_Actor_learnSkill.call(this, skillId);
+    this.updateEquipStates();
+};
+
+const _Game_Actor_forgetSkill = Game_Actor.prototype.forgetSkill;
+Game_Actor.prototype.forgetSkill = function(skillId) {
+    _Game_Actor_forgetSkill.call(this, skillId);
+    this.updateEquipStates();
+};
+
+})();
