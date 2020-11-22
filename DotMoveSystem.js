@@ -1,6 +1,6 @@
 /*:
-@target MZ
-@plugindesc ドット移動システム v1.1.0
+@target MV MZ
+@plugindesc ドット移動システム v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -8,6 +8,19 @@
 
 【使用方法】
 基本的に導入するだけで使用可能ですが、以下の内容を設定することでより詳細な制御が可能になります。
+
+■移動単位の設定
+移動ルートのスクリプトで
+this.setMoveUnit(移動単位(0～1の間の小数));
+と記載することで、一歩あたりの移動単位を指定することができます。
+例えば、イベントを半歩移動させるには
+this.setMoveUnit(0.5);
+と記載します。
+
+■ドット単位での移動
+移動ルートのスクリプトで
+this.dotMoveByDeg(角度(0～359の整数));
+と記載することで、ドット単位で指定した角度の方向へ移動させることができます。
 
 ■イベント接触判定の設定
 イベントの1ページ目のEVページの一番最初のイベントコマンドを注釈にしたうえで、
@@ -148,27 +161,17 @@ class DotMoveUtils {
         return MIN_DPF * Math.pow(2, moveSpeed);
     }
 
-    static correctMarginPoint(point, margin) {
-        const correctedPoint = { x: point.x, y: point.y };
-        const xFloat = point.x - Math.floor(point.x);
-        if (xFloat <= margin) {
-            correctedPoint.x = Math.floor(point.x);
-        } else if ((1 - xFloat) <= margin) {
-            correctedPoint.x = Math.ceil(point.x);
-        } 
-        const yFloat = point.y - Math.floor(point.y);
-        if (yFloat <= margin) {
-            correctedPoint.y = Math.floor(point.y);
-        } else if ((1 - yFloat) <= margin) {
-            correctedPoint.y = Math.ceil(point.y);
-        }
-        return correctedPoint;
-    }
-
     static calcDistance(deg, dpf) {
         const rad = DotMoveUtils.deg2rad(deg);
-        const disX = dpf * Math.cos(rad);
-        const disY = dpf * Math.sin(rad);
+        let disX = dpf * Math.cos(rad);
+        let disY = dpf * Math.sin(rad);
+        const unit = 2**16;
+        disX *= unit;
+        disX = Math.round(disX);
+        disX /= unit;
+        disY *= unit;
+        disY = Math.round(disY);
+        disY /= unit;
         return { x: disX, y: disY };
     }
 
@@ -194,23 +197,23 @@ class DotMoveUtils {
         return false;
     }
 
-    static nextPointWithDirection(point, direction) {
+    static nextPointWithDirection(point, direction, unit = 1) {
         let x = point.x;
         let y = point.y;
         const xySign = this.xySign(direction);
-        x += xySign.x;
-        y += xySign.y;
+        x += xySign.x * unit;
+        y += xySign.y * unit;
         x = $gameMap.roundX(x);
         y = $gameMap.roundY(y);
         return { x, y };
     }
 
-    static prevPointWithDirection(point, direction) {
+    static prevPointWithDirection(point, direction, unit = 1) {
         let x = point.x;
         let y = point.y;
         const xySign = this.xySign(direction);
-        x -= xySign.x;
-        y -= xySign.y;
+        x -= xySign.x * unit;
+        y -= xySign.y * unit;
         x = $gameMap.roundX(x);
         y = $gameMap.roundY(y);
         return { x, y };
@@ -320,10 +323,6 @@ class CharacterCollisionChecker {
     }
 
     checkCollision(x, y, d) {
-        const margin = DotMoveUtils.calcMargin(this._character.realMoveSpeed() - 2);
-        const correctedPoint = DotMoveUtils.correctMarginPoint({ x: x, y: y }, margin);
-        x = correctedPoint.x;
-        y = correctedPoint.y;
         let collisionResults = [];
         collisionResults = collisionResults.concat(this.checkCollisionMass(x, y, d));
         // マップの範囲有効判定をマスの衝突確認で実施する必要があるため
@@ -386,7 +385,8 @@ class CharacterCollisionChecker {
         if (this._character.isThrough() || this._character.isDebugThrough()) {
             return true;
         }
-        if (!this._character.isMapPassable(x, y, d)) {
+        const prevPoint = DotMoveUtils.prevPointWithDirection({x, y}, d);
+        if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
             return false;
         }
         return true;
@@ -556,6 +556,30 @@ class FollowerCollisionChecker extends CharacterCollisionChecker {
         collisionResults = collisionResults.concat(this.checkEvents(x, y, d));
         collisionResults = collisionResults.concat(this.checkVehicles(x, y, d));
         return collisionResults;
+    }
+
+    // フォロワーの移動を滑らかにするために衝突判定の座標を調整する
+    checkCollision(x, y, d) {
+        const margin = DotMoveUtils.calcMargin(this._character.realMoveSpeed() - 2);
+        const correctedPoint = this.correctMarginPoint({ x: x, y: y }, margin);
+        return super.checkCollision(correctedPoint.x, correctedPoint.y, d);
+    }
+
+    correctMarginPoint(point, margin) {
+        const correctedPoint = { x: point.x, y: point.y };
+        const xFloat = point.x - Math.floor(point.x);
+        if (xFloat <= margin) {
+            correctedPoint.x = Math.floor(point.x);
+        } else if ((1 - xFloat) <= margin) {
+            correctedPoint.x = Math.ceil(point.x);
+        } 
+        const yFloat = point.y - Math.floor(point.y);
+        if (yFloat <= margin) {
+            correctedPoint.y = Math.floor(point.y);
+        } else if ((1 - yFloat) <= margin) {
+            correctedPoint.y = Math.ceil(point.y);
+        }
+        return correctedPoint;
     }
 }
 
@@ -857,6 +881,7 @@ class CharacterMover {
         this._targetCount = 0;
         this._moving = false;
         this._setThroughReserve = null;
+        this._setMoveSpeedReserve = null;
         this._moveDeg = null;
         this._moveDir = null;
         this._gatherStart = false;
@@ -873,6 +898,10 @@ class CharacterMover {
             if (this._setThroughReserve != null) {
                 this._character._through = this._setThroughReserve;
                 this._setThroughReserve = null;
+            }
+            if (this._setMoveSpeedReserve != null) {
+                this._character._moveSpeed = this._setMoveSpeedReserve;
+                this._setMoveSpeedReserve = null;
             }
             this._character.refreshBushDepth();
         }
@@ -941,14 +970,14 @@ class CharacterMover {
         return this._moving;
     }
 
-    moveStraight(d) {
+    moveStraight(d, moveUnit) {
         this._character.setDirection(d);
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
-        const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d);
+        const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d, moveUnit);
         this.startMassMove(fromPoint, targetPoint);
     }
 
-    moveDiagonally(horz, vert) {
+    moveDiagonally(horz, vert, moveUnit) {
         if (this._character._direction === this._character.reverseDir(horz)) {
             this._character.setDirection(horz);
         }
@@ -965,7 +994,7 @@ class CharacterMover {
             this._moveDir = 7;
         }
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
-        const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._moveDir);
+        const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._moveDir, moveUnit);
         this.startMassMove(fromPoint, targetPoint);
     }
 
@@ -986,6 +1015,15 @@ class CharacterMover {
             this._setThroughReserve = through;
         }
     }
+
+    // 移動が完了してから移動速度の変更を反映する
+    setMoveSpeed(moveSpeed) {
+        if (!this.isMoving()) {
+            this._character._moveSpeed = moveSpeed;
+        } else {
+            this._setMoveSpeedReserve = moveSpeed;
+        }
+    };
 }
 
 class PlayerMover extends CharacterMover {
@@ -1016,6 +1054,7 @@ const _Game_CharacterBase_initMembers = Game_CharacterBase.prototype.initMembers
 Game_CharacterBase.prototype.initMembers = function() {
     _Game_CharacterBase_initMembers.call(this);
     this._totalDpf = 0; // 歩数計算のために使用
+    this._moveUnit = 1; // 移動単位
 };
 
 Game_CharacterBase.prototype.makeMover = function() {
@@ -1040,6 +1079,14 @@ Game_CharacterBase.prototype.isMoving = function() {
     return this.mover().isMoving();
 };
 
+Game_CharacterBase.prototype.moveUnit = function() {
+    return this._moveUnit;
+};
+
+Game_CharacterBase.prototype.setMoveUnit = function(moveUnit) {
+    this._moveUnit = moveUnit;
+};
+
 Game_CharacterBase.prototype.incrementTotalDpf = function() {
     this._totalDpf += this.distancePerFrame();
     if (this._totalDpf >= 1) {
@@ -1049,11 +1096,11 @@ Game_CharacterBase.prototype.incrementTotalDpf = function() {
 };
 
 Game_CharacterBase.prototype.moveStraight = function(d) {
-    this.mover().moveStraight(d);
+    this.mover().moveStraight(d, this._moveUnit);
 };
 
 Game_CharacterBase.prototype.moveDiagonally = function(horz, vert) {
-    this.mover().moveDiagonally(horz, vert);
+    this.mover().moveDiagonally(horz, vert, this._moveUnit);
 };
 
 Game_CharacterBase.prototype.setDirection = function(d) {
@@ -1065,8 +1112,8 @@ Game_CharacterBase.prototype.setDirection = function(d) {
 
 Game_CharacterBase.prototype.isMapPassable = function(x, y, d) {
     const d2 = this.reverseDir(d);
-    const prevPoint = DotMoveUtils.prevPointWithDirection({ x, y }, d);
-    return $gameMap.isPassable(prevPoint.x, prevPoint.y, d) && $gameMap.isPassable(x, y, d2);
+    const nextPoint = DotMoveUtils.nextPointWithDirection({ x, y }, d);
+    return $gameMap.isPassable(x, y, d) && $gameMap.isPassable(nextPoint.x, nextPoint.y, d2);
 };
 
 Game_CharacterBase.prototype.pos = function(x, y) {
@@ -1078,6 +1125,10 @@ Game_CharacterBase.prototype.pos = function(x, y) {
 
 Game_CharacterBase.prototype.setThrough = function(through) {
     this.mover().setThrough(through);
+};
+
+Game_CharacterBase.prototype.setMoveSpeed = function(moveSpeed) {
+    this.mover().setMoveSpeed(moveSpeed);
 };
 
 
@@ -1114,6 +1165,10 @@ Game_Character.prototype.moveRandom = function() {
     //     this.moveStraight(d);
     // }
     this.moveStraight(d);
+};
+
+Game_Character.prototype.dotMoveByDeg = function(deg) {
+    this.mover().dotMoveByDeg(deg);
 };
 
 
@@ -1180,20 +1235,19 @@ Game_Player.prototype.moveByInput = function() {
     }
 };
 
-Game_Player.prototype.forceMoveForward = function() {
+Game_Player.prototype.forceMoveOnVehicle = function() {
     this.setThrough(true);
-    // 一定の速度で乗り物に移動するために移動速度を固定する
-    this.setMoveSpeed(4);
-    this.moveForward();
+    const point = { x: this.vehicle()._realX, y: this.vehicle()._realY };
+    this.mover().moveToTarget(point);
     this.setThrough(false);
 };
 
-Game_Player.prototype.forceMoveToVehicle = function() {
+Game_Player.prototype.forceMoveOffVehicle = function() {
     this.setThrough(true);
-    // 一定の速度で乗り物に移動するために移動速度を固定する
-    this.setMoveSpeed(4);
-    const point = { x: this.vehicle()._realX, y: this.vehicle()._realY };
-    this.mover().moveToTarget(point);
+    // 乗り物から降りた時にハマらないように整数座標に着陸する
+    const fromPoint = { x: this.x, y: this.y };
+    const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._direction);
+    this.mover().moveToTarget(targetPoint);
     this.setThrough(false);
 };
 
@@ -1223,7 +1277,8 @@ Game_Player.prototype.updateTouchPoint = function() {
     const y = $gameTemp.destinationY();
     if (x != null && y != null) {
         const targetPoint = { x, y };
-        if (DotMoveUtils.reachPoint(realPoint, targetPoint, 0.1)) {
+        const margin = DotMoveUtils.calcMargin(this.realMoveSpeed());
+        if (DotMoveUtils.reachPoint(realPoint, targetPoint, margin)) {
             $gameTemp.clearDestination();
         }
     }
@@ -1292,7 +1347,7 @@ Game_Player.prototype.getOnVehicle = function() {
     if (this.isInVehicle()) {
         this._vehicleGettingOn = true;
         if (!this.isInAirship()) {
-            this.forceMoveToVehicle();
+            this.forceMoveOnVehicle();
         }
         this.gatherFollowers();
     }
@@ -1307,7 +1362,7 @@ Game_Player.prototype.getOffVehicle = function() {
         this._followers.synchronize(this.x, this.y, this.direction());
         this.vehicle().getOff();
         if (!this.isInAirship()) {
-            this.forceMoveForward();
+            this.forceMoveOffVehicle();
             this.setTransparent(false);
         }
         this._vehicleGettingOff = true;
@@ -1461,19 +1516,6 @@ Game_Event.prototype.checkEventTriggerTouch = function(x, y) {
 };
 
 
-Game_Vehicle.prototype.isMapPassable = function(x, y, d) {
-    if (this.isBoat()) {
-        return $gameMap.isBoatPassable(x, y);
-    } else if (this.isShip()) {
-        return $gameMap.isShipPassable(x, y);
-    } else if (this.isAirship()) {
-        return true;
-    } else {
-        return false;
-    }
-};
-
-
 const _Game_Follower_initMembers = Game_Follower.prototype.initMembers;
 Game_Follower.prototype.initMembers = function() {
     _Game_Follower_initMembers.call(this);
@@ -1534,7 +1576,8 @@ Game_Follower.prototype.gatherCharacter = function(character) {
     const realFromPoint = { x: this._realX, y: this._realY };
     const realTargetPoint = { x: character._realX, y: character._realY };
     this.setThrough(true);
-    if (DotMoveUtils.reachPoint(realFromPoint, realTargetPoint, 0.01)) {
+    const margin = DotMoveUtils.calcMargin(this.realMoveSpeed() - 2);
+    if (DotMoveUtils.reachPoint(realFromPoint, realTargetPoint, margin)) {
         this._realX = character._realX;
         this._realY = character._realY;
         this._x = Math.round(this._realX);
