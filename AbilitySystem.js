@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.0.1
+@plugindesc Skill replacement system v1.1.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -12,8 +12,11 @@ You can introduce a system that allows you to select and equip some of them.
 It is also possible to add cost to the skill.
 
 【How to use】
-・Give actors skills
-You can give an actor a skill by executing the plug-in command "Add Ability Skill".
+・ Give actors skills
+In the memo field of the skill you want to be able to replace
+<AbilitySkill>
+Please describe. After that, by acquiring the skill with the event command
+You can give the actor skills.
 
 ・Equip skills
 By opening the skill equipment scene from the menu, you can equip the skill that the actor has.
@@ -81,42 +84,6 @@ Sets the text used in the game.
 @text Ability scene start
 @desc
 Start the ability scene.
-
-
-@command AddAbilitySkill
-@text Ability skill added
-@desc
-Add ability skills to actors.
-
-@arg ActorId
-@text Actor ID
-@type actor
-@desc
-Specify the actor to which you want to add the ability skill.
-
-@arg SkillId
-@text Skill ID
-@type skill
-@desc
-Specify the skill ID to add.
-
-
-@command RemoveAbilitySkill
-@text Ability skill removed
-@desc
-Removes the ability skills of the actor.
-
-@arg ActorId
-@text Actor ID
-@type actor
-@desc
-Specifies the actor to remove the ability skill.
-
-@arg SkillId
-@text Skill ID
-@type skill
-@desc
-Specify the skill ID to delete.
 
 
 @command GetMaxCost
@@ -236,7 +203,7 @@ Specify the cost wording to be displayed on the ability management screen.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.0.1
+@plugindesc スキル付け替えシステム v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -249,7 +216,10 @@ Specify the cost wording to be displayed on the ability management screen.
 
 【使用方法】
 ・アクターにスキルを持たせる
-プラグインコマンド「アビリティスキル追加」を実行することで、アクターにスキルを持たせることができます。
+付け替えられるようにしたいスキルのメモ欄に
+<AbilitySkill>
+と記載してください。その上でイベントコマンドで当該スキルを取得することで
+アクターにスキルを持たせることができます。
 
 ・スキルを装備する
 スキル装備シーンをメニューから開くことによって、アクターが持っているスキルを装備することができます。
@@ -317,42 +287,6 @@ Specify the cost wording to be displayed on the ability management screen.
 @text アビリティシーン開始
 @desc
 アビリティシーンを開始します。
-
-
-@command AddAbilitySkill
-@text アビリティスキル追加
-@desc
-アクターにアビリティスキルを追加します。
-
-@arg ActorId
-@text アクターID
-@type actor
-@desc
-アビリティスキルを追加するアクターを指定します。
-
-@arg SkillId
-@text スキルID
-@type skill
-@desc
-追加するスキルIDを指定します。
-
-
-@command RemoveAbilitySkill
-@text アビリティスキル削除
-@desc
-アクターが持つアビリティスキルを削除します。
-
-@arg ActorId
-@text アクターID
-@type actor
-@desc
-アビリティスキルを削除するアクターを指定します。
-
-@arg SkillId
-@text スキルID
-@type skill
-@desc
-削除するスキルIDを指定します。
 
 
 @command GetMaxCost
@@ -755,7 +689,7 @@ class Window_AbilitiesBase extends Window_Selectable {
 
     drawSkill(index) {
         const rect = this.itemLineRect(index);
-        this.drawItemName(this.itemAt(index), rect.x, rect.y, rect.width);
+        this.drawItemName(this.itemAt(index), rect.x, rect.y, rect.width - this.costWidth());
         if (EnableCost) this.drawCost(index, SkillCostUtils.getSkillCost(this.itemAt(index).id));
     }
 
@@ -764,6 +698,11 @@ class Window_AbilitiesBase extends Window_Selectable {
         this.changeTextColor(ColorManager.systemColor());
         this.drawText(cost, rect.x, rect.y, rect.width, "right");
         this.resetTextColor();
+    }
+
+    costWidth() {
+        if (EnableCost) return this.textWidth("000");
+        return 0;
     }
 
     drawNone(index) {
@@ -949,12 +888,13 @@ Game_Actor.prototype.hasAbilitySkill = function(index) {
 };
 
 Game_Actor.prototype.addAbilitySkill = function(skillId) {
-    if (this._hasAbilitySkills.includes(skillId)) return;
+    const skills = this._equipAbilitySkills.concat(this._hasAbilitySkills);
+    if (skills.includes(skillId)) return;
     this._hasAbilitySkills.push(skillId);
 };
 
 Game_Actor.prototype.removeAbilitySkill = function(skillId) {
-    this.forgetSkill(skillId);
+    this.originForgetSkill(skillId);
     this._equipAbilitySkills = this._equipAbilitySkills.map(id => id === skillId ? null : id);
     this._hasAbilitySkills = this._hasAbilitySkills.filter(id => id !== skillId);
 };
@@ -985,16 +925,16 @@ Game_Actor.prototype.canChangeEquipAbilitySkill = function(index, targetSkillId)
     const equipAbilitySkills = this._equipAbilitySkills.concat();
     equipAbilitySkills[index] = targetSkillId;
     return this.totalCost(equipAbilitySkills) <= this.maxCost();
-}
+};
 
 Game_Actor.prototype.doChangeEquipAbilitySkill = function(index, targetSkillId) {
     const currentSkillId = this._equipAbilitySkills[index];
     if (!currentSkillId && !targetSkillId) return;
-    if (currentSkillId) this.forgetSkill(currentSkillId);
+    if (currentSkillId) this.originForgetSkill(currentSkillId);
     if (targetSkillId) {
         const hasIndex = this._hasAbilitySkills.indexOf(targetSkillId);
         this._equipAbilitySkills[index] = targetSkillId;
-        this.learnSkill(targetSkillId);
+        this.originLearnSkill(targetSkillId);
         if (currentSkillId) {
             this._hasAbilitySkills[hasIndex] = currentSkillId;
         } else {
@@ -1004,6 +944,28 @@ Game_Actor.prototype.doChangeEquipAbilitySkill = function(index, targetSkillId) 
     } else {
         this._equipAbilitySkills[index] = null;
         this._hasAbilitySkills.push(currentSkillId);
+    }
+};
+
+Game_Actor.prototype.originLearnSkill = Game_Actor.prototype.learnSkill;
+
+Game_Actor.prototype.originForgetSkill = Game_Actor.prototype.forgetSkill;
+
+Game_Actor.prototype.learnSkill = function(skillId) {
+    const skill = $dataSkills[skillId];
+    if (skill.meta.AbilitySkill) {
+        this.addAbilitySkill(skillId);
+    } else {
+        this.originLearnSkill(skillId);
+    }
+};
+
+Game_Actor.prototype.forgetSkill = function(skillId) {
+    const skill = $dataSkills[skillId];
+    if (skill.meta.AbilitySkill) {
+        this.removeAbilitySkill(skillId);
+    } else {
+        this.originForgetSkill(skillId);
     }
 };
 
@@ -1040,18 +1002,6 @@ Scene_Menu.prototype.onPersonalOk = function() {
 // Register plugin command.
 PluginManager.registerCommand(AbilitySystemPluginName, "StartAbilityScene", () => {
     SceneManager.push(Scene_Ability);
-});
-
-PluginManager.registerCommand(AbilitySystemPluginName, "AddAbilitySkill", args => {
-    const params = PluginParamsParser.parse(args, { ActorId: "number", SkillId: "number" });
-    const actor = $gameActors.actor(params.ActorId);
-    actor.addAbilitySkill(params.SkillId);
-});
-
-PluginManager.registerCommand(AbilitySystemPluginName, "RemoveAbilitySkill", args => {
-    const params = PluginParamsParser.parse(args, { ActorId: "number", SkillId: "number" });
-    const actor = $gameActors.actor(params.ActorId);
-    actor.removeAbilitySkill(params.SkillId);
 });
 
 PluginManager.registerCommand(AbilitySystemPluginName, "GetMaxCost", args => {
