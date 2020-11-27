@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc ドット移動システム v1.2.0
+@plugindesc ドット移動システム v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -42,13 +42,12 @@ this.dotMoveByDeg(角度(0～359の整数));
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-(() => {
+const DotMoveSystemClassAlias = (() => {
 "use strict";
 
 const PLAYER_SLIDE_LENGTH = 0.5;
 const EVENT_SLIDE_LENGTH = 0.5;
 const FOLLOWER_SLIDE_LENGTH = 0.75;
-const MIN_DPF = 0.0025;
 const TOUCH_MODE = 1;
 
 class EventParamParser {
@@ -158,7 +157,8 @@ class DotMoveUtils {
 
     static calcMargin(moveSpeed) {
         if (moveSpeed < 0) moveSpeed = 0;
-        return MIN_DPF * Math.pow(2, moveSpeed);
+        const minDpf = 0.0025;
+        return minDpf * Math.pow(2, moveSpeed);
     }
 
     static calcDistance(deg, dpf) {
@@ -254,6 +254,14 @@ class DotMoveUtils {
         }
         return { x, y };
     }
+
+    static isCollidedRect(rect1, rect2) {
+        if ((rect1.x > rect2.x && rect1.x < (rect2.x + rect2.width) || (rect1.x + rect1.width) > rect2.x && (rect1.x + rect1.width) < rect2.x + rect2.width || rect2.x >= rect1.x && (rect2.x + rect2.width) <= (rect1.x + rect1.width)) &&
+            (rect1.y > rect2.y && rect1.y < (rect2.y + rect2.height) || (rect1.y + rect1.height) > rect2.y && (rect1.y + rect1.height) < rect2.y + rect2.height || rect2.y >= rect1.y && (rect2.y + rect2.height) <= (rect1.y + rect1.height))) {
+                return true;
+        }
+        return false;
+    }
 }
 
 
@@ -285,31 +293,47 @@ Game_Map.prototype.setup = function(mapId) {
 
 
 class CollisionResult {
-    constructor(targetRect, collisionRect, canSlide) {
+    constructor(targetRect, collisionRect) {
         this._targetRect = targetRect;
         this._collisionRect = collisionRect;
-        this._canSlide = canSlide;
+        this._collisionLengthX = this.calcCollisionLengthX();
+        this._collisionLengthY = this.calcCollisionLengthY();
     }
 
     get targetRect() { return this._targetRect; }
     get collisionRect() { return this._collisionRect; }
-    get canSlide() { return this._canSlide; }
 
     getCollisionLength(axis) {
         if (axis === "x") {
-            if (this._targetRect.x > this._collisionRect.x) {
-                const len = (this._collisionRect.x + this._collisionRect.width) - this._targetRect.x;
-                return len > this._targetRect.width ? this._targetRect.width : len;
-            } else {
-                return (this._targetRect.x + this._targetRect.width) - this._collisionRect.x;
-            }
+            return this._collisionLengthX;
         } else {
-            if (this._targetRect.y > this._collisionRect.y) {
-                const len = (this._collisionRect.y + this._collisionRect.height) - this._targetRect.y;
-                return len > this._targetRect.height ? this._targetRect.height : len;
-            } else {
-                return (this._targetRect.y + this._targetRect.height) - this._collisionRect.y;
-            }
+            return this._collisionLengthY;
+        }
+    }
+
+    collisionLengthX() {
+        return this._collisionLengthX;
+    }
+
+    collisionLengthY() {
+        return this._collisionLengthY;
+    }
+
+    calcCollisionLengthX() {
+        if (this._targetRect.x > this._collisionRect.x) {
+            const len = (this._collisionRect.x + this._collisionRect.width) - this._targetRect.x;
+            return len > this._targetRect.width ? this._targetRect.width : len;
+        } else {
+            return (this._targetRect.x + this._targetRect.width) - this._collisionRect.x;
+        }
+    }
+
+    calcCollisionLengthY() {
+        if (this._targetRect.y > this._collisionRect.y) {
+            const len = (this._collisionRect.y + this._collisionRect.height) - this._targetRect.y;
+            return len > this._targetRect.height ? this._targetRect.height : len;
+        } else {
+            return (this._targetRect.y + this._targetRect.height) - this._collisionRect.y;
         }
     }
 }
@@ -365,8 +389,8 @@ class CharacterCollisionChecker {
             for (let iy = y1; iy <= y2; iy++) {
                 const ix2 = $gameMap.roundX(ix);
                 const iy2 = $gameMap.roundY(iy);
-                if (!this.checkMass(ix2, iy2, d) && this.isCollideMass(x, y, d, ix, iy, 1, 1)) {
-                    const collisionResult = new CollisionResult({x: x, y: y, width: 1, height: 1}, { x: ix, y: iy, width: 1, height: 1 }, true);
+                if (!this.checkMass(ix2, iy2, d) && this.isCollidedMass(x, y, d, ix, iy, 1, 1)) {
+                    const collisionResult = new CollisionResult({x: x, y: y, width: 1, height: 1}, { x: ix, y: iy, width: 1, height: 1 });
                     collisionResults.push(collisionResult);
                 }
             }
@@ -433,8 +457,8 @@ class CharacterCollisionChecker {
     }
 
     checkCharacter(x, y, d, character) {
-        if (this.isCollideCharacter(x, y, d, character._realX, character._realY)) {
-            return new CollisionResult({x: x, y: y, width: 1, height: 1}, { x: character._realX, y: character._realY, width: 1, height: 1 }, true);
+        if (this.isCollidedCharacter(x, y, d, character._realX, character._realY)) {
+            return new CollisionResult({x: x, y: y, width: 1, height: 1}, { x: character._realX, y: character._realY, width: 1, height: 1 });
         } else if ($gameMap.isLoopHorizontal() || $gameMap.isLoopVertical()) {
             let cx = character._realX;
             let cy = character._realY;
@@ -452,13 +476,13 @@ class CharacterCollisionChecker {
                     cy = cy - $gameMap.height();
                 }
             }
-            if (this.isCollideCharacter(x, y, d, cx, cy)) {
-                return new CollisionResult({x: x, y: y, width: 1, height: 1}, { x: cx, y: cy, width: 1, height: 1 }, true);
+            if (this.isCollidedCharacter(x, y, d, cx, cy)) {
+                return new CollisionResult({x: x, y: y, width: 1, height: 1}, { x: cx, y: cy, width: 1, height: 1 });
             }
         }
     }
 
-    isCollideMass(x, y, d, mx, my, mw, mh) {
+    isCollidedMass(x, y, d, mx, my, mw, mh) {
         let x2 = x;
         let y2 = y;
         let w = 1;
@@ -481,10 +505,10 @@ class CharacterCollisionChecker {
         }
         const rect1 = { x: x2, y: y2, width: w, height: h };
         const rect2 = { x: mx, y: my, width: mw, height: mh };
-        return this.isCollideRect(rect1, rect2);
+        return DotMoveUtils.isCollidedRect(rect1, rect2);
     }
 
-    isCollideCharacter(x, y, d, cx, cy) {
+    isCollidedCharacter(x, y, d, cx, cy) {
         let x2 = x;
         let y2 = y;
         let w = 1;
@@ -507,15 +531,7 @@ class CharacterCollisionChecker {
         }
         const rect1 = { x: x2, y: y2, width: w, height: h };
         const rect2 = { x: cx, y: cy, width: 1, height: 1 };
-        return this.isCollideRect(rect1, rect2);
-    }
-
-    isCollideRect(rect1, rect2) {
-        if ((rect1.x > rect2.x && rect1.x < (rect2.x + rect2.width) || (rect1.x + rect1.width) > rect2.x && (rect1.x + rect1.width) < rect2.x + rect2.width || rect2.x >= rect1.x && (rect2.x + rect2.width) <= (rect1.x + rect1.width)) &&
-            (rect1.y > rect2.y && rect1.y < (rect2.y + rect2.height) || (rect1.y + rect1.height) > rect2.y && (rect1.y + rect1.height) < rect2.y + rect2.height || rect2.y >= rect1.y && (rect2.y + rect2.height) <= (rect1.y + rect1.height))) {
-                return true;
-        }
-        return false;
+        return DotMoveUtils.isCollidedRect(rect1, rect2);
     }
 }
 
@@ -802,7 +818,7 @@ class CharacterController {
     // 衝突距離がキャラの移動距離未満であれば衝突距離分スライドを行う
     slideDistance(dis, target, collisionResults, deg1, deg2, axis) {
         const newDis = { x: dis.x, y: dis.y };
-        if (collisionResults.length === 1 && collisionResults[0].canSlide) {
+        if (collisionResults.length === 1) {
             const len = collisionResults[0].getCollisionLength(axis);
             const diagDis = target[axis] < collisionResults[0].collisionRect[axis] ? this.calcDistance(deg1) : this.calcDistance(deg2);
             if (len < Math.abs(diagDis[axis])) {
@@ -1420,7 +1436,7 @@ Game_Player.prototype.startMapEvent = function(x, y, triggers, normal) {
             const result = event.mover().checkCharacter(x, y, this._direction, event);
             if (!result) continue;
             const area = EventParamParser.getArea(event);
-            if (result.getCollisionLength("x") >= area.width && result.getCollisionLength("y") >= area.height) {
+            if (result.collisionLengthX() >= area.width && result.collisionLengthY() >= area.height) {
                 if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
                     this._disableHereEventPoint = { x: this.x, y: this.y };
                     event.start();
@@ -1675,5 +1691,23 @@ Game_Temp.prototype.mover = function(character) {
 Game_Temp.prototype.clearMovers = function() {
     this._movers = new Map();
 };
+
+return {
+    EventParamParser: EventParamParser,
+    DotMoveUtils: DotMoveUtils,
+    CollisionResult: CollisionResult,
+    CharacterCollisionChecker: CharacterCollisionChecker,
+    PlayerCollisionChecker: PlayerCollisionChecker,
+    EventCollisionChecker: EventCollisionChecker,
+    FollowerCollisionChecker: FollowerCollisionChecker,
+    CharacterController: CharacterController,
+    PlayerController: PlayerController,
+    EventController: EventController,
+    FollowerController: FollowerController,
+    CharacterMover: CharacterMover,
+    PlayerMover: PlayerMover,
+    EventMover: EventMover,
+    FollowerMover: FollowerMover,
+}
 
 })();
