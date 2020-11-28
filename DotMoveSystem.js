@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc ドット移動システム v1.2.1
+@plugindesc ドット移動システム v1.2.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -17,10 +17,21 @@ this.setMoveUnit(移動単位(0～1の間の小数));
 this.setMoveUnit(0.5);
 と記載します。
 
-■ドット単位での移動
+■ドット単位で任意の角度に移動させる
 移動ルートのスクリプトで
 this.dotMoveByDeg(角度(0～359の整数));
 と記載することで、ドット単位で指定した角度の方向へ移動させることができます。
+
+■ドット単位でイベントをプレイヤーの方向に移動させる
+移動ルートのスクリプトで
+this.dotMoveToPlayer();
+と記載することで、イベントをドット単位でプレイヤーの方向に移動させることができます。
+
+■指定の座標に移動させる
+移動ルートのスクリプトで
+this.moveToTarget(X座標, Y座標);
+と記載することで、指定した座標に向けて移動させることができます。
+(途中で壁などに衝突した場合は到達座標がずれます。)
 
 ■イベント接触判定の設定
 イベントの1ページ目のEVページの一番最初のイベントコマンドを注釈にしたうえで、
@@ -934,11 +945,11 @@ class CharacterMover {
     // マス単位移動が行われた場合、ここで毎フレーム移動処理を行う
     massMoveProcess() {
         let moved;
-        if (this._moveDeg) {
+        if (this._targetCount === 0) return;
+        if (this._moveDeg != null) {
             moved = this._controller.dotMoveByDeg(this._moveDeg);
         } else {
-            const moveDir = this._moveDir ? this._moveDir : this._character.direction();
-            moved = this._controller.dotMoveByDirection(moveDir);
+            moved = this._controller.dotMoveByDirection(this._moveDir);
         }
         if (moved) {
             this._moving = true;
@@ -965,7 +976,7 @@ class CharacterMover {
         this._moveDir = direction;
         this.massMoveProcess();
     }
-    
+
     dotMoveByDeg(deg) {
         this.setDirection(DotMoveUtils.deg2direction4(deg, this._character.direction()));
         this._targetCount = 1;
@@ -987,18 +998,18 @@ class CharacterMover {
     }
 
     moveStraight(d, moveUnit) {
-        this._character.setDirection(d);
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
         const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d, moveUnit);
+        this._moveDir = d;
         this.startMassMove(fromPoint, targetPoint);
     }
 
     moveDiagonally(horz, vert, moveUnit) {
         if (this._character._direction === this._character.reverseDir(horz)) {
-            this._character.setDirection(horz);
+            this.setDirection(horz);
         }
         if (this._character._direction === this._character.reverseDir(vert)) {
-            this._character.setDirection(vert);
+            this.setDirection(vert);
         }
         if (vert === 8 && horz === 6) {
             this._moveDir = 9;
@@ -1019,7 +1030,7 @@ class CharacterMover {
         const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
         this._moveDeg = deg;
         const dir = DotMoveUtils.deg2direction4(deg);
-        this._character.setDirection(dir);
+        this.setDirection(dir);
         this.startMassMove(fromPoint, targetPoint);
     }
 
@@ -1185,6 +1196,17 @@ Game_Character.prototype.moveRandom = function() {
 
 Game_Character.prototype.dotMoveByDeg = function(deg) {
     this.mover().dotMoveByDeg(deg);
+};
+
+Game_Character.prototype.dotMoveToPlayer = function() {
+    const fromPoint = { x: this._realX, y: this._realY };
+    const targetPoint = { x: $gamePlayer._realX, y: $gamePlayer._realY };
+    const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
+    this.mover().dotMoveByDeg(deg);
+};
+
+Game_Character.prototype.moveToTarget = function(x, y) {
+    this.mover().moveToTarget({ x, y});
 };
 
 
@@ -1491,6 +1513,10 @@ Game_Player.prototype.checkEventTriggerThere = function(triggers) {
             this.startMapEventFront(nextPoint.x, nextPoint.y, this._direction, triggers, true);
         }
     }
+};
+
+// プレイヤーの場合は処理をしない
+Game_Player.prototype.dotMoveToPlayer = function() {
 };
 
 
