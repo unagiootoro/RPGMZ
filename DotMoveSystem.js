@@ -1001,6 +1001,7 @@ class CharacterMover {
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
         const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d, moveUnit);
         this._moveDir = d;
+        this.setDirection(d);
         this.startMassMove(fromPoint, targetPoint);
     }
 
