@@ -1,6 +1,70 @@
 /*:
 @target MV MZ
-@plugindesc ドット移動システム v1.2.2
+@plugindesc Dot movement system v1.3.0
+@author Unagi Otoro
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
+@help
+It is a plug-in that allows you to move in dot units.
+
+【How to use】
+Basically, it can be used just by installing it, but more detailed control is possible by setting the following contents.
+
+■ Setting of movement unit
+In the travel route script
+this.setMoveUnit (Movement unit (decimal between 0 and 1));
+By writing, you can specify the movement unit per step.
+For example, to move an event half a step
+this.setMoveUnit (0.5);
+It is described as.
+
+■ Move to any angle in dot units
+In the travel route script
+this.dotMoveByDeg (angle (integer from 0 to 359));
+By writing, you can move in the direction of the angle specified in dot units.
+
+■ Move the event in the direction of the player in dot units
+In the travel route script
+this.dotMoveToPlayer ();
+By writing, you can move the event in the direction of the player in dot units.
+
+■ Move to the specified coordinates
+In the travel route script
+this.moveToTarget (X coordinate, Y coordinate);
+You can move it toward the specified coordinates by writing.
+(If it collides with a wall etc. on the way, the arrival coordinates will shift.)
+
+■ Event contact judgment settings
+Annotate the very first event command on the EV page on the first page of the event
+Event contact judgment can be set in more detail by describing the following contents in the annotation.
+・ Contact range on the horizontal axis
+<widthArea: Contact width (decimal number between 0 and 1)>
+
+・ Contact range on the vertical axis
+<heightArea: Contact width (decimal number between 0 and 1)>
+
+If you set the event priority below the regular character or above the regular character,
+Both the contact range on the horizontal axis and the contact range on the vertical axis are used as the contact range.
+When set to the same as a normal character, the contact range on the horizontal axis will be changed when touching upward or downward.
+When touching to the left or right, the contact range on the vertical axis is used.
+
+If neither the horizontal axis nor the vertical axis is set, 0.5 will be applied.
+
+【License】
+This plugin is available under the terms of the MIT license.
+
+
+@param TOUCH_MOVE_MODE
+@text Touch move mode
+@type number
+@default 0
+@desc
+Specifies the mode of touch movement.  0: 8 direction movement (with obstacle detour)
+1: 360 degree movement (without obstacle detour)
+*/
+
+/*:ja
+@target MV MZ
+@plugindesc ドット移動システム v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -51,15 +115,28 @@ this.moveToTarget(X座標, Y座標);
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
+
+
+@param TOUCH_MOVE_MODE
+@text タッチ移動モード
+@type number
+@default 0
+@desc
+タッチ移動のモードを指定します。
+0: 8方向移動(障害物迂回あり)  1: 360度移動(障害物迂回なし)
 */
+
+const DotMoveSystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
 
 const DotMoveSystemClassAlias = (() => {
 "use strict";
 
+const params = PluginManager.parameters(DotMoveSystemPluginName)
+
 const PLAYER_SLIDE_LENGTH = 0.5;
 const EVENT_SLIDE_LENGTH = 0.5;
 const FOLLOWER_SLIDE_LENGTH = 0.75;
-const TOUCH_MODE = 1;
+const TOUCH_MOVE_MODE = parseInt(params["TOUCH_MOVE_MODE"])
 
 class EventParamParser {
     static getArea(event) {
@@ -211,9 +288,9 @@ class DotMoveUtils {
     static nextPointWithDirection(point, direction, unit = 1) {
         let x = point.x;
         let y = point.y;
-        const xySign = this.xySign(direction);
-        x += xySign.x * unit;
-        y += xySign.y * unit;
+        const [xSign, ySign] = this.direction2XYSign(direction);
+        x += xSign * unit;
+        y += ySign * unit;
         x = $gameMap.roundX(x);
         y = $gameMap.roundY(y);
         return { x, y };
@@ -222,48 +299,54 @@ class DotMoveUtils {
     static prevPointWithDirection(point, direction, unit = 1) {
         let x = point.x;
         let y = point.y;
-        const xySign = this.xySign(direction);
-        x -= xySign.x * unit;
-        y -= xySign.y * unit;
+        const [xSign, ySign] = this.direction2XYSign(direction);
+        x -= xSign * unit;
+        y -= ySign * unit;
         x = $gameMap.roundX(x);
         y = $gameMap.roundY(y);
         return { x, y };
     }
 
-    static xySign(direction) {
-        let x = 0;
-        let y = 0;
+    static direction2XYSign(direction) {
+        const [horz, vert] = this.direction2HorzAndVert(direction);
+        const xSign = horz === 4 ? -1 : horz === 6 ? 1 : 0;
+        const ySign = vert === 8 ? -1 : vert === 2 ? 1 : 0;
+        return [xSign, ySign];
+    }
+
+    static direction2HorzAndVert(direction) {
+        let horz = 5, vert = 5;
         switch (direction) {
         case 8:
-            y = -1;
+            vert = 8;
             break;
         case 9:
-            y = -1;
-            x = 1;
+            horz = 6;
+            vert = 8;
             break;
         case 6:
-            x = 1;
+            horz = 6;
             break;
         case 3:
-            y = 1;
-            x = 1;
+            horz = 6;
+            vert = 2;
             break;
         case 2:
-            y = 1;
+            vert = 2;
             break;
         case 1:
-            y = 1;
-            x = -1;
+            horz = 4;
+            vert = 2;
             break;
         case 4:
-            x = -1;
+            horz = 4;
             break;
         case 7:
-            y = -1;
-            x = -1;
+            horz = 4;
+            vert = 8;
             break;
         }
-        return { x, y };
+        return [horz, vert];
     }
 
     static isCollidedRect(rect1, rect2) {
@@ -300,6 +383,11 @@ const _Game_Map_setup = Game_Map.prototype.setup;
 Game_Map.prototype.setup = function(mapId) {
     _Game_Map_setup.call(this, mapId);
     $gameTemp.clearMovers();
+};
+
+// 距離の計算をマンハッタン距離で行う
+Game_Map.prototype.distance = function(x1, y1, x2, y2) {
+    return DotMoveUtils.calcFar({ x: x1, y: y1 }, { x: x2, y: y2 });
 };
 
 
@@ -620,6 +708,7 @@ class CharacterController {
     }
 
     dotMoveByDirection(direction) {
+        if (direction === 0) return false;
         return this.dotMoveByDeg(DotMoveUtils.direction2deg(direction));
     }
 
@@ -997,6 +1086,15 @@ class CharacterMover {
         return this._moving;
     }
 
+    moveByDirection(d, moveUnit) {
+        if (d % 2 === 0) {
+            return this.moveStraight(d, moveUnit);
+        } else if (d === 1 || d === 3 || d === 7 || d === 9) {
+            const [horz, vert] = DotMoveUtils.direction2HorzAndVert(d);
+            this.moveDiagonally(horz, vert, moveUnit);
+        }
+    }
+
     moveStraight(d, moveUnit) {
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
         const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d, moveUnit);
@@ -1199,6 +1297,10 @@ Game_Character.prototype.dotMoveByDeg = function(deg) {
     this.mover().dotMoveByDeg(deg);
 };
 
+Game_Character.prototype.moveByDirection = function(direction) {
+    this.mover().moveByDirection(direction, 1);
+}
+
 Game_Character.prototype.dotMoveToPlayer = function() {
     const fromPoint = { x: this._realX, y: this._realY };
     const targetPoint = { x: $gamePlayer._realX, y: $gamePlayer._realY };
@@ -1253,10 +1355,10 @@ Game_Player.prototype.moveByInput = function() {
         } else if ($gameTemp.isDestinationValid()) {
             const x = $gameTemp.destinationX();
             const y = $gameTemp.destinationY();
-            if (TOUCH_MODE === 0) {
+            if (TOUCH_MOVE_MODE === 0) {
                 direction = this.findDirectionTo(x, y);
                 dotMove = false;
-            } else if (TOUCH_MODE === 1) {
+            } else if (TOUCH_MOVE_MODE !== 0) {
                 const fromPoint = { x: this._realX, y: this._realY };
                 const targetPoint = { x, y };
                 const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
@@ -1268,7 +1370,7 @@ Game_Player.prototype.moveByInput = function() {
             if (dotMove) {
                 this.executeMove(direction);
             } else {
-                this.moveStraight(direction);
+                this.moveByDirection(direction, 1);
             }
         }
     }
@@ -1307,7 +1409,7 @@ Game_Player.prototype.update = function(sceneActive) {
     }
     if (this._needCountProcess) this.updateCountProcess(sceneActive);
     this._followers.update();
-    if (TOUCH_MODE === 1) this.updateTouchPoint();
+    if (TOUCH_MOVE_MODE !== 0) this.updateTouchPoint();
 };
 
 Game_Player.prototype.updateTouchPoint = function() {
@@ -1717,6 +1819,173 @@ Game_Temp.prototype.mover = function(character) {
 
 Game_Temp.prototype.clearMovers = function() {
     this._movers = new Map();
+};
+
+// 経路探索
+Game_Character.prototype.moveTowardCharacter = function(character) {
+    const d = this.findDirectionTo(character.x, character.y);
+    this.moveByDirection(d);
+};
+
+Game_Character.prototype.searchLimit = function() {
+    return 32;
+};
+
+// 8方向A*経路探索を行い最適ノードと初期ノードを返す
+Game_Character.prototype.computeRoute = function(goalX, goalY) {
+    const searchLimit = this.searchLimit();
+    const mapWidth = $gameMap.width();
+    const nodeList = [];
+    const openList = [];
+    const closedList = [];
+    const start = {};
+    let best = start;
+
+    if (this.x === goalX && this.y === goalY) {
+        return [null, null];
+    }
+
+    start.parent = null;
+    start.x = this.x;
+    start.y = this.y;
+    start.g = 0;
+    start.f = $gameMap.distance(start.x, start.y, goalX, goalY);
+    nodeList.push(start);
+    openList.push(start.y * mapWidth + start.x);
+
+    while (nodeList.length > 0) {
+        let bestIndex = 0;
+        for (let i = 0; i < nodeList.length; i++) {
+            if (nodeList[i].f < nodeList[bestIndex].f) {
+                bestIndex = i;
+            }
+        }
+
+        const current = nodeList[bestIndex];
+        const x1 = current.x;
+        const y1 = current.y;
+        const pos1 = y1 * mapWidth + x1;
+        const g1 = current.g;
+
+        nodeList.splice(bestIndex, 1);
+        openList.splice(openList.indexOf(pos1), 1);
+        closedList.push(pos1);
+
+        if (current.x === goalX && current.y === goalY) {
+            best = current;
+            break;
+        }
+
+        if (g1 >= searchLimit) {
+            continue;
+        }
+
+        for (let j = 0; j < 9; j++) {
+            const direction = j + 1;
+            const [horz, vert] = DotMoveUtils.direction2HorzAndVert(direction);
+            const x2 = $gameMap.roundXWithDirection(x1, horz);
+            const y2 = $gameMap.roundYWithDirection(y1, vert);
+            const pos2 = y2 * mapWidth + x2;
+
+            if (closedList.includes(pos2)) {
+                continue;
+            }
+            if (direction % 2 === 0) {
+                if (!this.canPass(x1, y1, direction)) {
+                    continue;
+                }
+            } else {
+                if (!this.canPassDiagonally(x1, y1, horz, vert)) {
+                    continue;
+                }
+            }
+
+            const g2 = g1 + (direction % 2 === 0 ? 1 : 1.25);
+            const index2 = openList.indexOf(pos2);
+
+            if (index2 < 0 || g2 < nodeList[index2].g) {
+                let neighbor = {};
+                if (index2 >= 0) {
+                    neighbor = nodeList[index2];
+                } else {
+                    nodeList.push(neighbor);
+                    openList.push(pos2);
+                }
+                neighbor.parent = current;
+                neighbor.x = x2;
+                neighbor.y = y2;
+                neighbor.g = g2;
+                neighbor.f = g2 + $gameMap.distance(x2, y2, goalX, goalY);
+                if (!best || neighbor.f - neighbor.g < best.f - best.g) {
+                    best = neighbor;
+                }
+            }
+        }
+    }
+
+    return [best, start];
+};
+
+Game_Character.prototype.findDirectionTo = function(goalX, goalY) {
+    const [best, start] = this.computeRoute(goalX, goalY);
+    if (!best) return 0;
+
+    let node = best;
+    while (node.parent && node.parent !== start) {
+        node = node.parent;
+    }
+    const deltaX1 = $gameMap.deltaX(node.x, start.x);
+    const deltaY1 = $gameMap.deltaY(node.y, start.y);
+    if (deltaX1 === 0 && deltaY1 < 0) {
+        return 8;
+    } else if (deltaX1 > 0 && deltaY1 < 0) {
+        return 9;
+    } else if (deltaX1 > 0 && deltaY1 === 0) {
+        return 6;
+    } else if (deltaX1 > 0 && deltaY1 > 0) {
+        return 3;
+    } else if (deltaX1 === 0 && deltaY1 > 0) {
+        return 2;
+    } else if (deltaX1 < 0 && deltaY1 > 0) {
+        return 1;
+    } else if (deltaX1 < 0 && deltaY1 === 0) {
+        return 4;
+    } else if (deltaX1 < 0 && deltaY1 < 0) {
+        return 7;
+    }
+
+    const deltaX2 = this.deltaXFrom(goalX);
+    const deltaY2 = this.deltaYFrom(goalY);
+    if (Math.abs(deltaX2) > Math.abs(deltaY2)) {
+        if (deltaX2 > 0 && deltaY2 < 0) {
+            return 3;
+        } else if (deltaX2 > 0 && deltaY2 === 0) {
+            return 4;
+        } else if (deltaX2 > 0 && deltaY2 > 0) {
+            return 7;
+        } else if (deltaX2 < 0 && deltaY2 > 0) {
+            return 9;
+        } else if (deltaX2 < 0 && deltaY2 === 0) {
+            return 6;
+        } else if (deltaX2 < 0 && deltaY2 < 0) {
+            return 3;
+        }
+    } else if (deltaY2 !== 0) {
+        if (deltaY2 < 0 && deltaX2 < 0) {
+            return 3;
+        } else if (deltaY2 < 0 && deltaX2 === 0) {
+            return 2;
+        } else if (deltaY2 < 0 && deltaX2 > 0) {
+            return 1;
+        } else if (deltaY2 > 0 && deltaX2 > 0) {
+            return 7;
+        } else if (deltaY2 > 0 && deltaX2 === 0) {
+            return 8;
+        } else if (deltaY2 > 0 && deltaX2 < 0) {
+            return 9;
+        }
+    }
+    return 0;
 };
 
 return {
