@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.0
+@plugindesc Dot movement system v1.3.1
 @author Unagi Otoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -14,7 +14,7 @@ In the travel route script
 this.setMoveUnit (Movement unit (decimal between 0 and 1));
 By writing, you can specify the movement unit per step.
 For example, to move an event half a step
-this.setMoveUnit (0.5);
+this.setMoveUnit(0.5);
 It is described as.
 
 ■ Move to any angle in dot units
@@ -24,12 +24,12 @@ By writing, you can move in the direction of the angle specified in dot units.
 
 ■ Move the event in the direction of the player in dot units
 In the travel route script
-this.dotMoveToPlayer ();
+this.dotMoveToPlayer();
 By writing, you can move the event in the direction of the player in dot units.
 
 ■ Move to the specified coordinates
 In the travel route script
-this.moveToTarget (X coordinate, Y coordinate);
+this.moveToTarget(X coordinate, Y coordinate);
 You can move it toward the specified coordinates by writing.
 (If it collides with a wall etc. on the way, the arrival coordinates will shift.)
 
@@ -64,7 +64,7 @@ Specifies the mode of touch movement.  0: 8 direction movement (with obstacle de
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.0
+@plugindesc ドット移動システム v1.3.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -241,12 +241,6 @@ class DotMoveUtils {
 
     static deg2rad(deg) {
         return (deg - 90) * Math.PI / 180;
-    }
-
-    static calcMargin(moveSpeed) {
-        if (moveSpeed < 0) moveSpeed = 0;
-        const minDpf = 0.0025;
-        return minDpf * Math.pow(2, moveSpeed);
     }
 
     static calcDistance(deg, dpf) {
@@ -675,7 +669,7 @@ class FollowerCollisionChecker extends CharacterCollisionChecker {
 
     // フォロワーの移動を滑らかにするために衝突判定の座標を調整する
     checkCollision(x, y, d) {
-        const margin = DotMoveUtils.calcMargin(this._character.realMoveSpeed() - 2);
+        const margin = this._character.distancePerFrame() / 4;
         const correctedPoint = this.correctMarginPoint({ x: x, y: y }, margin);
         return super.checkCollision(correctedPoint.x, correctedPoint.y, d);
     }
@@ -742,15 +736,12 @@ class CharacterController {
             break;
         }
         const realPoint = { x: this._character._realX, y: this._character._realY };
-        const margin = DotMoveUtils.calcMargin(this._character.realMoveSpeed() - 2);
+        const margin = this._character.distancePerFrame() / 256;
         let moved = true;
         if (DotMoveUtils.reachPoint(realPoint, movedPoint, margin)) moved = false;
         movedPoint.x = $gameMap.roundX(movedPoint.x);
         movedPoint.y = $gameMap.roundY(movedPoint.y);
-        this._character._realX = movedPoint.x;
-        this._character._realY = movedPoint.y;
-        this._character._x = Math.round(this._character._realX);
-        this._character._y = Math.round(this._character._realY);
+        this._character.setPosition(movedPoint.x, movedPoint.y);
         return moved;
     }
 
@@ -913,12 +904,11 @@ class CharacterController {
         return Math.max(...lens);
     }
 
-    // 衝突矩形が1つだけの場合、キャラをスライドさせる
     // 衝突距離がキャラの移動距離以上であれば移動距離分スライドを行う
     // 衝突距離がキャラの移動距離未満であれば衝突距離分スライドを行う
     slideDistance(dis, target, collisionResults, deg1, deg2, axis) {
         const newDis = { x: dis.x, y: dis.y };
-        if (collisionResults.length === 1) {
+        if (this.canSlide(collisionResults)) {
             const len = collisionResults[0].getCollisionLength(axis);
             const diagDis = target[axis] < collisionResults[0].collisionRect[axis] ? this.calcDistance(deg1) : this.calcDistance(deg2);
             if (len < Math.abs(diagDis[axis])) {
@@ -937,6 +927,21 @@ class CharacterController {
             return this.correctDistance(target, newDis, dir);
         }
         return newDis;
+    }
+
+    // 衝突矩形が1つだけ、または全ての衝突矩形の座標が同じである場合、キャラをスライドさせる
+    canSlide(collisionResults) {
+        if (collisionResults.length === 0) {
+            return false;
+        } else if (collisionResults.length === 1) {
+            return true;
+        } else {
+            const collisionRectX = collisionResults[0].collisionRect.x;
+            const collisionRectY = collisionResults[0].collisionRect.y;
+            return collisionResults.every(result => {
+                return result.collisionRect.x === collisionRectX && result.collisionRect.y === collisionRectY;
+            });
+        }
     }
 
     calcDistance(deg) {
@@ -1245,7 +1250,7 @@ Game_CharacterBase.prototype.isMapPassable = function(x, y, d) {
 Game_CharacterBase.prototype.pos = function(x, y) {
     const realPoint = { x: this._x, y: this._y };
     const targetPoint = { x, y };
-    const margin = DotMoveUtils.calcMargin(this.realMoveSpeed() - 1);
+    const margin = this.distancePerFrame() / 2;
     return DotMoveUtils.reachPoint(realPoint, targetPoint, margin);
 };
 
@@ -1257,6 +1262,163 @@ Game_CharacterBase.prototype.setMoveSpeed = function(moveSpeed) {
     this.mover().setMoveSpeed(moveSpeed);
 };
 
+
+// 8方向A*経路探索を行い最適ノードと初期ノードを返す
+Game_Character.prototype.computeRoute = function(goalX, goalY) {
+    const searchLimit = this.searchLimit();
+    const mapWidth = $gameMap.width();
+    const nodeList = [];
+    const openList = [];
+    const closedList = [];
+    const start = {};
+    let best = start;
+
+    if (this.x === goalX && this.y === goalY) {
+        return [null, null];
+    }
+
+    start.parent = null;
+    start.x = this.x;
+    start.y = this.y;
+    start.g = 0;
+    start.f = $gameMap.distance(start.x, start.y, goalX, goalY);
+    nodeList.push(start);
+    openList.push(start.y * mapWidth + start.x);
+
+    while (nodeList.length > 0) {
+        let bestIndex = 0;
+        for (let i = 0; i < nodeList.length; i++) {
+            if (nodeList[i].f < nodeList[bestIndex].f) {
+                bestIndex = i;
+            }
+        }
+
+        const current = nodeList[bestIndex];
+        const x1 = current.x;
+        const y1 = current.y;
+        const pos1 = y1 * mapWidth + x1;
+        const g1 = current.g;
+
+        nodeList.splice(bestIndex, 1);
+        openList.splice(openList.indexOf(pos1), 1);
+        closedList.push(pos1);
+
+        if (current.x === goalX && current.y === goalY) {
+            best = current;
+            break;
+        }
+
+        if (g1 >= searchLimit) {
+            continue;
+        }
+
+        for (let j = 0; j < 9; j++) {
+            const direction = j + 1;
+            const [horz, vert] = DotMoveUtils.direction2HorzAndVert(direction);
+            const x2 = $gameMap.roundXWithDirection(x1, horz);
+            const y2 = $gameMap.roundYWithDirection(y1, vert);
+            const pos2 = y2 * mapWidth + x2;
+
+            if (closedList.includes(pos2)) {
+                continue;
+            }
+            if (direction % 2 === 0) {
+                if (!this.canPass(x1, y1, direction)) {
+                    continue;
+                }
+            } else {
+                if (!this.canPassDiagonally(x1, y1, horz, vert)) {
+                    continue;
+                }
+            }
+
+            const g2 = g1 + (direction % 2 === 0 ? 1 : 1.25);
+            const index2 = openList.indexOf(pos2);
+
+            if (index2 < 0 || g2 < nodeList[index2].g) {
+                let neighbor = {};
+                if (index2 >= 0) {
+                    neighbor = nodeList[index2];
+                } else {
+                    nodeList.push(neighbor);
+                    openList.push(pos2);
+                }
+                neighbor.parent = current;
+                neighbor.x = x2;
+                neighbor.y = y2;
+                neighbor.g = g2;
+                neighbor.f = g2 + $gameMap.distance(x2, y2, goalX, goalY);
+                if (!best || neighbor.f - neighbor.g < best.f - best.g) {
+                    best = neighbor;
+                }
+            }
+        }
+    }
+
+    return [best, start];
+};
+
+Game_Character.prototype.findDirectionTo = function(goalX, goalY) {
+    const [best, start] = this.computeRoute(goalX, goalY);
+    if (!best) return 0;
+
+    let node = best;
+    while (node.parent && node.parent !== start) {
+        node = node.parent;
+    }
+    const deltaX1 = $gameMap.deltaX(node.x, start.x);
+    const deltaY1 = $gameMap.deltaY(node.y, start.y);
+    if (deltaX1 === 0 && deltaY1 < 0) {
+        return 8;
+    } else if (deltaX1 > 0 && deltaY1 < 0) {
+        return 9;
+    } else if (deltaX1 > 0 && deltaY1 === 0) {
+        return 6;
+    } else if (deltaX1 > 0 && deltaY1 > 0) {
+        return 3;
+    } else if (deltaX1 === 0 && deltaY1 > 0) {
+        return 2;
+    } else if (deltaX1 < 0 && deltaY1 > 0) {
+        return 1;
+    } else if (deltaX1 < 0 && deltaY1 === 0) {
+        return 4;
+    } else if (deltaX1 < 0 && deltaY1 < 0) {
+        return 7;
+    }
+
+    const deltaX2 = this.deltaXFrom(goalX);
+    const deltaY2 = this.deltaYFrom(goalY);
+    if (Math.abs(deltaX2) > Math.abs(deltaY2)) {
+        if (deltaX2 > 0 && deltaY2 < 0) {
+            return 3;
+        } else if (deltaX2 > 0 && deltaY2 === 0) {
+            return 4;
+        } else if (deltaX2 > 0 && deltaY2 > 0) {
+            return 7;
+        } else if (deltaX2 < 0 && deltaY2 > 0) {
+            return 9;
+        } else if (deltaX2 < 0 && deltaY2 === 0) {
+            return 6;
+        } else if (deltaX2 < 0 && deltaY2 < 0) {
+            return 3;
+        }
+    } else if (deltaY2 !== 0) {
+        if (deltaY2 < 0 && deltaX2 < 0) {
+            return 3;
+        } else if (deltaY2 < 0 && deltaX2 === 0) {
+            return 2;
+        } else if (deltaY2 < 0 && deltaX2 > 0) {
+            return 1;
+        } else if (deltaY2 > 0 && deltaX2 > 0) {
+            return 7;
+        } else if (deltaY2 > 0 && deltaX2 === 0) {
+            return 8;
+        } else if (deltaY2 > 0 && deltaX2 < 0) {
+            return 9;
+        }
+    }
+    return 0;
+};
 
 Game_Character.prototype.updateRoutineMove = function() {
     if (this._waitCount > 0) {
@@ -1309,7 +1471,7 @@ Game_Character.prototype.dotMoveToPlayer = function() {
 };
 
 Game_Character.prototype.moveToTarget = function(x, y) {
-    this.mover().moveToTarget({ x, y});
+    this.mover().moveToTarget({ x, y });
 };
 
 
@@ -1370,7 +1532,7 @@ Game_Player.prototype.moveByInput = function() {
             if (dotMove) {
                 this.executeMove(direction);
             } else {
-                this.moveByDirection(direction, 1);
+                this.moveByDirection(direction);
             }
         }
     }
@@ -1409,17 +1571,15 @@ Game_Player.prototype.update = function(sceneActive) {
     }
     if (this._needCountProcess) this.updateCountProcess(sceneActive);
     this._followers.update();
-    if (TOUCH_MOVE_MODE !== 0) this.updateTouchPoint();
+    this.updateTouchPoint();
 };
 
 Game_Player.prototype.updateTouchPoint = function() {
-    const realPoint = { x: this._realX, y: this._realY };
     const x = $gameTemp.destinationX();
     const y = $gameTemp.destinationY();
     if (x != null && y != null) {
-        const targetPoint = { x, y };
-        const margin = DotMoveUtils.calcMargin(this.realMoveSpeed());
-        if (DotMoveUtils.reachPoint(realPoint, targetPoint, margin)) {
+        if (x === this.x && y === this.y) {
+            this.moveToTarget(this.x, this.y);
             $gameTemp.clearDestination();
         }
     }
@@ -1721,12 +1881,9 @@ Game_Follower.prototype.gatherCharacter = function(character) {
     const realFromPoint = { x: this._realX, y: this._realY };
     const realTargetPoint = { x: character._realX, y: character._realY };
     this.setThrough(true);
-    const margin = DotMoveUtils.calcMargin(this.realMoveSpeed() - 2);
+    const margin = this.distancePerFrame() / 8;
     if (DotMoveUtils.reachPoint(realFromPoint, realTargetPoint, margin)) {
-        this._realX = character._realX;
-        this._realY = character._realY;
-        this._x = Math.round(this._realX);
-        this._y = Math.round(this._realY);
+        this.setPosition(character._realX, character._realY);
         this.setThrough(false);
     } else {
         this.setMoveSpeed($gamePlayer.moveSpeed());
@@ -1819,173 +1976,6 @@ Game_Temp.prototype.mover = function(character) {
 
 Game_Temp.prototype.clearMovers = function() {
     this._movers = new Map();
-};
-
-// 経路探索
-Game_Character.prototype.moveTowardCharacter = function(character) {
-    const d = this.findDirectionTo(character.x, character.y);
-    this.moveByDirection(d);
-};
-
-Game_Character.prototype.searchLimit = function() {
-    return 32;
-};
-
-// 8方向A*経路探索を行い最適ノードと初期ノードを返す
-Game_Character.prototype.computeRoute = function(goalX, goalY) {
-    const searchLimit = this.searchLimit();
-    const mapWidth = $gameMap.width();
-    const nodeList = [];
-    const openList = [];
-    const closedList = [];
-    const start = {};
-    let best = start;
-
-    if (this.x === goalX && this.y === goalY) {
-        return [null, null];
-    }
-
-    start.parent = null;
-    start.x = this.x;
-    start.y = this.y;
-    start.g = 0;
-    start.f = $gameMap.distance(start.x, start.y, goalX, goalY);
-    nodeList.push(start);
-    openList.push(start.y * mapWidth + start.x);
-
-    while (nodeList.length > 0) {
-        let bestIndex = 0;
-        for (let i = 0; i < nodeList.length; i++) {
-            if (nodeList[i].f < nodeList[bestIndex].f) {
-                bestIndex = i;
-            }
-        }
-
-        const current = nodeList[bestIndex];
-        const x1 = current.x;
-        const y1 = current.y;
-        const pos1 = y1 * mapWidth + x1;
-        const g1 = current.g;
-
-        nodeList.splice(bestIndex, 1);
-        openList.splice(openList.indexOf(pos1), 1);
-        closedList.push(pos1);
-
-        if (current.x === goalX && current.y === goalY) {
-            best = current;
-            break;
-        }
-
-        if (g1 >= searchLimit) {
-            continue;
-        }
-
-        for (let j = 0; j < 9; j++) {
-            const direction = j + 1;
-            const [horz, vert] = DotMoveUtils.direction2HorzAndVert(direction);
-            const x2 = $gameMap.roundXWithDirection(x1, horz);
-            const y2 = $gameMap.roundYWithDirection(y1, vert);
-            const pos2 = y2 * mapWidth + x2;
-
-            if (closedList.includes(pos2)) {
-                continue;
-            }
-            if (direction % 2 === 0) {
-                if (!this.canPass(x1, y1, direction)) {
-                    continue;
-                }
-            } else {
-                if (!this.canPassDiagonally(x1, y1, horz, vert)) {
-                    continue;
-                }
-            }
-
-            const g2 = g1 + (direction % 2 === 0 ? 1 : 1.25);
-            const index2 = openList.indexOf(pos2);
-
-            if (index2 < 0 || g2 < nodeList[index2].g) {
-                let neighbor = {};
-                if (index2 >= 0) {
-                    neighbor = nodeList[index2];
-                } else {
-                    nodeList.push(neighbor);
-                    openList.push(pos2);
-                }
-                neighbor.parent = current;
-                neighbor.x = x2;
-                neighbor.y = y2;
-                neighbor.g = g2;
-                neighbor.f = g2 + $gameMap.distance(x2, y2, goalX, goalY);
-                if (!best || neighbor.f - neighbor.g < best.f - best.g) {
-                    best = neighbor;
-                }
-            }
-        }
-    }
-
-    return [best, start];
-};
-
-Game_Character.prototype.findDirectionTo = function(goalX, goalY) {
-    const [best, start] = this.computeRoute(goalX, goalY);
-    if (!best) return 0;
-
-    let node = best;
-    while (node.parent && node.parent !== start) {
-        node = node.parent;
-    }
-    const deltaX1 = $gameMap.deltaX(node.x, start.x);
-    const deltaY1 = $gameMap.deltaY(node.y, start.y);
-    if (deltaX1 === 0 && deltaY1 < 0) {
-        return 8;
-    } else if (deltaX1 > 0 && deltaY1 < 0) {
-        return 9;
-    } else if (deltaX1 > 0 && deltaY1 === 0) {
-        return 6;
-    } else if (deltaX1 > 0 && deltaY1 > 0) {
-        return 3;
-    } else if (deltaX1 === 0 && deltaY1 > 0) {
-        return 2;
-    } else if (deltaX1 < 0 && deltaY1 > 0) {
-        return 1;
-    } else if (deltaX1 < 0 && deltaY1 === 0) {
-        return 4;
-    } else if (deltaX1 < 0 && deltaY1 < 0) {
-        return 7;
-    }
-
-    const deltaX2 = this.deltaXFrom(goalX);
-    const deltaY2 = this.deltaYFrom(goalY);
-    if (Math.abs(deltaX2) > Math.abs(deltaY2)) {
-        if (deltaX2 > 0 && deltaY2 < 0) {
-            return 3;
-        } else if (deltaX2 > 0 && deltaY2 === 0) {
-            return 4;
-        } else if (deltaX2 > 0 && deltaY2 > 0) {
-            return 7;
-        } else if (deltaX2 < 0 && deltaY2 > 0) {
-            return 9;
-        } else if (deltaX2 < 0 && deltaY2 === 0) {
-            return 6;
-        } else if (deltaX2 < 0 && deltaY2 < 0) {
-            return 3;
-        }
-    } else if (deltaY2 !== 0) {
-        if (deltaY2 < 0 && deltaX2 < 0) {
-            return 3;
-        } else if (deltaY2 < 0 && deltaX2 === 0) {
-            return 2;
-        } else if (deltaY2 < 0 && deltaX2 > 0) {
-            return 1;
-        } else if (deltaY2 > 0 && deltaX2 > 0) {
-            return 7;
-        } else if (deltaY2 > 0 && deltaX2 === 0) {
-            return 8;
-        } else if (deltaY2 > 0 && deltaX2 < 0) {
-            return 9;
-        }
-    }
-    return 0;
 };
 
 return {
