@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.2
+@plugindesc Dot movement system v1.3.3
 @author Unagi Otoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -64,7 +64,7 @@ Specifies the mode of touch movement.  0: 8 direction movement (with obstacle de
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.2
+@plugindesc ドット移動システム v1.3.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -151,12 +151,20 @@ class EventParamParser {
     }
 
     static getNote(event) {
+        const noteLines = [];
         const page0List = event.event().pages[0].list;
         if (page0List.length > 0 && page0List[0].code === 108) {
-            return page0List[0].parameters[0];
+            for (let i = 0; i < page0List.length; i++) {
+                if (page0List[0].code === 108 || page0List[0].code === 408) {
+                    noteLines.push(page0List[i].parameters[0]);
+                } else {
+                    break;
+                }
+            }
+            return noteLines.join("\n");
         }
         return "";
-    }
+    };
 }
 
 class DotMoveUtils {
