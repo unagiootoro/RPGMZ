@@ -1,7 +1,7 @@
 /*:
 @target MV MZ
 @plugindesc Dot movement system v1.3.4
-@author Unagi Otoro
+@author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
 It is a plug-in that allows you to move in dot units.
