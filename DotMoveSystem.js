@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.3
+@plugindesc Dot movement system v1.3.4
 @author Unagi Otoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -51,20 +51,11 @@ If neither the horizontal axis nor the vertical axis is set, 0.5 will be applied
 
 【License】
 This plugin is available under the terms of the MIT license.
-
-
-@param TOUCH_MOVE_MODE
-@text Touch move mode
-@type number
-@default 0
-@desc
-Specifies the mode of touch movement.  0: 8 direction movement (with obstacle detour)
-1: 360 degree movement (without obstacle detour)
 */
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.3
+@plugindesc ドット移動システム v1.3.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -115,15 +106,6 @@ this.moveToTarget(X座標, Y座標);
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
-
-
-@param TOUCH_MOVE_MODE
-@text タッチ移動モード
-@type number
-@default 0
-@desc
-タッチ移動のモードを指定します。
-0: 8方向移動(障害物迂回あり)  1: 360度移動(障害物迂回なし)
 */
 
 const DotMoveSystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
@@ -131,12 +113,9 @@ const DotMoveSystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)
 const DotMoveSystemClassAlias = (() => {
 "use strict";
 
-const params = PluginManager.parameters(DotMoveSystemPluginName)
-
 const PLAYER_SLIDE_LENGTH = 0.5;
 const EVENT_SLIDE_LENGTH = 0.5;
 const FOLLOWER_SLIDE_LENGTH = 0.75;
-const TOUCH_MOVE_MODE = parseInt(params["TOUCH_MOVE_MODE"])
 
 class EventParamParser {
     static getArea(event) {
@@ -754,14 +733,14 @@ class CharacterController {
 
     calcUp(dis) {
         const target = this._character.collisionRect();
-        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 8);
-        dis = this.correctUpDistance(target, dis);
-        target.y += dis.y;
         if (dis.x < 0) {
             dis = this.correctLeftDistance(target, dis);
         } else if (dis.x > 0) {
             dis = this.correctRightDistance(target, dis);
         }
+        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 8);
+        dis = this.correctUpDistance(target, dis);
+        target.y += dis.y;
         dis = this.slideDistance(dis, target, collisionResults, 315, 45, "x");
         target.x += dis.x;
         return { x: target.x, y: target.y };
@@ -769,14 +748,14 @@ class CharacterController {
 
     calcRight(dis) {
         const target = this._character.collisionRect();
-        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 6);
-        dis = this.correctRightDistance(target, dis);
-        target.x += dis.x;
         if (dis.y < 0) {
             dis = this.correctUpDistance(target, dis);
         } else if (dis.y > 0) {
             dis = this.correctDownDistance(target, dis);
         }
+        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 6);
+        dis = this.correctRightDistance(target, dis);
+        target.x += dis.x;
         dis = this.slideDistance(dis, target, collisionResults, 45, 135, "y");
         target.y += dis.y;
         return { x: target.x, y: target.y };
@@ -784,14 +763,14 @@ class CharacterController {
 
     calcDown(dis) {
         const target = this._character.collisionRect();
-        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 2);
-        dis = this.correctDownDistance(target, dis);
-        target.y += dis.y;
         if (dis.x < 0) {
             dis = this.correctLeftDistance(target, dis);
         } else if (dis.x > 0) {
             dis = this.correctRightDistance(target, dis);
         }
+        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 2);
+        dis = this.correctDownDistance(target, dis);
+        target.y += dis.y;
         dis = this.slideDistance(dis, target, collisionResults, 225, 135, "x");
         target.x += dis.x;
         return { x: target.x, y: target.y };
@@ -799,14 +778,14 @@ class CharacterController {
 
     calcLeft(dis) {
         const target = this._character.collisionRect();
-        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 4);
-        dis = this.correctLeftDistance(target, dis);
-        target.x += dis.x;
         if (dis.y < 0) {
             dis = this.correctUpDistance(target, dis);
         } else if (dis.y > 0) {
             dis = this.correctDownDistance(target, dis);
         }
+        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 4);
+        dis = this.correctLeftDistance(target, dis);
+        target.x += dis.x;
         dis = this.slideDistance(dis, target, collisionResults, 315, 225, "y");
         target.y += dis.y;
         return { x: target.x, y: target.y };
@@ -1468,7 +1447,7 @@ Game_Character.prototype.dotMoveToPlayer = function() {
     const fromPoint = { x: this._realX, y: this._realY };
     const targetPoint = { x: $gamePlayer._realX, y: $gamePlayer._realY };
     const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
-    this.mover().dotMoveByDeg(deg);
+    this.dotMoveByDeg(deg);
 };
 
 Game_Character.prototype.moveToTarget = function(x, y) {
@@ -1511,30 +1490,15 @@ Game_Player.prototype.getInputDirection = function() {
 
 Game_Player.prototype.moveByInput = function() {
     if (!this.isMoving() && this.canMove()) {
-        let dotMove = true;
         let direction = this.getInputDirection();
         if (direction > 0) {
             $gameTemp.clearDestination();
+            this.executeMove(direction);
         } else if ($gameTemp.isDestinationValid()) {
             const x = $gameTemp.destinationX();
             const y = $gameTemp.destinationY();
-            if (TOUCH_MOVE_MODE === 0) {
-                direction = this.findDirectionTo(x, y);
-                dotMove = false;
-            } else if (TOUCH_MOVE_MODE !== 0) {
-                const fromPoint = { x: this._realX, y: this._realY };
-                const targetPoint = { x, y };
-                const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
-                this.mover().dotMoveByDeg(deg);
-                return;
-            }
-        }
-        if (direction > 0) {
-            if (dotMove) {
-                this.executeMove(direction);
-            } else {
-                this.moveByDirection(direction);
-            }
+            direction = this.findDirectionTo(x, y);
+            if (direction > 0) this.moveByDirection(direction);
         }
     }
 };
@@ -1873,7 +1837,7 @@ Game_Follower.prototype.chaseCharacter = function(character) {
         } else {
             this.setThrough(false);
         }
-        this.mover().dotMoveByDeg(deg);
+        this.dotMoveByDeg(deg);
         this.setMoveSpeed(this.calcFollowerSpeed(far));
     }
 };
@@ -1889,7 +1853,7 @@ Game_Follower.prototype.gatherCharacter = function(character) {
     } else {
         this.setMoveSpeed($gamePlayer.moveSpeed());
         const deg = DotMoveUtils.calcDeg(realFromPoint, realTargetPoint);
-        this.mover().dotMoveByDeg(deg);
+        this.dotMoveByDeg(deg);
     }
 };
 
