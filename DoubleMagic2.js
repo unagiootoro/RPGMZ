@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 連続魔法2 v1.1.0
+@plugindesc 連続魔法2 v1.2.0
 @author うなぎおおとろ
 
 @param MagicSkillTypeIds
@@ -21,6 +21,10 @@ FFの連続魔みたいなのを作ることができます。
 「魔法」のスキルタイプIDは複数指定することができます。
 ただし同じスキルタイプIDの魔法しか連続魔法の対象とならないので注意してください。
 
+連続魔法の対象にしたくないスキルを作成したい場合、スキルのメモ欄に
+<DisableDoubleMagic2Target>
+と記述することで、連続魔法の対象から外すことができます。
+
 [ライセンス]
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
@@ -35,6 +39,10 @@ const magicSkillTypeIds = JSON.parse(params["MagicSkillTypeIds"]).map(s => parse
 
 Game_Action.prototype.isMagicSkill = function() {
     return magicSkillTypeIds.includes(this.item().stypeId);
+};
+
+Game_Action.prototype.enableDoubleMagic2Target = function() {
+    return !this.item().meta.DisableDoubleMagic2Target;
 };
 
 const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
@@ -101,7 +109,7 @@ const _Scene_Battle_selectNextCommand = Scene_Battle.prototype.selectNextCommand
 Scene_Battle.prototype.selectNextCommand = function() {
     const actor = BattleManager.actor();
     const action = BattleManager.inputtingAction();
-    if (action && action.isMagicSkill() && actor.isContinuousMagic2()) {
+    if (action && action.isMagicSkill() && action.enableDoubleMagic2Target() && actor.isContinuousMagic2()) {
         BattleManager.selectNextCommand({doubleMagic: true});
         if (actor.doubleMagicEndSelectState() === "selecting") {
             this.commandSkill();
@@ -119,4 +127,13 @@ Scene_Battle.prototype.onSkillCancel = function() {
     if (actor.doubleMagicEndSelectState() === "selecting") actor.cancelDoubleMagicSelect();
     _Scene_Battle_onSkillCancel.call(this);
 };
+
+const _Window_BattleSkill_makeItemList = Window_BattleSkill.prototype.makeItemList;
+Window_BattleSkill.prototype.makeItemList = function() {
+    _Window_BattleSkill_makeItemList.call(this);
+    if (this._actor && this._actor.doubleMagicEndSelectState() === "selecting") {
+        this._data = this._data.filter(item => !item.meta.DisableDoubleMagic2Target);
+    }
+};
+
 })();
