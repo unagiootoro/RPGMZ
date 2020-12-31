@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.4
+@plugindesc Dot movement system v1.3.5
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.4
+@plugindesc ドット移動システム v1.3.5
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -169,8 +169,12 @@ class DotMoveUtils {
     }
 
     static deg2direction(deg) {
-        if (deg < 0) deg = 360 + deg;
-        deg %= 360;
+        if (deg > 360) deg = deg % 360;
+        if (deg < 0) {
+            let rdeg = -deg;
+            if (rdeg > 360) rdeg = rdeg % 360;
+            deg = 360 - rdeg;
+        }
         const t = Math.round(deg / 45);
         if (t === 0 || t === 8) {
             return 8;
@@ -194,8 +198,12 @@ class DotMoveUtils {
     }
 
     static deg2direction4(deg, direction) {
-        if (deg < 0) deg = 360 + deg;
-        deg %= 360;
+        if (deg > 360) deg = deg % 360;
+        if (deg < 0) {
+            let rdeg = -deg;
+            if (rdeg > 360) rdeg = rdeg % 360;
+            deg = 360 - rdeg;
+        }
         const t = Math.round(deg / 45);
         if (t === 0 || t === 8) {
             return 8;
