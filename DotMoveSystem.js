@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.5
+@plugindesc Dot movement system v1.3.6
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.5
+@plugindesc ドット移動システム v1.3.6
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -115,7 +115,7 @@ const DotMoveSystemClassAlias = (() => {
 
 const PLAYER_SLIDE_LENGTH = 0.5;
 const EVENT_SLIDE_LENGTH = 0.5;
-const FOLLOWER_SLIDE_LENGTH = 0.75;
+const FOLLOWER_SLIDE_LENGTH = 0.5;
 
 class EventParamParser {
     static getArea(event) {
@@ -169,7 +169,7 @@ class DotMoveUtils {
     }
 
     static deg2direction(deg) {
-        if (deg > 360) deg = deg % 360;
+        if (deg >= 360) deg = deg % 360;
         if (deg < 0) {
             let rdeg = -deg;
             if (rdeg > 360) rdeg = rdeg % 360;
@@ -198,7 +198,7 @@ class DotMoveUtils {
     }
 
     static deg2direction4(deg, direction) {
-        if (deg > 360) deg = deg % 360;
+        if (deg >= 360) deg = deg % 360;
         if (deg < 0) {
             let rdeg = -deg;
             if (rdeg > 360) rdeg = rdeg % 360;
@@ -374,11 +374,6 @@ Game_Map.prototype.setup = function(mapId) {
     $gameTemp.clearMovers();
 };
 
-// 距離の計算をマンハッタン距離で行う
-Game_Map.prototype.distance = function(x1, y1, x2, y2) {
-    return DotMoveUtils.calcFar({ x: x1, y: y1 }, { x: x2, y: y2 });
-};
-
 
 class CollisionResult {
     constructor(targetRect, collisionRect) {
@@ -445,8 +440,9 @@ class CharacterCollisionChecker {
     }
 
     checkCollisionMass(x, y, d) {
-        const collisionResults = [];
+        let collisionResults = [];
         let x1, y1, x2, y2;
+        const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
         switch (d) {
         case 8:
             x1 = Math.floor(x);
@@ -473,11 +469,11 @@ class CharacterCollisionChecker {
             y2 = Math.ceil(y) + Math.ceil(this._character.height() - 1);
             break;
         }
+
         for (let ix = x1; ix <= x2; ix++) {
             for (let iy = y1; iy <= y2; iy++) {
                 const ix2 = $gameMap.roundX(ix);
                 const iy2 = $gameMap.roundY(iy);
-                const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
                 const massRect = { x: ix, y: iy, width: 1, height: 1 };
                 if (!this.checkMass(ix2, iy2, d) && this.isCollidedRect(targetRect, d, massRect)) {
                     const collisionResult = new CollisionResult(targetRect, massRect);
@@ -485,7 +481,60 @@ class CharacterCollisionChecker {
                 }
             }
         }
+
+        if (collisionResults.length > 0) return collisionResults;
+        let cliffCollisionResult = [];
+        switch (d) {
+        case 8:
+            cliffCollisionResult = this.checkCollisionXCliff(targetRect, x, x1, x2, y1, d);
+            break;
+        case 6:
+            cliffCollisionResult = this.checkCollisionYCliff(targetRect, y, y1, y2, x1, d);
+            break;
+        case 2:
+            cliffCollisionResult = this.checkCollisionXCliff(targetRect, x, x1, x2, y1, d);
+            break;
+        case 4:
+            cliffCollisionResult = this.checkCollisionYCliff(targetRect, y, y1, y2, x1, d);
+            break;
+        }
+        collisionResults = collisionResults.concat(cliffCollisionResult);
+
         return collisionResults;
+    }
+
+    checkCollisionXCliff(targetRect, x, x1, x2, y1, d) {
+        if (x1 === x2) return [];
+        if (!(this.checkMass(x1, y1, 4) && this.checkMass(x2, y1, 6))) {
+            let massRect;
+            if (x - x1 > 0.5) {
+                massRect = { x: x1, y: y1, width: 1, height: 1 };
+            } else {
+                massRect = { x: x2, y: y1, width: 1, height: 1 };
+            }
+            if (this.isCollidedRect(targetRect, d, massRect)) {
+                const collisionResult = new CollisionResult(targetRect, massRect);
+                return [collisionResult];
+            }
+        }
+        return [];
+    }
+
+    checkCollisionYCliff(targetRect, y, y1, y2, x1, d) {
+        if (y1 === y2) return [];
+        if (!(this.checkMass(x1, y1, 8) && this.checkMass(x1, y2, 2))) {
+            let massRect;
+            if (y - y1 > 0.5) {
+                massRect = { x: x1, y: y1, width: 1, height: 1 };
+            } else {
+                massRect = { x: x1, y: y2, width: 1, height: 1 };
+            }
+            if (this.isCollidedRect(targetRect, d, massRect)) {
+                const collisionResult = new CollisionResult(targetRect, massRect);
+                return [collisionResult];
+            }
+        }
+        return [];
     }
 
     checkCollisionCharacters(x, y, d) {
@@ -552,30 +601,28 @@ class CharacterCollisionChecker {
 
         const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
         const characterRect = character.collisionRect();
-        if (this.isCollidedRect(targetRect, d, characterRect)) {
-            return new CollisionResult(targetRect, characterRect);
-        } else if ($gameMap.isLoopHorizontal() || $gameMap.isLoopVertical()) {
+        if ($gameMap.isLoopHorizontal() || $gameMap.isLoopVertical()) {
             let cx = character._realX;
             let cy = character._realY;
             if ($gameMap.isLoopHorizontal()) {
-                if (cx <= 1) {
+                if (cx <= 1 && x >= $gameMap.width() - 1) {
                     cx = $gameMap.width() - cx;
-                } else if (cx >= $gameMap.width() - 1) {
+                } else if (cx >= $gameMap.width() - 1 && x <= 1) {
                     cx = cx - $gameMap.width();
                 }
             }
             if ($gameMap.isLoopVertical()) {
-                if (cy <= 1) {
+                if (cy <= 1 && y >= $gameMap.height() - 1) {
                     cy = $gameMap.height() - cy;
-                } else if (cy >= $gameMap.height() - 1) {
+                } else if (cy >= $gameMap.height() - 1 && y <= 1) {
                     cy = cy - $gameMap.height();
                 }
             }
             characterRect.x = cx;
             characterRect.y = cy;
-            if (this.isCollidedRect(targetRect, d, characterRect)) {
-                return new CollisionResult(targetRect, characterRect);
-            }
+        }
+        if (this.isCollidedRect(targetRect, d, characterRect)) {
+            return new CollisionResult(targetRect, characterRect);
         }
         return null;
     }
@@ -643,30 +690,6 @@ class FollowerCollisionChecker extends CharacterCollisionChecker {
         collisionResults = collisionResults.concat(this.checkEvents(x, y, d));
         collisionResults = collisionResults.concat(this.checkVehicles(x, y, d));
         return collisionResults;
-    }
-
-    // フォロワーの移動を滑らかにするために衝突判定の座標を調整する
-    checkCollision(x, y, d) {
-        const margin = this._character.distancePerFrame() / 4;
-        const correctedPoint = this.correctMarginPoint({ x: x, y: y }, margin);
-        return super.checkCollision(correctedPoint.x, correctedPoint.y, d);
-    }
-
-    correctMarginPoint(point, margin) {
-        const correctedPoint = { x: point.x, y: point.y };
-        const xFloat = point.x - Math.floor(point.x);
-        if (xFloat <= margin) {
-            correctedPoint.x = Math.floor(point.x);
-        } else if ((1 - xFloat) <= margin) {
-            correctedPoint.x = Math.ceil(point.x);
-        } 
-        const yFloat = point.y - Math.floor(point.y);
-        if (yFloat <= margin) {
-            correctedPoint.y = Math.floor(point.y);
-        } else if ((1 - yFloat) <= margin) {
-            correctedPoint.y = Math.ceil(point.y);
-        }
-        return correctedPoint;
     }
 }
 
@@ -862,10 +885,13 @@ class CharacterController {
         const collisionResults = this.checkCollision(nextTarget.x, nextTarget.y, dir);
         if (collisionResults.length === 0) return correctedDistance;
         const len = this.getMaxCollisionLength(collisionResults, axis);
-        // 本来このタイミングで衝突距離が0.5以上になることはないが、もしなった場合は移動距離を0にする
-        if (len > 0.5) return axis === "x" ? { x: 0, y: distance.y } : { x: distance.x, y: 0 };
-        const sign = dir === 8 || dir === 4 ? 1 : -1;
-        correctedDistance[axis] += len * sign;
+        // 衝突距離が移動距離より長い場合、移動距離分だけ移動させる
+        if (len <= Math.abs(distance[axis])) {
+            const sign = dir === 8 || dir === 4 ? 1 : -1;
+            correctedDistance[axis] += len * sign;
+        } else {
+            correctedDistance[axis] -= distance[axis];
+        }
         return correctedDistance;
     }
 
@@ -1250,6 +1276,18 @@ Game_CharacterBase.prototype.isHigherPriority = function() {
     return undefined;
 };
 
+Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
+    const x2 = $gameMap.roundXWithDirection(x, horz);
+    const y2 = $gameMap.roundYWithDirection(y, vert);
+    if (this.canPass(x, y, vert) && this.canPass(x, y2, horz) && this.canPass(x, y, horz)) {
+        return true;
+    }
+    if (this.canPass(x, y, horz) && this.canPass(x2, y, vert) && this.canPass(x, y, vert)) {
+        return true;
+    }
+    return false;
+};
+
 
 // 8方向A*経路探索を行い最適ノードと初期ノードを返す
 Game_Character.prototype.computeRoute = function(goalX, goalY) {
@@ -1496,12 +1534,20 @@ Game_Player.prototype.getInputDirection = function() {
     return Input.dir8;
 };
 
+Game_Player.prototype.getInputDeg = function() {
+    return null;
+};
+
 Game_Player.prototype.moveByInput = function() {
     if (!this.isMoving() && this.canMove()) {
         let direction = this.getInputDirection();
+        let deg = this.getInputDeg();
         if (direction > 0) {
             $gameTemp.clearDestination();
             this.executeMove(direction);
+        } else if (deg != null) {
+            $gameTemp.clearDestination();
+            this.dotMoveByDeg(deg);
         } else if ($gameTemp.isDestinationValid()) {
             const x = $gameTemp.destinationX();
             const y = $gameTemp.destinationY();
@@ -1839,13 +1885,20 @@ Game_Follower.prototype.chaseCharacter = function(character) {
     const deg = DotMoveUtils.calcDeg(realFromPoint, realTargetPoint);
     const far = DotMoveUtils.calcFar(realFromPoint, realTargetPoint);
     if (far >= 1) {
-        if (far >= 4) {
-            // 前のキャラとの距離が4以上離れている場合はすり抜けを行う
+        if (far >= 6) {
+            // 前のキャラとの距離が6以上離れている場合はすり抜けを行う
             this.setThrough(true);
-        } else {
+            this.dotMoveByDeg(deg);
+        } else if (far >= 2) {
+            // 前のキャラとの距離が2以上離れている場合は迂回8方向移動を行う
             this.setThrough(false);
+            const d = this.findDirectionTo(character._x, character._y);
+            this.moveByDirection(d);
+        } else {
+            // 前のキャラとの距離が1以上離れている場合は360度移動を行う
+            this.setThrough(false);
+            this.dotMoveByDeg(deg);
         }
-        this.dotMoveByDeg(deg);
         this.setMoveSpeed(this.calcFollowerSpeed(far));
     }
 };
