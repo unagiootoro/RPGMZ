@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.1.0
+@plugindesc formation system v1.1.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -333,7 +333,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.1.0
+@plugindesc 陣形システム v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -1793,7 +1793,11 @@ Game_Actor.prototype.applyFormationEffect = function() {
     if (!(SceneManager._scene instanceof Scene_Battle)) return;
     if (FormationStateUtils.isFormationInvalid()) return;
     const position = formation.position(this.actorId());
-    if (position.stateId) this.addState(position.stateId);
+    if (position.stateId && this.hp > 0) {
+        // revive直後はisAliveがtrueにならないためaddStateではなくaddNewStateを使用
+        // addStateで行う処理は陣形ステートには無関係のためaddNewStateで問題なし
+        this.addNewState(position.stateId);
+    }
 };
 
 Game_Actor.prototype.clearFormationEffect = function() {
@@ -1801,6 +1805,12 @@ Game_Actor.prototype.clearFormationEffect = function() {
     const formation = $gameParty.currentFormation();
     const position = formation.position(this.actorId());
     if (position.stateId) this.eraseState(position.stateId);
+};
+
+const _Game_Actor_revive = Game_Actor.prototype.revive;
+Game_Actor.prototype.revive = function() {
+    _Game_Actor_revive.call(this);
+    this.applyFormationEffect();
 };
 
 const _Game_Actor_clearStates = Game_Actor.prototype.clearStates;
