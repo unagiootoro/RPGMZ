@@ -127,7 +127,7 @@ Stick fill Specifies the color at the end of the gradient.
 */
 
 /*:ja
-@target MZ
+@target MV MZ
 @plugindesc 仮想スティック v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualPad.js
