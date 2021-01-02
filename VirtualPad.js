@@ -1,8 +1,8 @@
 /*:
 @target MZ
-@plugindesc virtual stick v1.0.0
+@plugindesc virtual stick v1.1.0
 @author unagi ootoro
-@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualPad.js
 @help
 It is a plugin that introduces a virtual stick.
 
@@ -55,6 +55,13 @@ Specifies the stick size of the virtual stick.
 @desc
 Specifies the pad center judgment margin.
 
+@param ALWAYS_DUSH
+@text always dash
+@type boolean
+@default false
+@desc
+If set to true, pad movement will always be a dash.
+
 @param PAD_IMAGE_FILE_NAME
 @text pad image file name
 @type file
@@ -68,13 +75,62 @@ Specify the file name of the pad image.
 @dir img
 @desc
 Specify the file name of the stick image.
+
+@param PAD_STROKE_COLOR
+@text Pad border color
+@type string
+@default #0000aa
+@desc
+Specifies the color of the pad border.
+
+@param PAD_FILL_COLOR
+@text Pad fill color
+@type string
+@default #0000ff
+@desc
+Specifies the color of the pad fill.
+
+@param PAD_OPACITY
+@text pad transparency
+@type number
+@default 64
+@desc
+Specify the transparency of the pad from 0 to 255.
+
+@param STICK_STROKE_COLOR
+@text Stick border color
+@type string
+@default #0000aa
+@desc
+Specifies the color of the stick border.
+
+@param STICK_FILL_GRAD1_COLOR
+@text Stick fill gradient start
+@type string
+@default #ffffff
+@desc
+Stick fill Specifies the color at which the gradient starts.
+
+@param STICK_FILL_GRAD2_COLOR
+@text Stick fill gradient middle
+@type string
+@default #aaaaff
+@desc
+Stick fill gradient Specifies a color in the middle.
+
+@param STICK_FILL_GRAD3_COLOR
+@text Stick fill gradient end
+@type string
+@default #0000ff
+@desc
+Stick fill Specifies the color at the end of the gradient.
 */
 
 /*:ja
 @target MZ
-@plugindesc 仮想スティック v1.0.0
+@plugindesc 仮想スティック v1.1.0
 @author うなぎおおとろ
-@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualPad.js
 @help
 仮想スティックを導入するプラグインです。
 
@@ -127,6 +183,13 @@ Specify the file name of the stick image.
 @desc
 パッド中央判定のマージンを指定します。
 
+@param ALWAYS_DUSH
+@text 常時ダッシュ
+@type boolean
+@default false
+@desc
+trueを設定するとパッド移動が常にダッシュになります。
+
 @param PAD_IMAGE_FILE_NAME
 @text パッド画像ファイル名
 @type file
@@ -140,6 +203,55 @@ Specify the file name of the stick image.
 @dir img
 @desc
 スティック画像のファイル名を指定します。
+
+@param PAD_STROKE_COLOR
+@text パッド枠線色
+@type string
+@default #0000aa
+@desc
+パッドの枠線の色を指定します。
+
+@param PAD_FILL_COLOR
+@text パッド塗りつぶし色
+@type string
+@default #0000ff
+@desc
+パッドの塗りつぶしの色を指定します。
+
+@param PAD_OPACITY
+@text パッド透明度
+@type number
+@default 64
+@desc
+パッドの透明度を0～255で指定します。
+
+@param STICK_STROKE_COLOR
+@text スティック枠線色
+@type string
+@default #0000aa
+@desc
+スティックの枠線の色を指定します。
+
+@param STICK_FILL_GRAD1_COLOR
+@text スティック塗りつぶしグラデーション開始
+@type string
+@default #ffffff
+@desc
+スティックの塗りつぶしグラデーション開始の色を指定します。
+
+@param STICK_FILL_GRAD2_COLOR
+@text スティック塗りつぶしグラデーション中間
+@type string
+@default #aaaaff
+@desc
+スティックの塗りつぶしグラデーション中間の色を指定します。
+
+@param STICK_FILL_GRAD3_COLOR
+@text スティック塗りつぶしグラデーション終端
+@type string
+@default #0000ff
+@desc
+スティックの塗りつぶしグラデーション終端の色を指定します。
 */
 
 const VirtualPadPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
@@ -155,8 +267,17 @@ const STICK_MODE = parseInt(params["STICK_MODE"]);
 const PAD_SIZE = parseInt(params["PAD_SIZE"]);
 const STICK_SIZE = parseInt(params["STICK_SIZE"]);
 const MARGIN = parseInt(params["MARGIN"]);
+const ALWAYS_DUSH = params["ALWAYS_DUSH"] === "true";
 const PAD_IMAGE_FILE_NAME = params["PAD_IMAGE_FILE_NAME"];
 const STICK_IMAGE_FILE_NAME = params["STICK_IMAGE_FILE_NAME"];
+const PAD_STROKE_COLOR = params["PAD_STROKE_COLOR"];
+const PAD_FILL_COLOR = params["PAD_FILL_COLOR"];
+const PAD_OPACITY = params["PAD_OPACITY"];
+const STICK_STROKE_COLOR = params["STICK_STROKE_COLOR"];
+const STICK_FILL_GRAD1_COLOR = params["STICK_FILL_GRAD1_COLOR"];
+const STICK_FILL_GRAD2_COLOR = params["STICK_FILL_GRAD2_COLOR"];
+const STICK_FILL_GRAD3_COLOR = params["STICK_FILL_GRAD3_COLOR"];
+
 
 class VirtualPad {
     constructor() {
@@ -312,29 +433,62 @@ Scene_Map.prototype.updateVirtualPad = function() {
     }
 };
 
-// ドット移動対応時のタッチポイント到達時にDestinationをクリアする処理を無効化
-Game_Player.prototype.updateTouchPoint = function() {
-}
-
 // 仮想パッド表示フラグをONにする
 const _Scene_Map_processMapTouch = Scene_Map.prototype.processMapTouch;
 Scene_Map.prototype.processMapTouch = function() {
-    if (TouchInput.isPressed() && !this.isAnyButtonPressed()) {
-        $virtualPad.setVirtualPadTouched(true);
+    if (Utils.RPGMAKER_NAME === "MZ") {
+        if (TouchInput.isPressed() && !this.isAnyButtonPressed()) {
+            $virtualPad.setVirtualPadTouched(true);
+        }
+    } else {
+        if (TouchInput.isPressed()) {
+            $virtualPad.setVirtualPadTouched(true);
+        }
     }
     // 従来の処理はイベント起動に必要なため、そのまま残す
     _Scene_Map_processMapTouch.call(this);
 };
 
 
+// ドット移動対応時のタッチポイント到達時にDestinationをクリアする処理を無効化
+Game_Player.prototype.updateTouchPoint = function() {
+};
+
+Game_Player.prototype.updateDashing = function() {
+    if (this.isMoving()) {
+        return;
+    }
+    if (this.canMove() && !this.isInVehicle() && !$gameMap.isDashDisabled()) {
+        if (ALWAYS_DUSH) {
+            this._dashing = this.isDashButtonPressed() || $gameTemp.isDestinationValid();
+        } else {
+            this._dashing = this.isDashButtonPressed();
+        }
+    } else {
+        this._dashing = false;
+    }
+};
+
+Game_Player.prototype.getInputDeg = function() {
+    return null;
+};
+
 Game_Player.prototype.moveByInput = function() {
     if (!this.isMoving() && this.canMove()) {
         let direction = this.getInputDirection();
-        if (direction === 0) {
+        let deg = this.getInputDeg();
+        if (direction > 0) {
+            $gameTemp.clearDestination();
+        } else if (deg != null) {
+            $gameTemp.clearDestination();
+            if (typeof DotMoveSystemPluginName !== "undefined") {
+                this.dotMoveByDeg(deg);
+            }
+        } else {
             if (STICK_MODE === 1) {
                 direction = $virtualPad.dir8();
             } else if (STICK_MODE === 2) {
-                const deg = $virtualPad.deg();
+                deg = $virtualPad.deg();
                 if (typeof DotMoveSystemPluginName !== "undefined") {
                     if (deg != null) this.dotMoveByDeg(deg);
                 } else {
@@ -383,7 +537,14 @@ Game_Player.prototype.triggerTouchAction = function() {
     }
 };
 
-class Sprite_VirtualPad extends Sprite {
+let spriteClass;
+if (Utils.RPGMAKER_NAME === "MZ") {
+    spriteClass = Sprite;
+} else {
+    spriteClass = Sprite_Base;
+}
+
+class Sprite_VirtualPad extends spriteClass {
     initialize() {
         super.initialize();
         this._stickSprite = null;
@@ -430,11 +591,11 @@ class Sprite_VirtualPad extends Sprite {
         const endRad = 2 * Math.PI;
 
         ctx.arc(cx, cy, r, beginRad, endRad, false);
-        ctx.strokeStyle = "#0000aa";
+        ctx.strokeStyle = PAD_STROKE_COLOR;
         ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.globalAlpha = 0.25;
-        ctx.fillStyle = "#0000ff";
+        ctx.globalAlpha = PAD_OPACITY / 255.0;
+        ctx.fillStyle = PAD_FILL_COLOR;
         ctx.fill();
     }
 
@@ -483,7 +644,7 @@ class Sprite_VirtualPad extends Sprite {
     }
 }
 
-class Sprite_Stick extends Sprite {
+class Sprite_Stick extends spriteClass {
     initialize() {
         super.initialize();
         this.createBitmap();
@@ -512,16 +673,16 @@ class Sprite_Stick extends Sprite {
         const endRad = 2 * Math.PI;
 
         ctx.arc(cx, cy, r, beginRad, endRad, false);
-        ctx.strokeStyle = "#0000aa";
+        ctx.strokeStyle = STICK_STROKE_COLOR;
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        const grdCx = this.bitmap.width / 3 * 2;
+        const grdCx = this.bitmap.width / 3;
         const grdCy = this.bitmap.height / 3;
         const grd = ctx.createRadialGradient(grdCx, grdCy, 0, cx, cy, r);
-        grd.addColorStop(0, "#ffffff");
-        grd.addColorStop(0.25, "#aaaaff");
-        grd.addColorStop(1, "#0000ff");
+        grd.addColorStop(0, STICK_FILL_GRAD1_COLOR);
+        grd.addColorStop(0.25, STICK_FILL_GRAD2_COLOR);
+        grd.addColorStop(1, STICK_FILL_GRAD3_COLOR);
 
         ctx.fillStyle = grd;
         ctx.fill();
