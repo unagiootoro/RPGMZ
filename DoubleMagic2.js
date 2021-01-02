@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 連続魔法2 v1.2.0
+@plugindesc 連続魔法2 v1.2.1
 @author うなぎおおとろ
 
 @param MagicSkillTypeIds
@@ -48,7 +48,12 @@ Game_Action.prototype.enableDoubleMagic2Target = function() {
 const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
 Game_Actor.prototype.initMembers = function() {
     _Game_Actor_initMembers.call(this);
+    // none: 2発目魔法用のアクションが生成されていない
+    // selecting: 2発目魔法用のアクションが生成されているがスキル未設定
+    // selected: 2発目魔法用のアクションにスキル設定済み
     this._doubleMagicEndSelectState = "none";
+    // スキルを設定したアクションが連続魔法か否かを記録する
+    this._actionIsDoubleMagicFlags = [];
 };
 
 Game_Actor.prototype.isContinuousMagic2 = function() {
@@ -64,6 +69,15 @@ const _Game_Actor_clearActions = Game_Actor.prototype.clearActions;
 Game_Actor.prototype.clearActions = function() {
     _Game_Actor_clearActions.call(this);
     this._doubleMagicEndSelectState = "none";
+    this._actionIsDoubleMagicFlags = [];
+};
+
+Game_Actor.prototype.getActionIsDoubleMagicFlag = function() {
+    return this._actionIsDoubleMagicFlags.pop();
+};
+
+Game_Actor.prototype.registerActionIsDoubleMagicFlag = function(flag) {
+    return this._actionIsDoubleMagicFlags.push(flag);
 };
 
 Game_Actor.prototype.cancelDoubleMagicSelect = function() {
@@ -90,19 +104,30 @@ BattleManager.selectNextCommand = function(opt = null) {
     if (opt && opt.doubleMagic) {
         if (actor.doubleMagicEndSelectState() === "selecting") {
             actor.setDoubleMagicEndSelectState("selected");
+            actor.registerActionIsDoubleMagicFlag(true);
         } else {
             actor.addAction(new Game_Action(actor));
             actor.setDoubleMagicEndSelectState("selecting");
         }
+    } else if (actor) {
+        actor.registerActionIsDoubleMagicFlag(false);
     }
     _BattleManager_selectNextCommand.call(this);
 };
 
 const _BattleManager_selectPreviousCommand = BattleManager.selectPreviousCommand;
 BattleManager.selectPreviousCommand = function() {
-    _BattleManager_selectPreviousCommand.call(this);
-    const actor = BattleManager.actor();
-    if (actor && actor.doubleMagicEndSelectState() === "selected") actor.cancelDoubleMagicSelect();
+    // 本来BattleManager.selectPreviousCommandは戻り値を返さないが、
+    // TPB_Extension.jsで戻り値を返すようにしてしまったのでそれに対応する
+    const result = _BattleManager_selectPreviousCommand.call(this);
+    const actor = this.actor();
+    if (actor) {
+        const actionIsDoubleMagic = actor.getActionIsDoubleMagicFlag();
+        if (actor && (actionIsDoubleMagic || actor.doubleMagicEndSelectState() === "selected")) {
+            actor.cancelDoubleMagicSelect();
+        }
+    }
+    return result;
 };
 
 const _Scene_Battle_selectNextCommand = Scene_Battle.prototype.selectNextCommand;
