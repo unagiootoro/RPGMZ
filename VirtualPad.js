@@ -1,5 +1,5 @@
 /*:
-@target MZ
+@target MV MZ
 @plugindesc virtual stick v1.1.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualPad.js
