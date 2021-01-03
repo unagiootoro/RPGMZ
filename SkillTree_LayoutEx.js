@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill Tree Layout Extension v1.2.0
+@plugindesc Skill Tree Layout Extension v1.2.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
 
@@ -134,7 +134,7 @@ Specify the actor ID.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー レイアウト拡張 v1.2.0
+@plugindesc スキルツリー レイアウト拡張 v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
 
@@ -229,12 +229,14 @@ trueを設定すると、習得済みスキルに画像を追加します。
 /*~struct~BackgroundImage:
 @param FileName
 @type file
+@default {"FileName":"","BackgroundImage2":"[]","BackgroundImage2XOfs":"240","BackgroundImage2YOfs":"300"}
 @dir img
 @desc
 スキルツリーシーンの背景画像のファイル名を指定します。
 
 @param BackgroundImage2
 @type struct<BackgroundImage2>[]
+@default []
 @dir img
 @desc
 スキルツリーシーンの背景画像に追加する画像のファイル名を指定します。
@@ -443,6 +445,9 @@ SkillTreeNodeInfo.prototype.iconExBitmap = function(opened) {
     }
     dstBitmap.blt(iconBitmap, 0, 0, 32, 32, dx, dy);
     const textWidth = IconWidth - 32 - dx - IconXOfs;
+    if (Utils.RPGMAKER_NAME === "MZ") {
+        dstBitmap.fontFace = $gameSystem.mainFontFace();
+    }
     dstBitmap.fontSize = IconFontSize;
     const iconTextSpace = 5;
     if (ChangeOpenedTextColor && opened) {
