@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 時間経過システム ver1.2.0
+@plugindesc 時間経過システム ver1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AdvanceTimeSystem.js
 
@@ -82,6 +82,20 @@
 @default 60
 @desc 画面の色調変更のフレームを指定
 
+@command ChangeTimezone
+@text ChangeTimezone
+@desc 時間帯を変更します。
+
+@arg Timezone
+@type number
+@default 0
+@desc 変更する時間帯の値を指定します。
+
+@arg FadeFrame
+@type number
+@default 0
+@desc 画面の色調変更のフレームを指定します。0を指定するとデフォルトのフレーム数を使用します。
+
 @command DisableTimeEffect
 @text DisableTimeEffect
 @desc 時間帯の色調変更を無効化します。
@@ -100,14 +114,12 @@
 <AdvanceTimeMap>
 と記述してください。
 
-
 夜専用BGMを流したいマップでは、
 <NightBgm: ["BGMファイル名", ピッチ、ボリューム、パン]>
 と記述することで、夜に専用BGMを流すことができます。
 例えば、インポートした"night-bgm"という夜専用BGMをセットしたい場合は、
 <NightBgm: ["night-bgm", 90, 100, 0]>
 となります。
-
 なお、ボリューム、ピッチ、パンについては省略可能です。
 省略した場合、それぞれ通常時のBGMのときのものと同じ値が設定されます。
 
@@ -117,31 +129,32 @@
 <NoEffectMap>
 と記述してください。
 
-
-イベントから時間帯を変更したい場合、スクリプトに
-$gameMap.changeTimezone(変更する時間帯の値, 色調変更のフレーム数);
-と記述してください。
-なお、色調変更のフレーム数については、省略可能です。
-色調変更のフレーム数を省略した場合、プラグインパラメータで指定した色調変更のフレーム数が指定されます。
-
-例えば、時間帯を夜に変更したい場合は、
-$gameMap.changeTimezone(3);
-となります。
-
-1フレームで時間帯を朝に変更したい場合は、
-$gameMap.changeTimezone(0, 1);
-となります。
-
-
 時間帯によって出現する敵グループを設定したい場合、
 敵グループ名に、
 <時間帯>敵グループ名
 と指定します。時間帯は、英語表記で指定してください。
+
 例えば、深夜にのみ、こうもり２匹を出現させたい場合、
 敵グループ名は、
 <LateNight>こうもり*2
 となります。
 
+
+[プラグインコマンド]
+イベントから時間帯を変更したい場合、プラグインコマンド「ChangeTimezone」を実行してください。
+ツクールMVの場合は以下の形式でプラグインコマンドを実行できます。
+・時間帯変更
+AdvanceTimeSystem ChangeTimezone 変更する時間帯の値 色調変更のフレーム数
+なお、色調変更のフレーム数については、省略可能です。
+色調変更のフレーム数を省略した場合、プラグインパラメータで指定した色調変更のフレーム数が指定されます。
+
+例えば、時間帯を夜に変更したい場合は、
+AdvanceTimeSystem ChangeTimezone 3
+となります。
+
+1フレームで時間帯を朝に変更したい場合は、
+AdvanceTimeSystem ChangeTimezone 0 1
+となります。
 
 時間帯の色調変更を禁止する場合、プラグインコマンド「DisableTimeEffect」を実行してください。
 逆に時間帯の色調変更を許可する場合、プラグインコマンド「EnableTimeEffect」を実行してください。
@@ -210,6 +223,7 @@ Game_Map.prototype.initialize = function() {
     this._nightBgm = undefined;
     this._isAdvanceTimeMap = undefined;
     this._noEffectMap = false;
+    this._enableTimeEffect = true;
     this.createTimezoneDatas();
     this._lastTimezone = this.nowTimezone() - 1;
     this._nextTimezoneSteps = this.getNextTimezoneSteps();
@@ -248,21 +262,35 @@ Game_Map.prototype.setup = function(mapId) {
     _Game_Map_setup.call(this, mapId);
     this._nightBgm = undefined;
     this._isAdvanceTimeMap = undefined;
-    if ($dataMap.meta.NoEffectMap) {
-        this.disableTimeEffect();
-    } else {
-        this.enableTimeEffect();
+    if (this._enableTimeEffect) {
+        if ($dataMap.meta.NoEffectMap) {
+            this._noEffectMap = true;
+            this.clearTimeEffect();
+        } else {
+            this._noEffectMap = false;
+            this.applyTimeEffect(1);
+        }
     }
+};
+
+Game_Map.prototype.applyTimeEffect = function(fadeFrame) {
+    $gameScreen.startTint($timezoneDatas[this.nowTimezone()].tint, fadeFrame);
+};
+
+Game_Map.prototype.clearTimeEffect = function() {
+    $gameScreen.startTint([0, 0, 0, 0], 1);
 };
 
 Game_Map.prototype.enableTimeEffect = function() {
     this._noEffectMap = false;
-    $gameScreen.startTint($timezoneDatas[this.nowTimezone()].tint, 1);
+    this._enableTimeEffect = true;
+    this.applyTimeEffect(1);
 };
 
 Game_Map.prototype.disableTimeEffect = function() {
     this._noEffectMap = true;
-    $gameScreen.startTint([0, 0, 0, 0], 1);
+    this._enableTimeEffect = false;
+    this.clearTimeEffect();
 };
 
 Game_Map.prototype.nowTimezone = function() {
@@ -271,7 +299,7 @@ Game_Map.prototype.nowTimezone = function() {
 
 Game_Map.prototype.changeTimezone = function(timezone, fadeFrame = FadeFrame) {
     $gameVariables.setValue(TimezoneVariableID, timezone);
-    if (!this._noEffectMap) $gameScreen.startTint($timezoneDatas[timezone].tint, fadeFrame);
+    if (!this._noEffectMap) this.applyTimeEffect(fadeFrame);
     this._nextTimezoneSteps = this.getNextTimezoneSteps();
 };
 
@@ -377,6 +405,12 @@ Game_Player.prototype.increaseSteps = function() {
 
 // Register plugin command.
 if (Utils.RPGMAKER_NAME === "MZ") {
+    PluginManager.registerCommand(AdvanceTimeSystemPluginName, "ChangeTimezone", (args) => {
+        const timezone = parseInt(args["Timezone"]);
+        const fadeFrame = !args["FadeFrame"] || args["FadeFrame"] === "0" ? FadeFrame : parseInt(args["FadeFrame"]);
+        $gameMap.changeTimezone(timezone, fadeFrame);
+    });
+
     PluginManager.registerCommand(AdvanceTimeSystemPluginName, "EnableTimeEffect", () => {
         $gameMap.enableTimeEffect();
     });
@@ -384,20 +418,24 @@ if (Utils.RPGMAKER_NAME === "MZ") {
     PluginManager.registerCommand(AdvanceTimeSystemPluginName, "DisableTimeEffect", () => {
         $gameMap.disableTimeEffect();
     });
-} else {
-    const _Game_Interpreter_pluginCommand = Game_Interpreter.prototype.pluginCommand;
-    Game_Interpreter.prototype.pluginCommand = function(command, args) {
-        _Game_Interpreter_pluginCommand.call(this, command, args);
-        if (command !== "AdvanceTimeSystem") return;
-        switch (args[0]) {
-        case "EnableTimeEffect":
-            $gameMap.enableTimeEffect();
-            break;
-        case "DisableTimeEffect":
-            $gameMap.disableTimeEffect();
-            break;
-        }
-    };
 }
+const _Game_Interpreter_pluginCommand = Game_Interpreter.prototype.pluginCommand;
+Game_Interpreter.prototype.pluginCommand = function(command, args) {
+    _Game_Interpreter_pluginCommand.call(this, command, args);
+    if (command !== "AdvanceTimeSystem") return;
+    switch (args[0]) {
+    case "ChangeTimezone":
+        const timezone = parseInt(args[1]);
+        const fadeFrame = !args[2] || args[2] === "0" ? FadeFrame : parseInt(args[2]);
+        $gameMap.changeTimezone(timezone, fadeFrame);
+        break;
+    case "EnableTimeEffect":
+        $gameMap.enableTimeEffect();
+        break;
+    case "DisableTimeEffect":
+        $gameMap.disableTimeEffect();
+        break;
+    }
+};
 
 })();
