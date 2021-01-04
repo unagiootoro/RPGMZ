@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.6
+@plugindesc Dot movement system v1.3.7
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.6
+@plugindesc ドット移動システム v1.3.7
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -115,7 +115,7 @@ const DotMoveSystemClassAlias = (() => {
 
 const PLAYER_SLIDE_LENGTH = 0.5;
 const EVENT_SLIDE_LENGTH = 0.5;
-const FOLLOWER_SLIDE_LENGTH = 0.5;
+const FOLLOWER_SLIDE_LENGTH = 0.75;
 
 class EventParamParser {
     static getArea(event) {
@@ -690,6 +690,31 @@ class FollowerCollisionChecker extends CharacterCollisionChecker {
         collisionResults = collisionResults.concat(this.checkEvents(x, y, d));
         collisionResults = collisionResults.concat(this.checkVehicles(x, y, d));
         return collisionResults;
+    }
+
+    // フォロワーの移動を滑らかにするために衝突判定の座標を調整する
+    // 本来は迂回処理で対応したいが、迂回処理は入れると重くなるため使用しない
+    checkCollision(x, y, d) {
+        const margin = this._character.distancePerFrame() / 4;
+        const correctedPoint = this.correctMarginPoint({ x: x, y: y }, margin);
+        return super.checkCollision(correctedPoint.x, correctedPoint.y, d);
+    }
+
+    correctMarginPoint(point, margin) {
+        const correctedPoint = { x: point.x, y: point.y };
+        const xFloat = point.x - Math.floor(point.x);
+        if (xFloat <= margin) {
+            correctedPoint.x = Math.floor(point.x);
+        } else if ((1 - xFloat) <= margin) {
+            correctedPoint.x = Math.ceil(point.x);
+        }
+        const yFloat = point.y - Math.floor(point.y);
+        if (yFloat <= margin) {
+            correctedPoint.y = Math.floor(point.y);
+        } else if ((1 - yFloat) <= margin) {
+            correctedPoint.y = Math.ceil(point.y);
+        }
+        return correctedPoint;
     }
 }
 
@@ -1885,15 +1910,10 @@ Game_Follower.prototype.chaseCharacter = function(character) {
     const deg = DotMoveUtils.calcDeg(realFromPoint, realTargetPoint);
     const far = DotMoveUtils.calcFar(realFromPoint, realTargetPoint);
     if (far >= 1) {
-        if (far >= 6) {
-            // 前のキャラとの距離が6以上離れている場合はすり抜けを行う
+        if (far >= 4) {
+            // 前のキャラとの距離が4以上離れている場合はすり抜けを行う
             this.setThrough(true);
             this.dotMoveByDeg(deg);
-        } else if (far >= 2) {
-            // 前のキャラとの距離が2以上離れている場合は迂回8方向移動を行う
-            this.setThrough(false);
-            const d = this.findDirectionTo(character._x, character._y);
-            this.moveByDirection(d);
         } else {
             // 前のキャラとの距離が1以上離れている場合は360度移動を行う
             this.setThrough(false);
