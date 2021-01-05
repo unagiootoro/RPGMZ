@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.7
+@plugindesc Dot movement system v1.3.8
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.7
+@plugindesc ドット移動システム v1.3.8
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -1523,6 +1523,59 @@ Game_Character.prototype.dotMoveToPlayer = function() {
 
 Game_Character.prototype.moveToTarget = function(x, y) {
     this.mover().moveToTarget({ x, y });
+};
+
+// 整数座標ではなく実数座標で処理するように変更
+Game_Character.prototype.moveTowardCharacter = function(character) {
+    const sx = this.deltaXFrom(character._realX);
+    const sy = this.deltaYFrom(character._realY);
+    if (Math.abs(sx) > Math.abs(sy)) {
+        this.moveStraight(sx > 0 ? 4 : 6);
+        if (!this.isMovementSucceeded() && sy !== 0) {
+            this.moveStraight(sy > 0 ? 8 : 2);
+        }
+    } else if (sy !== 0) {
+        this.moveStraight(sy > 0 ? 8 : 2);
+        if (!this.isMovementSucceeded() && sx !== 0) {
+            this.moveStraight(sx > 0 ? 4 : 6);
+        }
+    }
+};
+
+Game_Character.prototype.moveAwayFromCharacter = function(character) {
+    const sx = this.deltaXFrom(character._realX);
+    const sy = this.deltaYFrom(character._realY);
+    if (Math.abs(sx) > Math.abs(sy)) {
+        this.moveStraight(sx > 0 ? 6 : 4);
+        if (!this.isMovementSucceeded() && sy !== 0) {
+            this.moveStraight(sy > 0 ? 2 : 8);
+        }
+    } else if (sy !== 0) {
+        this.moveStraight(sy > 0 ? 2 : 8);
+        if (!this.isMovementSucceeded() && sx !== 0) {
+            this.moveStraight(sx > 0 ? 6 : 4);
+        }
+    }
+};
+
+Game_Character.prototype.turnTowardCharacter = function(character) {
+    const sx = this.deltaXFrom(character._realX);
+    const sy = this.deltaYFrom(character._realY);
+    if (Math.abs(sx) > Math.abs(sy)) {
+        this.setDirection(sx > 0 ? 4 : 6);
+    } else if (sy !== 0) {
+        this.setDirection(sy > 0 ? 8 : 2);
+    }
+};
+
+Game_Character.prototype.turnAwayFromCharacter = function(character) {
+    const sx = this.deltaXFrom(character._realX);
+    const sy = this.deltaYFrom(character._realY);
+    if (Math.abs(sx) > Math.abs(sy)) {
+        this.setDirection(sx > 0 ? 6 : 4);
+    } else if (sy !== 0) {
+        this.setDirection(sy > 0 ? 2 : 8);
+    }
 };
 
 
