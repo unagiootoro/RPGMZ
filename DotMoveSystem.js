@@ -1525,10 +1525,18 @@ Game_Character.prototype.moveToTarget = function(x, y) {
     this.mover().moveToTarget({ x, y });
 };
 
+Game_Character.prototype.deltaRealXFrom = function(x) {
+    return $gameMap.deltaX(this._realX, x);
+};
+
+Game_Character.prototype.deltaRealYFrom = function(y) {
+    return $gameMap.deltaY(this._realY, y);
+};
+
 // 整数座標ではなく実数座標で処理するように変更
 Game_Character.prototype.moveTowardCharacter = function(character) {
-    const sx = this.deltaXFrom(character._realX);
-    const sy = this.deltaYFrom(character._realY);
+    const sx = this.deltaRealXFrom(character._realX, true);
+    const sy = this.deltaRealYFrom(character._realY, true);
     if (Math.abs(sx) > Math.abs(sy)) {
         this.moveStraight(sx > 0 ? 4 : 6);
         if (!this.isMovementSucceeded() && sy !== 0) {
@@ -1543,8 +1551,8 @@ Game_Character.prototype.moveTowardCharacter = function(character) {
 };
 
 Game_Character.prototype.moveAwayFromCharacter = function(character) {
-    const sx = this.deltaXFrom(character._realX);
-    const sy = this.deltaYFrom(character._realY);
+    const sx = this.deltaRealXFrom(character._realX, true);
+    const sy = this.deltaRealYFrom(character._realY, true);
     if (Math.abs(sx) > Math.abs(sy)) {
         this.moveStraight(sx > 0 ? 6 : 4);
         if (!this.isMovementSucceeded() && sy !== 0) {
@@ -1559,8 +1567,8 @@ Game_Character.prototype.moveAwayFromCharacter = function(character) {
 };
 
 Game_Character.prototype.turnTowardCharacter = function(character) {
-    const sx = this.deltaXFrom(character._realX);
-    const sy = this.deltaYFrom(character._realY);
+    const sx = this.deltaRealXFrom(character._realX, true);
+    const sy = this.deltaRealYFrom(character._realY, true);
     if (Math.abs(sx) > Math.abs(sy)) {
         this.setDirection(sx > 0 ? 4 : 6);
     } else if (sy !== 0) {
@@ -1569,8 +1577,8 @@ Game_Character.prototype.turnTowardCharacter = function(character) {
 };
 
 Game_Character.prototype.turnAwayFromCharacter = function(character) {
-    const sx = this.deltaXFrom(character._realX);
-    const sy = this.deltaYFrom(character._realY);
+    const sx = this.deltaRealXFrom(character._realX, true);
+    const sy = this.deltaRealYFrom(character._realY, true);
     if (Math.abs(sx) > Math.abs(sy)) {
         this.setDirection(sx > 0 ? 6 : 4);
     } else if (sy !== 0) {
