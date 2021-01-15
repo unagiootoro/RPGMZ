@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.8
+@plugindesc Dot movement system v1.3.9
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.8
+@plugindesc ドット移動システム v1.3.9
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -472,10 +472,8 @@ class CharacterCollisionChecker {
 
         for (let ix = x1; ix <= x2; ix++) {
             for (let iy = y1; iy <= y2; iy++) {
-                const ix2 = $gameMap.roundX(ix);
-                const iy2 = $gameMap.roundY(iy);
                 const massRect = { x: ix, y: iy, width: 1, height: 1 };
-                if (!this.checkMass(ix2, iy2, d) && this.isCollidedRect(targetRect, d, massRect)) {
+                if (!this.checkMass(ix, iy, d) && this.isCollidedRect(targetRect, d, massRect)) {
                     const collisionResult = new CollisionResult(targetRect, massRect);
                     collisionResults.push(collisionResult);
                 }
@@ -542,13 +540,15 @@ class CharacterCollisionChecker {
     }
 
     checkMass(x, y, d) {
-        if (!$gameMap.isValid(x, y)) {
+        const x2 = $gameMap.roundX(x);
+        const y2 = $gameMap.roundY(y);
+        if (!$gameMap.isValid(x2, y2)) {
             return false;
         }
         if (this._character.isThrough() || this._character.isDebugThrough()) {
             return true;
         }
-        const prevPoint = DotMoveUtils.prevPointWithDirection({ x, y }, d);
+        const prevPoint = DotMoveUtils.prevPointWithDirection({ x: x2, y: y2 }, d);
         if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
             return false;
         }
@@ -599,11 +599,9 @@ class CharacterCollisionChecker {
         // Over pass考慮
         if (this._character.isHigherPriority() !== character.isHigherPriority()) return null;
 
-        const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
-        const characterRect = character.collisionRect();
+        let cx = character._realX;
+        let cy = character._realY;
         if ($gameMap.isLoopHorizontal() || $gameMap.isLoopVertical()) {
-            let cx = character._realX;
-            let cy = character._realY;
             if ($gameMap.isLoopHorizontal()) {
                 if (cx <= 1 && x >= $gameMap.width() - 1) {
                     cx = $gameMap.width() - cx;
@@ -618,9 +616,9 @@ class CharacterCollisionChecker {
                     cy = cy - $gameMap.height();
                 }
             }
-            characterRect.x = cx;
-            characterRect.y = cy;
         }
+        const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
+        const characterRect = { x: cx, y: cy, width: character.width(), height: character.height() };
         if (this.isCollidedRect(targetRect, d, characterRect)) {
             return new CollisionResult(targetRect, characterRect);
         }
@@ -1511,7 +1509,7 @@ Game_Character.prototype.dotMoveByDeg = function(deg) {
 };
 
 Game_Character.prototype.moveByDirection = function(direction) {
-    this.mover().moveByDirection(direction, 1);
+    this.mover().moveByDirection(direction, this._moveUnit);
 }
 
 Game_Character.prototype.dotMoveToPlayer = function() {
@@ -1535,8 +1533,8 @@ Game_Character.prototype.deltaRealYFrom = function(y) {
 
 // 整数座標ではなく実数座標で処理するように変更
 Game_Character.prototype.moveTowardCharacter = function(character) {
-    const sx = this.deltaRealXFrom(character._realX, true);
-    const sy = this.deltaRealYFrom(character._realY, true);
+    const sx = this.deltaRealXFrom(character._realX);
+    const sy = this.deltaRealYFrom(character._realY);
     if (Math.abs(sx) > Math.abs(sy)) {
         this.moveStraight(sx > 0 ? 4 : 6);
         if (!this.isMovementSucceeded() && sy !== 0) {
@@ -1551,8 +1549,8 @@ Game_Character.prototype.moveTowardCharacter = function(character) {
 };
 
 Game_Character.prototype.moveAwayFromCharacter = function(character) {
-    const sx = this.deltaRealXFrom(character._realX, true);
-    const sy = this.deltaRealYFrom(character._realY, true);
+    const sx = this.deltaRealXFrom(character._realX);
+    const sy = this.deltaRealYFrom(character._realY);
     if (Math.abs(sx) > Math.abs(sy)) {
         this.moveStraight(sx > 0 ? 6 : 4);
         if (!this.isMovementSucceeded() && sy !== 0) {
@@ -1567,8 +1565,8 @@ Game_Character.prototype.moveAwayFromCharacter = function(character) {
 };
 
 Game_Character.prototype.turnTowardCharacter = function(character) {
-    const sx = this.deltaRealXFrom(character._realX, true);
-    const sy = this.deltaRealYFrom(character._realY, true);
+    const sx = this.deltaRealXFrom(character._realX);
+    const sy = this.deltaRealYFrom(character._realY);
     if (Math.abs(sx) > Math.abs(sy)) {
         this.setDirection(sx > 0 ? 4 : 6);
     } else if (sy !== 0) {
@@ -1577,8 +1575,8 @@ Game_Character.prototype.turnTowardCharacter = function(character) {
 };
 
 Game_Character.prototype.turnAwayFromCharacter = function(character) {
-    const sx = this.deltaRealXFrom(character._realX, true);
-    const sy = this.deltaRealYFrom(character._realY, true);
+    const sx = this.deltaRealXFrom(character._realX);
+    const sy = this.deltaRealYFrom(character._realY);
     if (Math.abs(sx) > Math.abs(sy)) {
         this.setDirection(sx > 0 ? 6 : 4);
     } else if (sy !== 0) {
@@ -1638,7 +1636,7 @@ Game_Player.prototype.moveByInput = function() {
             const x = $gameTemp.destinationX();
             const y = $gameTemp.destinationY();
             direction = this.findDirectionTo(x, y);
-            if (direction > 0) this.moveByDirection(direction);
+            if (direction > 0) this.mover().moveByDirection(direction, 1);
         }
     }
 };
