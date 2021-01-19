@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.9
+@plugindesc Dot movement system v1.3.10
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.9
+@plugindesc ドット移動システム v1.3.10
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -348,6 +348,13 @@ class DotMoveUtils {
 }
 
 
+// マップ移動時に全てのムーバーをクリアする(メモリリーク対策)
+const _Game_Map_setup = Game_Map.prototype.setup;
+Game_Map.prototype.setup = function(mapId) {
+    _Game_Map_setup.call(this, mapId);
+    $gameTemp.clearMovers();
+};
+
 // マイナス値に対応
 Game_Map.prototype.roundX = function(x) {
     if (this.isLoopHorizontal()) {
@@ -367,11 +374,15 @@ Game_Map.prototype.roundY = function(y) {
     }
 };
 
-// マップ移動時に全てのムーバーをクリアする(メモリリーク対策)
-const _Game_Map_setup = Game_Map.prototype.setup;
-Game_Map.prototype.setup = function(mapId) {
-    _Game_Map_setup.call(this, mapId);
-    $gameTemp.clearMovers();
+Game_Map.prototype.distance = function(x1, y1, x2, y2) {
+    const dialogCost = 1.4142135623730951; // 1 / Math.sin(Math.PI / 4)
+    const xDis = Math.abs(this.deltaX(x1, x2));
+    const yDis = Math.abs(this.deltaY(y1, y2));
+    if (xDis > yDis) {
+        (xDis - yDis) + yDis * dialogCost;
+    } else {
+        (yDis - xDis) + xDis * dialogCost;
+    }
 };
 
 
@@ -582,6 +593,23 @@ class CharacterCollisionChecker {
         return collisionResults;
     }
 
+    // 簡易的なキャラクター衝突判定を実施
+    needCharacterCheck(x, y, cx, cy, event) {
+        const ax = Math.abs(x - cx);
+        if (this._character.width() > event.width()) {
+            if (ax > this._character.width()) return false;
+        } else {
+            if (ax > event.width()) return false;
+        }
+        const ay = Math.abs(y - cy);
+        if (this._character.height() > event.height()) {
+            if (ay > this._character.height()) return false;
+        } else {
+            if (ay > event.height()) return false;
+        }
+        return true;
+    }
+
     checkVehicles(x, y, d) {
         const collisionResults = [];
         if ($gameMap.boat()._mapId === $gameMap.mapId() && !$gamePlayer.isInBoat()) {
@@ -617,6 +645,9 @@ class CharacterCollisionChecker {
                 }
             }
         }
+
+        if (!this.needCharacterCheck(x, y, cx, cy, character)) return null;
+
         const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
         const characterRect = { x: cx, y: cy, width: character.width(), height: character.height() };
         if (this.isCollidedRect(targetRect, d, characterRect)) {
