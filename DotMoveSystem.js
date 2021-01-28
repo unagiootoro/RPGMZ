@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.10
+@plugindesc Dot movement system v1.3.11
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.10
+@plugindesc ドット移動システム v1.3.11
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -582,10 +582,10 @@ class CharacterCollisionChecker {
         return collisionResults;
     }
 
-    checkEvents(x, y, d) {
+    checkEvents(x, y, d, notCollisionEventIds = []) {
         const collisionResults = [];
         for (const event of $gameMap.events()) {
-            if (event.isNormalPriority() && !event.isThrough()) {
+            if (event.isNormalPriority() && !event.isThrough() && !notCollisionEventIds.includes(event.eventId())) {
                 const result = this.checkCharacter(x, y, d, event);
                 if (result) collisionResults.push(result);
             }
@@ -702,14 +702,8 @@ class EventCollisionChecker extends CharacterCollisionChecker {
     }
 
     checkOtherEvents(x, y, d) {
-        const collisionResults = [];
-        for (const event of $gameMap.events()) {
-            if (event.isNormalPriority() && this._character.event().id !== event.event().id) {
-                const result = this.checkCharacter(x, y, d, event);
-                if (result) collisionResults.push(result);
-            }
-        }
-        return collisionResults;
+        const notCollisionEventIds = [this._character.eventId()];
+        return this.checkEvents(x, y, d, notCollisionEventIds);
     }
 }
 
