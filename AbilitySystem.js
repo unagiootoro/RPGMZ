@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.1.0
+@plugindesc Skill replacement system v1.2.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -33,6 +33,18 @@ In the skill memo field
 You can set the cost value for the skill by writing.
 Set the cost value to an integer greater than or equal to 0.
 
+・Temporarily increase costs with equipment
+In the memo field of the weapon or armor
+<AddCost: Cost value>
+By stating, you can temporarily increase the cost while equipping the corresponding weapon / armor.
+Set the cost value to an integer greater than or equal to 0.
+If the maximum cost is reduced by removing the corresponding weapon / armor,
+The skill for the cost over is automatically removed according to the maximum cost after the reduction.
+
+・Skill automatic equipment when acquiring skills
+When the switch specified in "Skill automatic equipment activation switch ID" is turned on
+If there is an empty equipment slot when acquiring the skill, the skill will be automatically equipped.
+
 【License】
 This plugin is available under the terms of the MIT license.
 
@@ -43,6 +55,13 @@ This plugin is available under the terms of the MIT license.
 @default 0
 @desc
 Specify the switch ID that determines whether the menu ability management screen is valid or invalid.
+
+@param EnableAutoEquipSkillSwitchId
+@text Skill automatic equipment activation switch ID
+@type switch
+@default 0
+@desc
+Specify the switch ID that enables automatic equipment when acquiring skills.
 
 @param MaxEquipAbilities
 @text Maximum number of abilities that can be equipped
@@ -84,6 +103,30 @@ Sets the text used in the game.
 @text Ability scene start
 @desc
 Start the ability scene.
+
+
+@command ChangeEquipAbilitySkill
+@text Equipment ability skill change
+@desc
+Change the equipped ability skill.
+
+@arg ActorId
+@text Actor ID
+@type actor
+@desc
+Specifies the actor whose ability skill is to be changed.
+
+@arg SlotIndex
+@text slot index
+@type number
+@desc
+Specifies the index of the slot for which you want to change the ability skill. If -1 is specified, it will be set to an empty frame.
+
+@arg SkillId
+@text Skill ID
+@type skill
+@desc
+Specify the skill to be changed. Please specify the skill that can be equipped. Specifying 0 removes the skill.
 
 
 @command GetMaxCost
@@ -203,7 +246,7 @@ Specify the cost wording to be displayed on the ability management screen.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.1.0
+@plugindesc スキル付け替えシステム v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -236,6 +279,18 @@ Specify the cost wording to be displayed on the ability management screen.
 と記載することで、スキルにコスト値を設定することができます。
 コスト値には0以上の整数を設定してください。
 
+・装備で一時的にコストを増やす
+武器または防具のメモ欄に
+<AddCost: コスト値>
+と記載することで、該当の武器/防具を装備中は一時的にコストを増やすことができます。
+コスト値には0以上の整数を設定してください。
+なお、該当の武器/防具を外したことによって最大コストが減った場合、
+減った後の最大コストに合わせて自動的にコストオーバー分のスキルを外します。
+
+・スキル取得時のスキル自動装備
+「スキル自動装備有効化スイッチID」で指定したスイッチをONにすると
+スキル取得時に空いている装備スロットがあればスキルを自動で装備するようになります。
+
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
 
@@ -246,6 +301,13 @@ Specify the cost wording to be displayed on the ability management screen.
 @default 0
 @desc
 メニューのアビリティ管理画面の有効/無効を判定するスイッチIDを指定します。
+
+@param EnableAutoEquipSkillSwitchId
+@text スキル自動装備有効化スイッチID
+@type switch
+@default 0
+@desc
+スキル取得時の自動装備を有効化するスイッチIDを指定します。
 
 @param MaxEquipAbilities
 @text 最大装備可能アビリティ数
@@ -287,6 +349,30 @@ Specify the cost wording to be displayed on the ability management screen.
 @text アビリティシーン開始
 @desc
 アビリティシーンを開始します。
+
+
+@command ChangeEquipAbilitySkill
+@text 装備アビリティスキル変更
+@desc
+装備しているアビリティスキルを変更します。
+
+@arg ActorId
+@text アクターID
+@type actor
+@desc
+アビリティスキルを変更するアクターを指定します。
+
+@arg SlotIndex
+@text スロットインデックス
+@type number
+@desc
+アビリティスキルを変更するスロットのインデックスを指定します。-1を指定すると空いている枠に設定します。
+
+@arg SkillId
+@text スキルID
+@type skill
+@desc
+変更対象のスキルを指定します。スキルは装備可能なものを指定してください。0を指定するとスキルを外します。
 
 
 @command GetMaxCost
@@ -490,13 +576,14 @@ const typeDefine = {
 const params = PluginParamsParser.parse(PluginManager.parameters(AbilitySystemPluginName), typeDefine);
 
 const EnabledAbilitySystemSwitchId = params.EnabledAbilitySystemSwitchId;
+const EnableAutoEquipSkillSwitchId = params.EnableAutoEquipSkillSwitchId;
 const MaxEquipAbilities = params.MaxEquipAbilities;
 const EnableCost = params.EnableCost;
 const EquipAbilitySe = params.EquipAbilitySe;
 const WindowSize = params.WindowSize;
 const Text = params.Text;
 
-class SkillCostUtils {
+class AbilitySystemUtils {
     static getSkillCost(skillId) {
         const skill = $dataSkills[skillId];
         if (!skill) throw new Error(`Unknow skill id ${skillId}`);
@@ -516,9 +603,6 @@ class SkillCostUtils {
     }
 
     static getAddCost(actorId) {
-        return 0;
-        // 最大コストが増加する武器/防具を外した時の状況が考慮できていないため、
-        // この機能は無効化している。
         const actor = $gameActors.actor(actorId);
         if (!actor) throw new Error(`Unknow actor id ${actorId}`);
         const equipAddCosts = actor.equips().map(equip => {
@@ -526,6 +610,11 @@ class SkillCostUtils {
             return equip.meta.AddCost ? parseInt(equip.meta.AddCost) : 0;
         });
         return equipAddCosts.reduce((total, cost) => total + cost, 0);
+    }
+
+    static isAutoEquipSkill() {
+        if (EnableAutoEquipSkillSwitchId > 0) return $gameSwitches.value(EnableAutoEquipSkillSwitchId);
+        return false;
     }
 }
 
@@ -690,7 +779,7 @@ class Window_AbilitiesBase extends Window_Selectable {
     drawSkill(index) {
         const rect = this.itemLineRect(index);
         this.drawItemName(this.itemAt(index), rect.x, rect.y, rect.width - this.costWidth());
-        if (EnableCost) this.drawCost(index, SkillCostUtils.getSkillCost(this.itemAt(index).id));
+        if (EnableCost) this.drawCost(index, AbilitySystemUtils.getSkillCost(this.itemAt(index).id));
     }
 
     drawCost(index, cost) {
@@ -864,11 +953,27 @@ Game_Actor.prototype.initMembers = function() {
 const _Game_Actor_setup = Game_Actor.prototype.setup;
 Game_Actor.prototype.setup = function(actorId) {
     _Game_Actor_setup.call(this, actorId);
-    this._maxCost = SkillCostUtils.getMaxCost(actorId);
+    this._maxCost = AbilitySystemUtils.getMaxCost(actorId);
+};
+
+const _Game_Actor_changeEquip = Game_Actor.prototype.changeEquip;
+Game_Actor.prototype.changeEquip = function(slotId, item) {
+    _Game_Actor_changeEquip.call(this, slotId, item);
+    this.unequipAbilitySkillForCost();
+};
+
+const _Game_Actor_forceChangeEquip = Game_Actor.prototype.forceChangeEquip;
+Game_Actor.prototype.forceChangeEquip = function(slotId, item) {
+    _Game_Actor_forceChangeEquip.call(this, slotId, item);
+    this.unequipAbilitySkillForCost();
 };
 
 Game_Actor.prototype.equipAbilitySkillIds = function() {
-    return this._equipAbilitySkills;
+    const skillIds = new Array(MaxEquipAbilities);
+    for (let i = 0; i < skillIds.length; i++) {
+        skillIds[i] = this._equipAbilitySkills[i] == null ? null : this._equipAbilitySkills[i];
+    }
+    return skillIds;
 };
 
 Game_Actor.prototype.equipAbilitySkill = function(index) {
@@ -878,7 +983,7 @@ Game_Actor.prototype.equipAbilitySkill = function(index) {
 };
 
 Game_Actor.prototype.hasAbilitySkillIds = function() {
-    return this._hasAbilitySkills;
+    return this._hasAbilitySkills.concat();
 };
 
 Game_Actor.prototype.hasAbilitySkill = function(index) {
@@ -900,12 +1005,12 @@ Game_Actor.prototype.removeAbilitySkill = function(skillId) {
 };
 
 Game_Actor.prototype.totalCost = function(equipAbilitySkills = this._equipAbilitySkills) {
-    const costs = equipAbilitySkills.map(id => id ? SkillCostUtils.getSkillCost(id) : 0);
+    const costs = equipAbilitySkills.map(id => id ? AbilitySystemUtils.getSkillCost(id) : 0);
     return costs.reduce(((total, cost) => total + cost), 0);
 };
 
 Game_Actor.prototype.maxCost = function() {
-    return this._maxCost + SkillCostUtils.getAddCost(this.actorId());
+    return this._maxCost + AbilitySystemUtils.getAddCost(this.actorId());
 };
 
 Game_Actor.prototype.setMaxCost = function(value) {
@@ -920,8 +1025,27 @@ Game_Actor.prototype.changeEquipAbilitySkill = function(index, targetSkillId) {
     return false;
 };
 
+Game_Actor.prototype.bestSetEquipAbilitySkill = function(targetSkillId) {
+    const index = this.equipAbilitySkillIds().indexOf(null);
+    if (index === -1) return false;
+    return this.changeEquipAbilitySkill(index, targetSkillId);
+};
+
+Game_Actor.prototype.unequipAbilitySkillForCost = function() {
+    if (this.totalCost() <= this.maxCost()) return;
+    const skillIds = this._equipAbilitySkills.concat();
+    for (let i = skillIds.length - 1; i >= 0; i--) {
+        const skillId = skillIds[i];
+        if (AbilitySystemUtils.getSkillCost(skillId) > 0) {
+            this.changeEquipAbilitySkill(i, null);
+        }
+        if (this.totalCost() <= this.maxCost()) return;
+    }
+};
+
 Game_Actor.prototype.canChangeEquipAbilitySkill = function(index, targetSkillId) {
     if (!targetSkillId) return true;
+    if (!this._hasAbilitySkills.includes(targetSkillId)) return false;
     const equipAbilitySkills = this._equipAbilitySkills.concat();
     equipAbilitySkills[index] = targetSkillId;
     return this.totalCost(equipAbilitySkills) <= this.maxCost();
@@ -955,6 +1079,9 @@ Game_Actor.prototype.learnSkill = function(skillId) {
     const skill = $dataSkills[skillId];
     if (skill.meta.AbilitySkill) {
         this.addAbilitySkill(skillId);
+        if (AbilitySystemUtils.isAutoEquipSkill()) {
+            this.bestSetEquipAbilitySkill(skillId);
+        }
     } else {
         this.originLearnSkill(skillId);
     }
@@ -1004,6 +1131,22 @@ PluginManager.registerCommand(AbilitySystemPluginName, "StartAbilityScene", () =
     SceneManager.push(Scene_Ability);
 });
 
+PluginManager.registerCommand(AbilitySystemPluginName, "ChangeEquipAbilitySkill", args => {
+    const params = PluginParamsParser.parse(args, { ActorId: "number", SlotIndex: "number", SkillId: "number" });
+    const actor = $gameActors.actor(params.ActorId);
+    const slotIndex = params.SlotIndex;
+    const skillId = params.SkillId;
+    if (slotIndex === -1) {
+        if (skillId > 0) actor.bestSetEquipAbilitySkill(skillId);
+    } else {
+        if (skillId > 0) {
+            actor.changeEquipAbilitySkill(slotIndex, skillId);
+        } else {
+            actor.changeEquipAbilitySkill(slotIndex, null);
+        }
+    }
+});
+
 PluginManager.registerCommand(AbilitySystemPluginName, "GetMaxCost", args => {
     const params = PluginParamsParser.parse(args, { ActorId: "number", VariableId: "number" });
     const actor = $gameActors.actor(params.ActorId);
@@ -1020,7 +1163,7 @@ PluginManager.registerCommand(AbilitySystemPluginName, "SetMaxCost", args => {
 
 
 return {
-    SkillCostUtils: SkillCostUtils,
+    AbilitySystemUtils: AbilitySystemUtils,
     Scene_Ability: Scene_Ability,
     Window_AbilitiesBase: Window_AbilitiesBase,
     Window_EquipAbilities: Window_EquipAbilities,
