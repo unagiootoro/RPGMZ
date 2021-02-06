@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.2.0
+@plugindesc Skill replacement system v1.2.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -246,7 +246,7 @@ Specify the cost wording to be displayed on the ability management screen.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.2.0
+@plugindesc スキル付け替えシステム v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -602,9 +602,7 @@ class AbilitySystemUtils {
         return 0;
     }
 
-    static getAddCost(actorId) {
-        const actor = $gameActors.actor(actorId);
-        if (!actor) throw new Error(`Unknow actor id ${actorId}`);
+    static getAddCost(actor) {
         const equipAddCosts = actor.equips().map(equip => {
             if (!equip) return 0;
             return equip.meta.AddCost ? parseInt(equip.meta.AddCost) : 0;
@@ -1010,7 +1008,7 @@ Game_Actor.prototype.totalCost = function(equipAbilitySkills = this._equipAbilit
 };
 
 Game_Actor.prototype.maxCost = function() {
-    return this._maxCost + AbilitySystemUtils.getAddCost(this.actorId());
+    return this._maxCost + AbilitySystemUtils.getAddCost(this);
 };
 
 Game_Actor.prototype.setMaxCost = function(value) {
