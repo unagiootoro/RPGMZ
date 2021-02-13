@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.3.11
+@plugindesc Dot movement system v1.4.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.3.11
+@plugindesc ドット移動システム v1.4.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -118,15 +118,22 @@ const EVENT_SLIDE_LENGTH = 0.5;
 const FOLLOWER_SLIDE_LENGTH = 0.75;
 
 class EventParamParser {
-    static getArea(event) {
+    static getWidthArea(event) {
         let widthArea = 0.5;
-        let heightArea = 0.5;
         const note = this.getNote(event);
         const data = { note: note };
         DataManager.extractMetadata(data);
         if (data.meta.widthArea) widthArea = parseFloat(data.meta.widthArea);
+        return widthArea;
+    }
+
+    static getHeightArea(event) {
+        let heightArea = 0.5;
+        const note = this.getNote(event);
+        const data = { note: note };
+        DataManager.extractMetadata(data);
         if (data.meta.heightArea) heightArea = parseFloat(data.meta.heightArea);
-        return { width: widthArea, height: heightArea };
+        return heightArea;
     }
 
     static getNote(event) {
@@ -348,11 +355,17 @@ class DotMoveUtils {
 }
 
 
-// マップ移動時に全てのムーバーをクリアする(メモリリーク対策)
 const _Game_Map_setup = Game_Map.prototype.setup;
 Game_Map.prototype.setup = function(mapId) {
     _Game_Map_setup.call(this, mapId);
+    // マップ遷移時に全てのムーバーをクリアする(メモリリーク対策)
     $gameTemp.clearMovers();
+    // マップ遷移時にマップのイベント配置の初期設定を行う
+    // ループ時を考慮して実際のマップサイズ+1の幅の領域を確保する
+    $gameTemp.setupMapEventsCache(this.width() + 1, this.height() + 1);
+    for (const event of this.events()) {
+        event.mover().initMapEventCache();
+    }
 };
 
 // マイナス値に対応
@@ -584,30 +597,44 @@ class CharacterCollisionChecker {
 
     checkEvents(x, y, d, notCollisionEventIds = []) {
         const collisionResults = [];
-        for (const event of $gameMap.events()) {
-            if (event.isNormalPriority() && !event.isThrough() && !notCollisionEventIds.includes(event.eventId())) {
-                const result = this.checkCharacter(x, y, d, event);
-                if (result) collisionResults.push(result);
+        const targetEvents = [];
+        const masses = this.mapEventCacheMasses(x, y);
+        const mapEventsCache = $gameTemp.mapEventsCache();
+        for (const massIdx of masses) {
+            if (mapEventsCache[massIdx]) {
+                for (const event of mapEventsCache[massIdx]) {
+                    if (event.isNormalPriority() && !event.isThrough() && !notCollisionEventIds.includes(event.eventId())) {
+                        if (!targetEvents.includes(event)) targetEvents.push(event);
+                    }
+                }
             }
+        }
+        for (const event of targetEvents) {
+            const result = this.checkCharacter(x, y, d, event);
+            if (result) collisionResults.push(result);
         }
         return collisionResults;
     }
 
-    // 簡易的なキャラクター衝突判定を実施
-    needCharacterCheck(x, y, cx, cy, event) {
-        const ax = Math.abs(x - cx);
-        if (this._character.width() > event.width()) {
-            if (ax > this._character.width()) return false;
-        } else {
-            if (ax > event.width()) return false;
+    mapEventCacheMasses(x, y) {
+        const masses = [];
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (x >= $gameMap.width()) x = $gameMap.width();
+        if (y >= $gameMap.height()) y = $gameMap.height();
+        const x1 = Math.floor(x);
+        const x2 = Math.ceil(x) + Math.ceil(this._character.width() - 1);
+        const y1 = Math.floor(y);
+        const y2 = Math.ceil(y) + Math.ceil(this._character.height() - 1);
+        for (let ix = x1; ix <= x2; ix++) {
+            for (let iy = y1; iy <= y2; iy++) {
+                const ix2 = $gameMap.roundX(ix);
+                const iy2 = $gameMap.roundY(iy);
+                const i = iy2 * $gameMap.width() + ix2;
+                masses.push(i);
+            }
         }
-        const ay = Math.abs(y - cy);
-        if (this._character.height() > event.height()) {
-            if (ay > this._character.height()) return false;
-        } else {
-            if (ay > event.height()) return false;
-        }
-        return true;
+        return masses;
     }
 
     checkVehicles(x, y, d) {
@@ -645,8 +672,6 @@ class CharacterCollisionChecker {
                 }
             }
         }
-
-        if (!this.needCharacterCheck(x, y, cx, cy, character)) return null;
 
         const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
         const characterRect = { x: cx, y: cy, width: character.width(), height: character.height() };
@@ -692,6 +717,13 @@ class PlayerCollisionChecker extends CharacterCollisionChecker {
 }
 
 class EventCollisionChecker extends CharacterCollisionChecker {
+    constructor(character) {
+        super(character);
+        // マップイベントのキャッシュ更新用に移動前の座標を保持する
+        this._lastRealX = character._realX;
+        this._lastRealY = character._realY;
+    }
+
     checkCollisionCharacters(x, y, d) {
         let collisionResults = [];
         collisionResults = collisionResults.concat(this.checkPlayer(x, y, d));
@@ -704,6 +736,24 @@ class EventCollisionChecker extends CharacterCollisionChecker {
     checkOtherEvents(x, y, d) {
         const notCollisionEventIds = [this._character.eventId()];
         return this.checkEvents(x, y, d, notCollisionEventIds);
+    }
+
+    initMapEventCache() {
+        const masses = this.mapEventCacheMasses(this._character._realX, this._character._realY);
+        $gameTemp.addMapEventCache(masses, this._character);
+    }
+
+    updateMapEventCache() {
+        const realX = this._character._realX;
+        const realY = this._character._realY
+        if (this._lastRealX !== realX || this._lastRealY !== realY) {
+            const beforeMasses = this.mapEventCacheMasses(this._lastRealX, this._lastRealY);
+            const afterMasses = this.mapEventCacheMasses(realX, realY);
+            $gameTemp.removeMapEventCache(beforeMasses, this._character);
+            $gameTemp.addMapEventCache(afterMasses, this._character);
+            this._lastRealX = realX;
+            this._lastRealY = realY;
+        }
     }
 }
 
@@ -1005,6 +1055,14 @@ class CharacterController {
     slideLength() {
         return 0;
     }
+
+    initMapEventCache() {
+        this._collisionChecker.initMapEventCache();
+    }
+
+    updateMapEventCache() {
+        this._collisionChecker.updateMapEventCache();
+    }
 }
 
 class PlayerController extends CharacterController {
@@ -1214,6 +1272,31 @@ class EventMover extends CharacterMover {
     constructor(character) {
         super(character);
         this._controller = new EventController(character);
+        this._widthArea = null;
+        this._heightArea = null;
+    }
+
+    widthArea() {
+        if (this._widthArea == null) {
+            this._widthArea = EventParamParser.getWidthArea(this._character);
+        }
+        return this._widthArea;
+    }
+
+    heightArea() {
+        if (this._heightArea == null) {
+            this._heightArea = EventParamParser.getHeightArea(this._character);
+        }
+        return this._heightArea;
+    }
+
+    update() {
+        super.update();
+        this._controller.updateMapEventCache();
+    }
+
+    initMapEventCache() {
+        this._controller.initMapEventCache();
     }
 }
 
@@ -1498,6 +1581,7 @@ Game_Character.prototype.updateRoutineMove = function() {
     if (this._waitCount > 0) {
         this._waitCount--;
     } else {
+        // 移動中でない場合、ルート更新を行う
         if (!this.isMoving()) {
             this.setMovementSuccess(true);
             const command = this._moveRoute.list[this._moveRouteIndex];
@@ -1505,17 +1589,6 @@ Game_Character.prototype.updateRoutineMove = function() {
                 this.processMoveCommand(command);
                 this.advanceMoveRouteIndex();
             }
-        }
-    }
-};
-
-Game_Character.prototype.advanceMoveRouteIndex = function() {
-    var moveRoute = this._moveRoute;
-    if (moveRoute && (this.isMovementSucceeded() || moveRoute.skippable)) {
-        var numCommands = moveRoute.list.length - 1;
-        this._moveRouteIndex++;
-        if (moveRoute.repeat && this._moveRouteIndex >= numCommands) {
-            this._moveRouteIndex = 0;
         }
     }
 };
@@ -1848,8 +1921,7 @@ Game_Player.prototype.startMapEvent = function(x, y, triggers, normal) {
         for (const event of $gameMap.events()) {
             const result = this.mover().checkCharacter(x, y, this._direction, event);
             if (!result) continue;
-            const area = EventParamParser.getArea(event);
-            if (result.collisionLengthX() >= area.width && result.collisionLengthY() >= area.height) {
+            if (result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea()) {
                 if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
                     this._disableHereEventPoint = { x: this.x, y: this.y };
                     event.start();
@@ -1864,8 +1936,8 @@ Game_Player.prototype.startMapEventFront = function(x, y, d, triggers, normal) {
         for (const event of $gameMap.events()) {
             const result = this.mover().checkCharacterFront(x, y, d, event);
             const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
-            const area = EventParamParser.getArea(event);
-            if (result && result.getCollisionLength(axis) >= area.width) {
+            if (!result) continue;
+            if (result.getCollisionLength(axis) >= event.widthArea()) {
                 if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
                     event.start();
                 }
@@ -1919,6 +1991,14 @@ Game_Event.prototype.initMembers = function() {
 Game_Event.prototype.makeMover = function() {
     return new EventMover(this);
 };
+
+Game_Event.prototype.widthArea = function() {
+    return this.mover().widthArea();
+}
+
+Game_Event.prototype.heightArea = function() {
+    return this.mover().heightArea();
+}
 
 Game_Event.prototype.checkEventTriggerTouchFront = function(d) {
     if (!$gameMap.isEventRunning()) {
@@ -2089,12 +2169,13 @@ Game_Followers.prototype.areGathered = function() {
     return _Game_Followers_areGathered.call(this);
 };
 
-// なるべくドット移動関連の変数をセーブデータに持たせないため、
-// ムーバーはGame_Tempに保持する。
 const _Game_Temp_initialize = Game_Temp.prototype.initialize;
 Game_Temp.prototype.initialize = function() {
     _Game_Temp_initialize.call(this);
+    // なるべくドット移動関連の変数をセーブデータに持たせないため、ムーバーはGame_Tempに保持する。
     this._movers = new Map();
+    // イベントとの衝突判定を高速化するため、マスごとにイベントを管理する
+    this._mapEventsCache = null;
 };
 
 Game_Temp.prototype.mover = function(character) {
@@ -2107,6 +2188,32 @@ Game_Temp.prototype.mover = function(character) {
 Game_Temp.prototype.clearMovers = function() {
     this._movers = new Map();
 };
+
+Game_Temp.prototype.setupMapEventsCache = function(width, height) {
+    const mapEventsCache = new Array(width * height);
+    this._mapEventsCache = mapEventsCache;
+};
+
+Game_Temp.prototype.mapEventsCache = function() {
+    return this._mapEventsCache;
+};
+
+Game_Temp.prototype.addMapEventCache = function(masses, event) {
+    for (const i of masses) {
+        if (!this._mapEventsCache[i]) this._mapEventsCache[i] = [];
+        if (!this._mapEventsCache[i].includes(i)) {
+            this._mapEventsCache[i].push(event);
+        }
+    }
+};
+
+Game_Temp.prototype.removeMapEventCache = function(masses, event) {
+    for (const i of masses) {
+        if (this._mapEventsCache[i]) {
+            this._mapEventsCache[i] = this._mapEventsCache[i].filter(evt => evt !== event);
+        }
+    }
+}
 
 return {
     EventParamParser: EventParamParser,
