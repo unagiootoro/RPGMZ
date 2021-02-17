@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.4.0
+@plugindesc Dot movement system v1.4.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -55,7 +55,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.4.0
+@plugindesc ドット移動システム v1.4.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -117,6 +117,8 @@ const PLAYER_SLIDE_LENGTH = 0.5;
 const EVENT_SLIDE_LENGTH = 0.5;
 const FOLLOWER_SLIDE_LENGTH = 0.75;
 
+const DIALOG_COST = 1 / Math.sin(Math.PI / 4);
+
 class EventParamParser {
     static getWidthArea(event) {
         let widthArea = 0.5;
@@ -176,12 +178,7 @@ class DotMoveUtils {
     }
 
     static deg2direction(deg) {
-        if (deg >= 360) deg = deg % 360;
-        if (deg < 0) {
-            let rdeg = -deg;
-            if (rdeg > 360) rdeg = rdeg % 360;
-            deg = 360 - rdeg;
-        }
+        deg = this.degNormalization(deg);
         const t = Math.round(deg / 45);
         if (t === 0 || t === 8) {
             return 8;
@@ -205,12 +202,7 @@ class DotMoveUtils {
     }
 
     static deg2direction4(deg, direction) {
-        if (deg >= 360) deg = deg % 360;
-        if (deg < 0) {
-            let rdeg = -deg;
-            if (rdeg > 360) rdeg = rdeg % 360;
-            deg = 360 - rdeg;
-        }
+        deg = this.degNormalization(deg);
         const t = Math.round(deg / 45);
         if (t === 0 || t === 8) {
             return 8;
@@ -235,6 +227,16 @@ class DotMoveUtils {
         } else {
             throw new Error(`${deg} is not found`);
         }
+    }
+
+    static degNormalization(deg) {
+        if (deg >= 360) deg = deg % 360;
+        if (deg < 0) {
+            let rdeg = -deg;
+            if (rdeg > 360) rdeg = rdeg % 360;
+            deg = 360 - rdeg;
+        }
+        return deg;
     }
 
     static rad2deg(rad) {
@@ -352,6 +354,27 @@ class DotMoveUtils {
         }
         return false;
     }
+
+    static mapEventCacheMasses(x, y, width, height) {
+        const masses = [];
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (x >= $gameMap.width()) x = $gameMap.width();
+        if (y >= $gameMap.height()) y = $gameMap.height();
+        const x1 = Math.floor(x);
+        const x2 = Math.ceil(x) + Math.ceil(width - 1);
+        const y1 = Math.floor(y);
+        const y2 = Math.ceil(y) + Math.ceil(height - 1);
+        for (let ix = x1; ix <= x2; ix++) {
+            for (let iy = y1; iy <= y2; iy++) {
+                const ix2 = $gameMap.roundX(ix);
+                const iy2 = $gameMap.roundY(iy);
+                const i = iy2 * $gameMap.width() + ix2;
+                masses.push(i);
+            }
+        }
+        return masses;
+    }
 }
 
 
@@ -388,13 +411,12 @@ Game_Map.prototype.roundY = function(y) {
 };
 
 Game_Map.prototype.distance = function(x1, y1, x2, y2) {
-    const dialogCost = 1.4142135623730951; // 1 / Math.sin(Math.PI / 4)
     const xDis = Math.abs(this.deltaX(x1, x2));
     const yDis = Math.abs(this.deltaY(y1, y2));
     if (xDis > yDis) {
-        (xDis - yDis) + yDis * dialogCost;
+        (xDis - yDis) + yDis * DIALOG_COST;
     } else {
-        (yDis - xDis) + xDis * dialogCost;
+        (yDis - xDis) + xDis * DIALOG_COST;
     }
 };
 
@@ -598,7 +620,7 @@ class CharacterCollisionChecker {
     checkEvents(x, y, d, notCollisionEventIds = []) {
         const collisionResults = [];
         const targetEvents = [];
-        const masses = this.mapEventCacheMasses(x, y);
+        const masses = DotMoveUtils.mapEventCacheMasses(x, y, this._character.width(), this._character.height());
         const mapEventsCache = $gameTemp.mapEventsCache();
         for (const massIdx of masses) {
             if (mapEventsCache[massIdx]) {
@@ -614,27 +636,6 @@ class CharacterCollisionChecker {
             if (result) collisionResults.push(result);
         }
         return collisionResults;
-    }
-
-    mapEventCacheMasses(x, y) {
-        const masses = [];
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
-        if (x >= $gameMap.width()) x = $gameMap.width();
-        if (y >= $gameMap.height()) y = $gameMap.height();
-        const x1 = Math.floor(x);
-        const x2 = Math.ceil(x) + Math.ceil(this._character.width() - 1);
-        const y1 = Math.floor(y);
-        const y2 = Math.ceil(y) + Math.ceil(this._character.height() - 1);
-        for (let ix = x1; ix <= x2; ix++) {
-            for (let iy = y1; iy <= y2; iy++) {
-                const ix2 = $gameMap.roundX(ix);
-                const iy2 = $gameMap.roundY(iy);
-                const i = iy2 * $gameMap.width() + ix2;
-                masses.push(i);
-            }
-        }
-        return masses;
     }
 
     checkVehicles(x, y, d) {
@@ -739,7 +740,11 @@ class EventCollisionChecker extends CharacterCollisionChecker {
     }
 
     initMapEventCache() {
-        const masses = this.mapEventCacheMasses(this._character._realX, this._character._realY);
+        const x = this._character._realX;
+        const y = this._character._realY;
+        const width = this._character.width();
+        const height = this._character.height();
+        const masses = DotMoveUtils.mapEventCacheMasses(x, y, width, height);
         $gameTemp.addMapEventCache(masses, this._character);
     }
 
@@ -747,8 +752,10 @@ class EventCollisionChecker extends CharacterCollisionChecker {
         const realX = this._character._realX;
         const realY = this._character._realY
         if (this._lastRealX !== realX || this._lastRealY !== realY) {
-            const beforeMasses = this.mapEventCacheMasses(this._lastRealX, this._lastRealY);
-            const afterMasses = this.mapEventCacheMasses(realX, realY);
+            const width = this._character.width();
+            const height = this._character.height();
+            const beforeMasses = DotMoveUtils.mapEventCacheMasses(this._lastRealX, this._lastRealY, width, height);
+            const afterMasses = DotMoveUtils.mapEventCacheMasses(realX, realY, width, height);
             $gameTemp.removeMapEventCache(beforeMasses, this._character);
             $gameTemp.addMapEventCache(afterMasses, this._character);
             this._lastRealX = realX;
@@ -1113,7 +1120,7 @@ class CharacterMover {
 
     update() {
         if (this._targetCount > 0) {
-            this.massMoveProcess();
+            this.moveProcess();
         }
         if (this._targetCount === 0) {
             this._moving = false;
@@ -1139,8 +1146,8 @@ class CharacterMover {
         return this._controller.checkCharacterFront(x, y, direction, character);
     }
 
-    // マス単位移動が行われた場合、ここで毎フレーム移動処理を行う
-    massMoveProcess() {
+    // 移動が行われた場合、ここで毎フレーム移動処理を行う
+    moveProcess() {
         let moved;
         if (this._targetCount === 0) return;
         if (this._moveDeg != null) {
@@ -1164,21 +1171,21 @@ class CharacterMover {
     startMassMove(fromPoint, targetPoint) {
         const far = DotMoveUtils.calcFar(fromPoint, targetPoint);
         this._targetCount = Math.floor(far / this._character.distancePerFrame());
-        this.massMoveProcess();
+        this.moveProcess();
     }
 
     dotMoveByDirection(direction) {
         this.setDirection(direction);
         this._targetCount = 1;
         this._moveDir = direction;
-        this.massMoveProcess();
+        this.moveProcess();
     }
 
     dotMoveByDeg(deg) {
         this.setDirection(DotMoveUtils.deg2direction4(deg, this._character.direction()));
         this._targetCount = 1;
         this._moveDeg = deg;
-        this.massMoveProcess();
+        this.moveProcess();
     }
 
     // はしご考慮
@@ -1419,6 +1426,18 @@ Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
     return false;
 };
 
+Game_CharacterBase.prototype.isCollidedWithEvents = function(x, y) {
+    const massIdx = y * $gameMap.width() + x;
+    const massEvents = $gameTemp.mapEventsCache()[massIdx];
+    if (massEvents) {
+        const targetEvents = massEvents.filter(event => event.x === x && event.y === y);
+        if (targetEvents.some(event => event.isNormalPriority() && !event.isThrough())) {
+            return true;
+        }
+    } 
+    return false;
+};
+
 
 // 8方向A*経路探索を行い最適ノードと初期ノードを返す
 Game_Character.prototype.computeRoute = function(goalX, goalY) {
@@ -1469,8 +1488,8 @@ Game_Character.prototype.computeRoute = function(goalX, goalY) {
             continue;
         }
 
-        for (let j = 0; j < 9; j++) {
-            const direction = j + 1;
+        for (let direction = 1; direction <= 9; direction++) {
+            if (direction === 5) continue;
             const [horz, vert] = DotMoveUtils.direction2HorzAndVert(direction);
             const x2 = $gameMap.roundXWithDirection(x1, horz);
             const y2 = $gameMap.roundYWithDirection(y1, vert);
@@ -1481,15 +1500,15 @@ Game_Character.prototype.computeRoute = function(goalX, goalY) {
             }
             if (direction % 2 === 0) {
                 if (!this.canPass(x1, y1, direction)) {
-                    continue;
+                    if (!(x2 === goalX && y2 === goalY)) continue;
                 }
             } else {
                 if (!this.canPassDiagonally(x1, y1, horz, vert)) {
-                    continue;
+                    if (!(x2 === goalX && y2 === goalY)) continue;
                 }
             }
 
-            const g2 = g1 + (direction % 2 === 0 ? 1 : 1.25);
+            const g2 = g1 + (direction % 2 === 0 ? 1 : DIALOG_COST);
             const index2 = openList.indexOf(pos2);
 
             if (index2 < 0 || g2 < nodeList[index2].g) {
@@ -1811,7 +1830,11 @@ Game_Player.prototype.updateCountProcess = function(sceneActive) {
 Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
     if (!$gameMap.isEventRunning()) {
         if (wasMoving) {
-            this.checkEventTriggerHere([1, 2]);
+            // 一度起動した足元のイベントをすぐに起動しない
+            if (!(this._disableHereEventPoint && (this.x === this._disableHereEventPoint.x && this.y === this._disableHereEventPoint.y))) {
+                this._disableHereEventPoint = null;
+                this.checkEventTriggerHere([1, 2]);
+            }
             if ($gameMap.setupStartingEvent()) {
                 return;
             }
@@ -1954,11 +1977,6 @@ Game_Player.prototype.checkEventTriggerTouchFront = function(d) {
 };
 
 Game_Player.prototype.checkEventTriggerHere = function(triggers) {
-    // 一度起動した足元のイベントをすぐに起動しない
-    if (this._disableHereEventPoint && (this.x === this._disableHereEventPoint.x && this.y === this._disableHereEventPoint.y)) {
-        return;
-    }
-    this._disableHereEventPoint = null;
     if (this.canStartLocalEvents()) {
         this.startMapEvent(this._realX, this._realY, triggers, false);
     }
@@ -2213,7 +2231,7 @@ Game_Temp.prototype.removeMapEventCache = function(masses, event) {
             this._mapEventsCache[i] = this._mapEventsCache[i].filter(evt => evt !== event);
         }
     }
-}
+};
 
 return {
     EventParamParser: EventParamParser,
