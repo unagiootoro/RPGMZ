@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.4.1
+@plugindesc Dot movement system v1.5.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -49,13 +49,36 @@ When touching to the left or right, the contact range on the vertical axis is us
 
 If neither the horizontal axis nor the vertical axis is set, 0.5 will be applied.
 
+■ Event size setting
+Annotate the very first event command on the EV page on the first page of the event
+You can set the size of the event in more detail by including the following in the annotation.
+・ Horizontal size
+<width: width (real number greater than 0>
+
+・ Vertical size
+<height: height (real number greater than 0)>
+
+・ X coordinate display offset
+<offsetX: offset (real number)>
+
+・ Y coordinate display offset
+<offsetY: offset (real number)>
+
+For example, to set a 96 * 96 size character with width: 2 and height: 2, it will be as follows.
+When displaying a character larger than 48 * 48, the display start position is different from the actual XY coordinates.
+You need to adjust the display offset.
+<width: 2>
+<height: 2>
+<offsetX: 0.5>
+<offsetY: 1>
+
 【License】
 This plugin is available under the terms of the MIT license.
 */
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.4.1
+@plugindesc ドット移動システム v1.5.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -104,6 +127,29 @@ this.moveToTarget(X座標, Y座標);
 
 横軸、縦軸ともに設定しなかった場合は0.5が適用されます。
 
+■イベントのサイズの設定
+イベントの1ページ目のEVページの一番最初のイベントコマンドを注釈にしたうえで、
+注釈に以下の内容を記載することでイベントのサイズをより詳細に設定することができます。
+・横方向サイズ
+<width: 横幅(0より大きい実数>
+
+・縦方向サイズ
+<height: 縦幅(0より大きい実数)>
+
+・X座標表示オフセット
+<offsetX: オフセット(実数)>
+
+・Y座標表示オフセット
+<offsetY: オフセット(実数)>
+
+例えば96*96サイズのキャラクターをwidth: 2, height: 2で設定する場合は次のようになります。
+48*48より大きいサイズのキャラクターを表示する場合、表示開始位置が実際のXY座標とは異なるため、
+表示オフセットを調整する必要があります。
+<width: 2>
+<height: 2>
+<offsetX: 0.5>
+<offsetY: 1>
+
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
@@ -120,22 +166,54 @@ const FOLLOWER_SLIDE_LENGTH = 0.75;
 const DIALOG_COST = 1 / Math.sin(Math.PI / 4);
 
 class EventParamParser {
+    static getWidth(event) {
+        let width = 1;
+        let noteWidth = this.getNoteValue(event, "width");
+        if (noteWidth != null) width = parseFloat(noteWidth);
+        return width;
+    }
+
+    static getHeight(event) {
+        let height = 1;
+        let noteHeight = this.getNoteValue(event, "height");
+        if (noteHeight != null) height = parseFloat(noteHeight);
+        return height;
+    }
+
+    static getOffsetX(event) {
+        let offsetX = 0;
+        let noteOffsetX = this.getNoteValue(event, "offsetX");
+        if (noteOffsetX != null) offsetX = parseFloat(noteOffsetX);
+        return offsetX;
+    }
+
+    static getOffsetY(event) {
+        let offsetY = 0;
+        let noteOffsetY = this.getNoteValue(event, "offsetY");
+        if (noteOffsetY != null) offsetY = parseFloat(noteOffsetY);
+        return offsetY;
+    }
+
     static getWidthArea(event) {
         let widthArea = 0.5;
-        const note = this.getNote(event);
-        const data = { note: note };
-        DataManager.extractMetadata(data);
-        if (data.meta.widthArea) widthArea = parseFloat(data.meta.widthArea);
+        let noteWidthArea = this.getNoteValue(event, "widthArea");
+        if (noteWidthArea != null) widthArea = parseFloat(noteWidthArea);
         return widthArea;
     }
 
     static getHeightArea(event) {
         let heightArea = 0.5;
+        let noteHeightArea = this.getNoteValue(event, "heightArea");
+        if (noteHeightArea != null) heightArea = parseFloat(noteHeightArea);
+        return heightArea;
+    }
+
+    static getNoteValue(event, name) {
         const note = this.getNote(event);
         const data = { note: note };
         DataManager.extractMetadata(data);
-        if (data.meta.heightArea) heightArea = parseFloat(data.meta.heightArea);
-        return heightArea;
+        if (data.meta[name]) return data.meta[name];
+        return null;
     }
 
     static getNote(event) {
@@ -1109,6 +1187,10 @@ class CharacterMover {
     constructor(character) {
         this._character = character;
         this._controller = new CharacterController(character, new CharacterCollisionChecker(character));
+        this._width = 1;
+        this._height = 1;
+        this._offsetX = 0;
+        this._offsetY = 0;
         this._targetCount = 0;
         this._moving = false;
         this._setThroughReserve = null;
@@ -1136,6 +1218,22 @@ class CharacterMover {
             }
             this._character.refreshBushDepth();
         }
+    }
+
+    width() {
+        return this._width;
+    }
+
+    height() {
+        return this._height;
+    }
+
+    offsetX() {
+        return this._offsetX;
+    }
+
+    offsetY() {
+        return this._offsetY;
     }
 
     checkCharacter(x, y, direction, character) {
@@ -1279,8 +1377,40 @@ class EventMover extends CharacterMover {
     constructor(character) {
         super(character);
         this._controller = new EventController(character);
+        this._width = null;
+        this._height = null;
+        this._offsetX = null;
+        this._offsetY = null;
         this._widthArea = null;
         this._heightArea = null;
+    }
+
+    width() {
+        if (this._width == null) {
+            this._width = EventParamParser.getWidth(this._character);
+        }
+        return super.width();
+    }
+
+    height() {
+        if (this._height == null) {
+            this._height = EventParamParser.getHeight(this._character);
+        }
+        return super.height();
+    }
+
+    offsetX() {
+        if (this._offsetX == null) {
+            this._offsetX = EventParamParser.getOffsetX(this._character);
+        }
+        return super.offsetX();
+    }
+
+    offsetY() {
+        if (this._offsetY == null) {
+            this._offsetY = EventParamParser.getOffsetY(this._character);
+        }
+        return super.offsetY();
     }
 
     widthArea() {
@@ -1398,11 +1528,28 @@ Game_CharacterBase.prototype.setMoveSpeed = function(moveSpeed) {
 };
 
 Game_CharacterBase.prototype.width = function() {
-    return 1;
+    return this.mover().width();
 };
 
 Game_CharacterBase.prototype.height = function() {
-    return 1;
+    return this.mover().height();
+};
+
+Game_CharacterBase.prototype.offsetX = function() {
+    return this.mover().offsetX();
+};
+
+Game_CharacterBase.prototype.offsetY = function() {
+    return this.mover().offsetY();
+};
+
+// スクロール座標にオフセットを反映させる
+Game_CharacterBase.prototype.scrolledX = function() {
+    return $gameMap.adjustX(this._realX + this.offsetX());
+};
+
+Game_CharacterBase.prototype.scrolledY = function() {
+    return $gameMap.adjustY(this._realY + this.offsetY());
 };
 
 Game_CharacterBase.prototype.collisionRect = function() {
@@ -1440,8 +1587,7 @@ Game_CharacterBase.prototype.isCollidedWithEvents = function(x, y) {
 
 
 // 8方向A*経路探索を行い最適ノードと初期ノードを返す
-Game_Character.prototype.computeRoute = function(goalX, goalY) {
-    const searchLimit = this.searchLimit();
+Game_Character.prototype.computeRoute = function(goalX, goalY, searchLimit = this.searchLimit()) {
     const mapWidth = $gameMap.width();
     const nodeList = [];
     const openList = [];
@@ -1711,7 +1857,7 @@ Game_Player.prototype.initMembers = function() {
     // 足元のイベント起動を禁止する座標
     // 少し移動しただけで何度も足元のイベントが起動されるのと
     // 場所移動時に足元のイベントが起動されるのを防ぐために使用
-    this._disableHereEventPoint = null;
+    this._disableHereEventRect = null;
 };
 
 Game_Player.prototype.makeMover = function() {
@@ -1831,8 +1977,8 @@ Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
     if (!$gameMap.isEventRunning()) {
         if (wasMoving) {
             // 一度起動した足元のイベントをすぐに起動しない
-            if (!(this._disableHereEventPoint && (this.x === this._disableHereEventPoint.x && this.y === this._disableHereEventPoint.y))) {
-                this._disableHereEventPoint = null;
+            if (!(this._disableHereEventRect && DotMoveUtils.isCollidedRect($gamePlayer.collisionRect(), this._disableHereEventRect))) {
+                this._disableHereEventRect = null;
                 this.checkEventTriggerHere([1, 2]);
             }
             if ($gameMap.setupStartingEvent()) {
@@ -1851,7 +1997,7 @@ Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
 // 場所移動してすぐの座標にある足元のイベントを起動しないようにする
 const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
 Game_Player.prototype.reserveTransfer = function(mapId, x, y, d, fadeType) {
-    this._disableHereEventPoint = { x, y };
+    this._disableHereEventRect = { x, y, width: 1, height: 1 };
     _Game_Player_reserveTransfer.call(this, mapId, x, y, d, fadeType);
 };
 
@@ -1946,7 +2092,7 @@ Game_Player.prototype.startMapEvent = function(x, y, triggers, normal) {
             if (!result) continue;
             if (result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea()) {
                 if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
-                    this._disableHereEventPoint = { x: this.x, y: this.y };
+                    this._disableHereEventRect = { x: event._realX, y: event._realY, width: event.width(), height: event.height() };
                     event.start();
                 }
             }
