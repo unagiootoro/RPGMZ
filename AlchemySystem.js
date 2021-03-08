@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc アイテム合成プラグイン v1.2.0
+@plugindesc アイテム合成プラグイン v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -236,7 +236,7 @@ if (Utils.RPGMAKER_NAME === "MV") {
     };
 
     Scene_MenuBase.prototype.mainAreaTop = function() {
-        return this.helpAreaHeight();;
+        return this.helpAreaHeight();
     };
 
     Scene_MenuBase.prototype.mainAreaBottom = function() {
@@ -244,7 +244,7 @@ if (Utils.RPGMAKER_NAME === "MV") {
     };
     
     Scene_MenuBase.prototype.mainAreaHeight = function() {
-        return Graphics.boxHeight;
+        return Graphics.boxHeight - this.helpAreaHeight();
     };
 
     Scene_MenuBase.prototype.helpAreaHeight = function() {
