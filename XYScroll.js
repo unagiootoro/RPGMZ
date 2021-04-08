@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc XY座標スクロール
+@plugindesc XY座標スクロール v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/XYScroll.js
 @help
@@ -49,6 +49,20 @@ trueを設定すると、スクロール状態をセーブデータに保存し�
 @desc
 スクロール先のY座標を指定します。
 
+@arg X_BY_VARIABLE_ID
+@text X座標(変数指定)
+@type variable
+@default 0
+@desc
+スクロール先のX座標を変数で指定します。
+
+@arg Y_BY_VARIABLE_ID
+@text Y座標(変数指定)
+@type variable
+@default 0
+@desc
+スクロール先のY座標を変数で指定します。
+
 @arg SCROLL_SPEED
 @text スクロール速度
 @type number
@@ -74,8 +88,16 @@ const params = PluginManager.parameters(XYScrollPluginName)
 const SAVE_SCROLL_STATE = params.SAVE_SCROLL_STATE === "true";
 
 PluginManager.registerCommand(XYScrollPluginName, "StartScroll", function(args) {
-    const x = parseInt(args.X);
-    const y = parseInt(args.Y);
+    let x = parseInt(args.X);
+    let y = parseInt(args.Y);
+    const xByVariableId = parseInt(args.X_BY_VARIABLE_ID);
+    const yByVariableId = parseInt(args.Y_BY_VARIABLE_ID);
+    if (xByVariableId > 0) {
+        x = $gameVariables.value(xByVariableId);
+    }
+    if (yByVariableId > 0) {
+        y = $gameVariables.value(yByVariableId);
+    }
     const scrollSpeed = parseFloat(args.SCROLL_SPEED);
     const waitEndScroll = args.WAIT_END_SCROLL === "true"
     if (waitEndScroll) this._needXyScrollWait = true;
