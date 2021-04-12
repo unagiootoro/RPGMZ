@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.5.0
+@plugindesc Dot movement system v1.5.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -78,7 +78,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.5.0
+@plugindesc ドット移動システム v1.5.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -938,13 +938,6 @@ class CharacterController {
         return this._collisionChecker.checkCharacter(x, y, direction, character);
     }
 
-    checkCharacterFront(x, y, direction, character) {
-        const dis = this.calcDistance(DotMoveUtils.direction2deg(direction));
-        const x2 = x + dis.x;
-        const y2 = y + dis.y;
-        return this._collisionChecker.checkCharacter(x2, y2, direction, character);
-    }
-
     calcUp(dis) {
         const target = this._character.collisionRect();
         if (dis.x < 0) {
@@ -1238,10 +1231,6 @@ class CharacterMover {
 
     checkCharacter(x, y, direction, character) {
         return this._controller.checkCharacter(x, y, direction, character);
-    }
-
-    checkCharacterFront(x, y, direction, character) {
-        return this._controller.checkCharacterFront(x, y, direction, character);
     }
 
     // 移動が行われた場合、ここで毎フレーム移動処理を行う
@@ -1581,7 +1570,7 @@ Game_CharacterBase.prototype.isCollidedWithEvents = function(x, y) {
         if (targetEvents.some(event => event.isNormalPriority() && !event.isThrough())) {
             return true;
         }
-    } 
+    }
     return false;
 };
 
@@ -1960,37 +1949,35 @@ Game_Player.prototype.increaseSteps = function() {
 };
 
 Game_Player.prototype.updateCountProcess = function(sceneActive) {
-    if (!$gameMap.isEventRunning()) {
-        $gameParty.onPlayerWalk();
-        if ($gameMap.setupStartingEvent()) {
-            return;
-        }
-        if (sceneActive && this.triggerAction()) {
-            return;
-        }
-        this.updateEncounterCount();
-        this._needCountProcess = false;
+    if ($gameMap.isEventRunning()) return;
+    $gameParty.onPlayerWalk();
+    if ($gameMap.setupStartingEvent()) {
+        return;
     }
+    if (sceneActive && this.triggerAction()) {
+        return;
+    }
+    this.updateEncounterCount();
+    this._needCountProcess = false;
 };
 
 Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
-    if (!$gameMap.isEventRunning()) {
-        if (wasMoving) {
-            // 一度起動した足元のイベントをすぐに起動しない
-            if (!(this._disableHereEventRect && DotMoveUtils.isCollidedRect($gamePlayer.collisionRect(), this._disableHereEventRect))) {
-                this._disableHereEventRect = null;
-                this.checkEventTriggerHere([1, 2]);
-            }
-            if ($gameMap.setupStartingEvent()) {
-                return;
-            }
+    if ($gameMap.isEventRunning()) return;
+    if (wasMoving) {
+        // 一度起動した足元のイベントをすぐに起動しない
+        if (!(this._disableHereEventRect && DotMoveUtils.isCollidedRect($gamePlayer.collisionRect(), this._disableHereEventRect))) {
+            this._disableHereEventRect = null;
+            this.checkEventTriggerHere([1, 2]);
         }
-        if (sceneActive && this.triggerAction()) {
+        if ($gameMap.setupStartingEvent()) {
             return;
         }
-        if (!wasMoving) {
-            $gameTemp.clearDestination();
-        }
+    }
+    if (sceneActive && this.triggerAction()) {
+        return;
+    }
+    if (!wasMoving) {
+        $gameTemp.clearDestination();
     }
 };
 
@@ -2086,8 +2073,12 @@ Game_Player.prototype.moveForward = function() {
 };
 
 Game_Player.prototype.startMapEvent = function(x, y, triggers, normal) {
-    if (!$gameMap.isEventRunning()) {
-        for (const event of $gameMap.events()) {
+    if ($gameMap.isEventRunning()) return;
+    const masses = DotMoveUtils.mapEventCacheMasses(x, y, this.width(), this.height());
+    for (const massIdx of masses) {
+        const massEvents = $gameTemp.mapEventsCache()[massIdx];
+        if (!massEvents) continue;
+        for (const event of massEvents) {
             const result = this.mover().checkCharacter(x, y, this._direction, event);
             if (!result) continue;
             if (result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea()) {
@@ -2101,9 +2092,17 @@ Game_Player.prototype.startMapEvent = function(x, y, triggers, normal) {
 };
 
 Game_Player.prototype.startMapEventFront = function(x, y, d, triggers, normal) {
-    if (!$gameMap.isEventRunning()) {
-        for (const event of $gameMap.events()) {
-            const result = this.mover().checkCharacterFront(x, y, d, event);
+    if ($gameMap.isEventRunning()) return;
+    const deg = DotMoveUtils.direction2deg(d);
+    const dis = DotMoveUtils.calcDistance(deg, this.distancePerFrame());
+    const x2 = x + dis.x;
+    const y2 = y + dis.y;
+    const masses = DotMoveUtils.mapEventCacheMasses(x2, y2, this.width(), this.height());
+    for (const massIdx of masses) {
+        const massEvents = $gameTemp.mapEventsCache()[massIdx];
+        if (!massEvents) continue;
+        for (const event of massEvents) {
+            const result = this.mover().checkCharacter(x2, y2, d, event);
             const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
             if (!result) continue;
             if (result.getCollisionLength(axis) >= event.widthArea()) {
@@ -2165,28 +2164,30 @@ Game_Event.prototype.heightArea = function() {
 }
 
 Game_Event.prototype.checkEventTriggerTouchFront = function(d) {
-    if (!$gameMap.isEventRunning()) {
-        if (this._trigger === 2) {
-            const result = this.mover().checkCharacterFront(this._realX, this._realY, d, $gamePlayer);
-            const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
-            if (result && result.getCollisionLength(axis) >= 0.5) {
-                if (!this.isJumping() && this.isNormalPriority()) {
-                    this.start();
-                }
+    if ($gameMap.isEventRunning()) return;
+    if (this._trigger === 2) {
+        const deg = DotMoveUtils.direction2deg(d);
+        const dis = DotMoveUtils.calcDistance(deg, this.distancePerFrame());
+        const x = this._realX + dis.x;
+        const y = this._realY + dis.y;
+        const result = this.mover().checkCharacter(x, y, d, $gamePlayer);
+        const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
+        if (result && result.getCollisionLength(axis) >= 0.5) {
+            if (!this.isJumping() && this.isNormalPriority()) {
+                this.start();
             }
         }
     }
 };
 
 Game_Event.prototype.checkEventTriggerTouch = function(x, y) {
-    if (!$gameMap.isEventRunning()) {
-        if (this._trigger === 2) {
-            const result = this.mover().checkCharacter(x, y, this._direction, $gamePlayer);
-            const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
-            if (result && result.getCollisionLength(axis) >= 0.5) {
-                if (!this.isJumping() && this.isNormalPriority()) {
-                    this.start();
-                }
+    if ($gameMap.isEventRunning()) return;
+    if (this._trigger === 2) {
+        const result = this.mover().checkCharacter(x, y, this._direction, $gamePlayer);
+        const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
+        if (result && result.getCollisionLength(axis) >= 0.5) {
+            if (!this.isJumping() && this.isNormalPriority()) {
+                this.start();
             }
         }
     }
