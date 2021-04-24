@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.5.1
+@plugindesc Dot movement system v1.5.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -78,7 +78,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.5.1
+@plugindesc ドット移動システム v1.5.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -492,9 +492,9 @@ Game_Map.prototype.distance = function(x1, y1, x2, y2) {
     const xDis = Math.abs(this.deltaX(x1, x2));
     const yDis = Math.abs(this.deltaY(y1, y2));
     if (xDis > yDis) {
-        (xDis - yDis) + yDis * DIALOG_COST;
+        return (xDis - yDis) + yDis * DIALOG_COST;
     } else {
-        (yDis - xDis) + xDis * DIALOG_COST;
+        return (yDis - xDis) + xDis * DIALOG_COST;
     }
 };
 
