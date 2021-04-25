@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.5.2
+@plugindesc Dot movement system v1.5.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -78,7 +78,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.5.2
+@plugindesc ドット移動システム v1.5.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -456,12 +456,18 @@ class DotMoveUtils {
 }
 
 
-const _Game_Map_setup = Game_Map.prototype.setup;
-Game_Map.prototype.setup = function(mapId) {
-    _Game_Map_setup.call(this, mapId);
+// バージョンIDが同じ場合、Game_Map#setupはコールされないため、マップ遷移時の初期化処理はここで実施する
+const _Scene_Map_start = Scene_Map.prototype.start;
+Scene_Map.prototype.start = function() {
+    _Scene_Map_start.call(this);
     // マップ遷移時に全てのムーバーをクリアする(メモリリーク対策)
     $gameTemp.clearMovers();
     // マップ遷移時にマップのイベント配置の初期設定を行う
+    $gameMap.initMapEventsCache();
+};
+
+
+Game_Map.prototype.initMapEventsCache = function() {
     // ループ時を考慮して実際のマップサイズ+1の幅の領域を確保する
     $gameTemp.setupMapEventsCache(this.width() + 1, this.height() + 1);
     for (const event of this.events()) {
@@ -1553,11 +1559,10 @@ Game_CharacterBase.prototype.isHigherPriority = function() {
 Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
     const x2 = $gameMap.roundXWithDirection(x, horz);
     const y2 = $gameMap.roundYWithDirection(y, vert);
-    if (this.canPass(x, y, vert) && this.canPass(x, y2, horz) && this.canPass(x, y, horz)) {
-        return true;
-    }
-    if (this.canPass(x, y, horz) && this.canPass(x2, y, vert) && this.canPass(x, y, vert)) {
-        return true;
+    if (this.canPass(x, y, vert) && this.canPass(x, y2, horz)) {
+        if (this.canPass(x, y, horz) && this.canPass(x2, y, vert)) {
+            return true;
+        }
     }
     return false;
 };
@@ -2333,6 +2338,7 @@ Game_Followers.prototype.areGathered = function() {
     }
     return _Game_Followers_areGathered.call(this);
 };
+
 
 const _Game_Temp_initialize = Game_Temp.prototype.initialize;
 Game_Temp.prototype.initialize = function() {
