@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.2.1
+@plugindesc Skill replacement system v1.3.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -62,6 +62,13 @@ Specify the switch ID that determines whether the menu ability management screen
 @default 0
 @desc
 Specify the switch ID that enables automatic equipment when acquiring skills.
+
+@param EnableUsableAllSkillsByMapSceneSwitchId
+@text Map scene All skills available Activation switch ID
+@type switch
+@default 0
+@desc
+When enabled, specify a switch ID that will enable all available skills in the map scene.
 
 @param MaxEquipAbilities
 @text Maximum number of abilities that can be equipped
@@ -246,7 +253,7 @@ Specify the cost wording to be displayed on the ability management screen.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.2.1
+@plugindesc スキル付け替えシステム v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -308,6 +315,13 @@ Specify the cost wording to be displayed on the ability management screen.
 @default 0
 @desc
 スキル取得時の自動装備を有効化するスイッチIDを指定します。
+
+@param EnableUsableAllSkillsByMapSceneSwitchId
+@text マップシーン全スキル使用可能有効化スイッチID
+@type switch
+@default 0
+@desc
+有効にするとマップシーンでは装備可能な全スキルが使用可能になるスイッチIDを指定します。
 
 @param MaxEquipAbilities
 @text 最大装備可能アビリティ数
@@ -577,6 +591,7 @@ const params = PluginParamsParser.parse(PluginManager.parameters(AbilitySystemPl
 
 const EnabledAbilitySystemSwitchId = params.EnabledAbilitySystemSwitchId;
 const EnableAutoEquipSkillSwitchId = params.EnableAutoEquipSkillSwitchId;
+const EnableUsableAllSkillsByMapSceneSwitchId = params.EnableUsableAllSkillsByMapSceneSwitchId;
 const MaxEquipAbilities = params.MaxEquipAbilities;
 const EnableCost = params.EnableCost;
 const EquipAbilitySe = params.EquipAbilitySe;
@@ -952,6 +967,17 @@ const _Game_Actor_setup = Game_Actor.prototype.setup;
 Game_Actor.prototype.setup = function(actorId) {
     _Game_Actor_setup.call(this, actorId);
     this._maxCost = AbilitySystemUtils.getMaxCost(actorId);
+};
+
+const _Game_Actor_addedSkills = Game_Actor.prototype.addedSkills;
+Game_Actor.prototype.addedSkills = function() {
+    let skills = _Game_Actor_addedSkills.call(this);
+    if (EnableUsableAllSkillsByMapSceneSwitchId > 0 && $gameSwitches.value(EnableUsableAllSkillsByMapSceneSwitchId)) {
+        if (!(SceneManager._scene instanceof Scene_Battle)) {
+            skills = skills.concat(this._hasAbilitySkills);
+        }
+    }
+    return skills;
 };
 
 const _Game_Actor_changeEquip = Game_Actor.prototype.changeEquip;
