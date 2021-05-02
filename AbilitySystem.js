@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.3.0
+@plugindesc Skill replacement system v1.3.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -253,7 +253,7 @@ Specify the cost wording to be displayed on the ability management screen.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.3.0
+@plugindesc スキル付け替えシステム v1.3.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -850,6 +850,7 @@ class Window_HasAbilities extends Window_AbilitiesBase {
     }
 
     maxItems() {
+        if (!this._actor) return 0;
         return this._actor.hasAbilitySkillIds().length + 1;
     }
 
