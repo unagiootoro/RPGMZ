@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.5.3
+@plugindesc Dot movement system v1.5.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -78,7 +78,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.5.3
+@plugindesc ドット移動システム v1.5.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -326,7 +326,7 @@ class DotMoveUtils {
     }
 
     static calcDistance(deg, dpf) {
-        const rad = DotMoveUtils.deg2rad(deg);
+        const rad = this.deg2rad(deg);
         let disX = dpf * Math.cos(rad);
         let disY = dpf * Math.sin(rad);
         const unit = 2**16;
@@ -343,7 +343,7 @@ class DotMoveUtils {
         const ox = $gameMap.deltaX(targetPoint.x, fromPoint.x);
         const oy = $gameMap.deltaY(targetPoint.y, fromPoint.y);
         const rad = Math.atan2(oy, ox);
-        return DotMoveUtils.rad2deg(rad);
+        return this.rad2deg(rad);
     }
 
     static calcFar(fromPoint, targetPoint) {
@@ -435,8 +435,6 @@ class DotMoveUtils {
 
     static mapEventCacheMasses(x, y, width, height) {
         const masses = [];
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
         if (x >= $gameMap.width()) x = $gameMap.width();
         if (y >= $gameMap.height()) y = $gameMap.height();
         const x1 = Math.floor(x);
@@ -687,16 +685,20 @@ class CharacterCollisionChecker {
 
     checkPlayer(x, y, d) {
         const collisionResults = [];
-        const result = this.checkCharacter(x, y, d, $gamePlayer);
-        if (result) collisionResults.push(result);
+        if (!$gamePlayer.isThrough()) {
+            const result = this.checkCharacter(x, y, d, $gamePlayer);
+            if (result) collisionResults.push(result);
+        }
         return collisionResults;
     }
 
     checkFollowers(x, y, d) {
         const collisionResults = [];
         for (const follower of $gamePlayer._followers.data()) {
-            const result = this.checkCharacter(x, y, d, follower);
-            if (result) collisionResults.push(result);
+            if (!follower.isThrough()) {
+                const result = this.checkCharacter(x, y, d, follower);
+                if (result) collisionResults.push(result);
+            }
         }
         return collisionResults;
     }
@@ -724,12 +726,14 @@ class CharacterCollisionChecker {
 
     checkVehicles(x, y, d) {
         const collisionResults = [];
-        if ($gameMap.boat()._mapId === $gameMap.mapId() && !$gamePlayer.isInBoat()) {
-            const result = this.checkCharacter(x, y, d, $gameMap.boat());
+        const boat = $gameMap.boat();
+        const ship = $gameMap.ship();
+        if (boat._mapId === $gameMap.mapId() && !$gamePlayer.isInBoat() && !boat.isThrough()) {
+            const result = this.checkCharacter(x, y, d, boat);
             if (result) collisionResults.push(result);
         }
-        if ($gameMap.ship()._mapId === $gameMap.mapId() && !$gamePlayer.isInShip()) {
-            const result = this.checkCharacter(x, y, d, $gameMap.ship());
+        if (ship._mapId === $gameMap.mapId() && !$gamePlayer.isInShip() && !ship.isThrough()) {
+            const result = this.checkCharacter(x, y, d, ship);
             if (result) collisionResults.push(result);
         }
         return collisionResults;
@@ -743,16 +747,16 @@ class CharacterCollisionChecker {
         let cy = character._realY;
         if ($gameMap.isLoopHorizontal() || $gameMap.isLoopVertical()) {
             if ($gameMap.isLoopHorizontal()) {
-                if (cx <= 1 && x >= $gameMap.width() - 1) {
+                if (cx < this._character.width() && x >= $gameMap.width() - this._character.width()) {
                     cx = $gameMap.width() - cx;
-                } else if (cx >= $gameMap.width() - 1 && x <= 1) {
+                } else if (cx >= $gameMap.width() - character.width() && x < character.width()) {
                     cx = cx - $gameMap.width();
                 }
             }
             if ($gameMap.isLoopVertical()) {
-                if (cy <= 1 && y >= $gameMap.height() - 1) {
+                if (cy < this._character.height() && y >= $gameMap.height() - this._character.height()) {
                     cy = $gameMap.height() - cy;
-                } else if (cy >= $gameMap.height() - 1 && y <= 1) {
+                } else if (cy >= $gameMap.height() - character.height() && y < character.height()) {
                     cy = cy - $gameMap.height();
                 }
             }
@@ -1062,9 +1066,14 @@ class CharacterController {
         const axis = dir === 8 || dir === 2 ? "y" : "x";
         const correctedDistance = { x: distance.x, y: distance.y };
         if (distance[axis] === 0) return correctedDistance;
-        const nextTarget = { x: target.x, y: target.y, width: target.width, height: target.height };
-        nextTarget[axis] += distance[axis];
-        const collisionResults = this.checkCollision(nextTarget.x, nextTarget.y, dir);
+        let nextX = target.x;
+        let nextY = target.y;
+        if (axis === "x") {
+            nextX += distance.x;
+        } else {
+            nextY += distance.y;
+        }
+        const collisionResults = this.checkCollision(nextX, nextY, dir);
         if (collisionResults.length === 0) return correctedDistance;
         const len = this.getMaxCollisionLength(collisionResults, axis);
         // 衝突距離が移動距離より長い場合、移動距離分だけ移動させる
@@ -1132,7 +1141,6 @@ class CharacterController {
     }
 
     checkCollision(x, y, dir) {
-        if (!this._collisionChecker) throw new Error("this._collisionChecker is null");
         return this._collisionChecker.checkCollision(x, y, dir);
     }
 
@@ -1263,7 +1271,7 @@ class CharacterMover {
 
     startMassMove(fromPoint, targetPoint) {
         const far = DotMoveUtils.calcFar(fromPoint, targetPoint);
-        this._targetCount = Math.floor(far / this._character.distancePerFrame());
+        this._targetCount = Math.round(far / this._character.distancePerFrame());
         this.moveProcess();
     }
 
@@ -1333,7 +1341,7 @@ class CharacterMover {
     }
 
     moveToTarget(targetPoint) {
-        const fromPoint =  { x: this._character._realX, y: this._character._realY };
+        const fromPoint = { x: this._character._realX, y: this._character._realY };
         const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
         this._moveDeg = deg;
         const dir = DotMoveUtils.deg2direction4(deg);
@@ -1549,7 +1557,7 @@ Game_CharacterBase.prototype.scrolledY = function() {
 
 Game_CharacterBase.prototype.collisionRect = function() {
     return { x: this._realX, y: this._realY, width: this.width(), height: this.height() };
-}
+};
 
 // OverpassTile.jsで再定義される
 Game_CharacterBase.prototype.isHigherPriority = function() {
@@ -1567,6 +1575,7 @@ Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
     return false;
 };
 
+// isCollidedWithEventsは経路探索用にマス単位の判定とする
 Game_CharacterBase.prototype.isCollidedWithEvents = function(x, y) {
     const massIdx = y * $gameMap.width() + x;
     const massEvents = $gameTemp.mapEventsCache()[massIdx];
@@ -1767,7 +1776,7 @@ Game_Character.prototype.dotMoveByDeg = function(deg) {
 
 Game_Character.prototype.moveByDirection = function(direction) {
     this.mover().moveByDirection(direction, this._moveUnit);
-}
+};
 
 Game_Character.prototype.dotMoveToPlayer = function() {
     const fromPoint = { x: this._realX, y: this._realY };
@@ -1898,20 +1907,32 @@ Game_Player.prototype.moveByInput = function() {
     }
 };
 
-Game_Player.prototype.forceMoveOnVehicle = function() {
+Game_Player.prototype.forceMoveOnShipOrBoat = function() {
     this.setThrough(true);
     const point = { x: this.vehicle()._realX, y: this.vehicle()._realY };
     this.mover().moveToTarget(point);
     this.setThrough(false);
 };
 
-Game_Player.prototype.forceMoveOffVehicle = function() {
+Game_Player.prototype.forceMoveOffShipOrBoat = function() {
     this.setThrough(true);
     // 乗り物から降りた時にハマらないように整数座標に着陸する
     const fromPoint = { x: this.x, y: this.y };
     const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._direction);
     this.mover().moveToTarget(targetPoint);
     this.setThrough(false);
+};
+
+Game_Player.prototype.forceMoveOffAirship = function() {
+    // 乗り物から降りた時にハマらないように整数座標に着陸する
+    const targetPoint = { x: this.x, y: this.y };
+    // リセットした乗り物の向きにプレイヤーを合わせる
+    this.setDirection(this.vehicle().direction());
+    // 整数座標への着地中は飛行船とプレイヤーの向きを固定化
+    // 固定化OFFはupdateVehicleGetOffで実施する
+    this.vehicle().setDirectionFix(true);
+    this.setDirectionFix(true);
+    this.mover().moveToTarget(targetPoint);
 };
 
 Game_Player.prototype.update = function(sceneActive) {
@@ -1943,7 +1964,7 @@ Game_Player.prototype.updateTouchPoint = function() {
             $gameTemp.clearDestination();
         }
     }
-}
+};
 
 const _Game_Player_increaseSteps = Game_Player.prototype.increaseSteps;
 Game_Player.prototype.increaseSteps = function() {
@@ -1994,42 +2015,79 @@ Game_Player.prototype.reserveTransfer = function(mapId, x, y, d, fadeType) {
 };
 
 Game_Player.prototype.getOnVehicle = function() {
-    const direction = this.direction();
-    const x1 = this._x;
-    const y1 = this._y;
-    const nextPoint = DotMoveUtils.nextPointWithDirection({ x: x1, y: y1 }, direction);
-    const x2 = nextPoint.x;
-    const y2 = nextPoint.y;
-    if ($gameMap.airship().pos(x1, y1)) {
-        this._vehicleType = "airship";
-    } else if ($gameMap.ship().pos(x2, y2)) {
-        this._vehicleType = "ship";
-    } else if ($gameMap.boat().pos(x2, y2)) {
-        this._vehicleType = "boat";
-    }
-    if (this.isInVehicle()) {
+    const vehicleType = this.checkRideVehicles();
+    if (vehicleType) {
+        this._vehicleType = vehicleType;
         this._vehicleGettingOn = true;
         if (!this.isInAirship()) {
-            this.forceMoveOnVehicle();
+            this.forceMoveOnShipOrBoat();
         }
         this.gatherFollowers();
     }
     return this._vehicleGettingOn;
 };
 
-Game_Player.prototype.getOffVehicle = function() {
-    if (this.vehicle().isLandOk(this.x, this.y, this.direction())) {
-        if (this.isInAirship()) {
-            this.setDirection(2);
+Game_Player.prototype.checkRideVehicles = function() {
+    const dir = this.direction();
+    const x1 = this._realX;
+    const y1 = this._realY;
+    const deg = DotMoveUtils.direction2deg(dir);
+    const dis = DotMoveUtils.calcDistance(deg, this.distancePerFrame());
+    const x2 = x1 + dis.x;
+    const y2 = y1 + dis.y;
+    const airship = $gameMap.airship();
+    const ship = $gameMap.ship();
+    const boat = $gameMap.boat();
+    let airshipResult = null;
+    let shipResult = null;
+    let boatResult = null;
+    if (airship._mapId === $gameMap.mapId() && !airship.isThrough()) {
+        airshipResult = this.mover().checkCharacter(x1, y1, dir, airship);
+    }
+    if (airshipResult && airshipResult.collisionLengthX() >= 0.5 && airshipResult.collisionLengthY() >= 0.5) {
+        return "airship";
+    } else {
+        const axis = dir === 8 || dir === 2 ? "x" : "y";
+        if (ship._mapId === $gameMap.mapId() && !ship.isThrough()) {
+            shipResult = this.mover().checkCharacter(x2, y2, dir, ship);
         }
+        if (shipResult && shipResult.getCollisionLength(axis) >= 0.5) {
+            return "ship";
+        } else {
+            if (boat._mapId === $gameMap.mapId() && !boat.isThrough()) {
+                boatResult = this.mover().checkCharacter(x2, y2, dir, boat);
+            }
+            if (boatResult && boatResult.getCollisionLength(axis) >= 0.5) {
+                return "boat";
+            }
+        }
+    }
+    return null;
+};
+
+Game_Player.prototype.getOffVehicle = function() {
+    if (!this.isInAirship()) {
+        // 船に乗っている場合、ハマり防止のためにX座標またはY座標の小数がdpfの半分を超える場合は着地を禁止する
+        let floatXorY;
+        if (this.direction() === 2 || this.direction() === 8) {
+            floatXorY = this._realY - Math.floor(this._realY);
+        } else {
+            floatXorY = this._realX - Math.floor(this._realX);
+        }
+        if (floatXorY > this.distancePerFrame() / 2) return this._vehicleGettingOff;
+    }
+    if (this.vehicle().isLandOk(this.x, this.y, this.direction())) {
+        this.setMoveSpeed(4);
         this._followers.synchronize(this.x, this.y, this.direction());
         this.vehicle().getOff();
+        if (this.isInAirship()) {
+            this.forceMoveOffAirship();
+        }
         if (!this.isInAirship()) {
-            this.forceMoveOffVehicle();
+            this.forceMoveOffShipOrBoat();
             this.setTransparent(false);
         }
         this._vehicleGettingOff = true;
-        this.setMoveSpeed(4);
         this.setThrough(false);
         this.makeEncounterCount();
     }
@@ -2049,8 +2107,20 @@ Game_Player.prototype.updateVehicle = function() {
 };
 
 Game_Player.prototype.updateVehicleGetOff = function() {
+     // 飛行船着地中はプレイヤーと飛行船の位置を同期させる
+    if (this.isInAirship()) {
+        this.vehicle().syncWithPlayer();
+    }
     if (this._gatherStart) {
         if (!this.areFollowersGathering() && this.vehicle().isLowest()) {
+            // 飛行船着地に完了した場合、正面を向く
+            if (this.isInAirship()) {
+                this.vehicle().setDirectionFix(false);
+                this.setDirectionFix(false);
+                this.setDirection(2);
+            }
+            // 整数座標への移動完了後は確実に座標を整数に設定する
+            this.setPosition(this.x, this.y);
             this._vehicleGettingOff = false;
             this._vehicleType = "walk";
             this.setTransparent(false);
@@ -2162,11 +2232,11 @@ Game_Event.prototype.makeMover = function() {
 
 Game_Event.prototype.widthArea = function() {
     return this.mover().widthArea();
-}
+};
 
 Game_Event.prototype.heightArea = function() {
     return this.mover().heightArea();
-}
+};
 
 Game_Event.prototype.checkEventTriggerTouchFront = function(d) {
     if ($gameMap.isEventRunning()) return;
@@ -2209,7 +2279,7 @@ if (Utils.RPGMAKER_NAME === "MV") {
     Game_Followers.prototype.data = function() {
         return this._data.clone();
     };
-}
+};
 
 Game_Follower.prototype.makeMover = function() {
     return new FollowerMover(this);
@@ -2258,15 +2328,14 @@ Game_Follower.prototype.chaseCharacter = function(character) {
 };
 
 Game_Follower.prototype.gatherCharacter = function(character) {
-    const realFromPoint = { x: this._realX, y: this._realY };
-    const realTargetPoint = { x: character._realX, y: character._realY };
     this.setThrough(true);
-    const margin = this.distancePerFrame() / 8;
-    if (DotMoveUtils.reachPoint(realFromPoint, realTargetPoint, margin)) {
+    if (this.isGathered()) {
         this.setPosition(character._realX, character._realY);
         this.setThrough(false);
     } else {
         this.setMoveSpeed($gamePlayer.moveSpeed());
+        const realFromPoint = { x: this._realX, y: this._realY };
+        const realTargetPoint = { x: character._realX, y: character._realY };
         const deg = DotMoveUtils.calcDeg(realFromPoint, realTargetPoint);
         this.dotMoveByDeg(deg);
     }
@@ -2282,10 +2351,13 @@ Game_Follower.prototype.calcFollowerSpeed = function(precedingCharacterFar) {
     } else {
         return 0;
     }
-}
+};
 
 Game_Follower.prototype.isGathered = function() {
-    return !this.isMoving() && this.pos($gamePlayer.x, $gamePlayer.y);
+    if (this.isMoving()) return false;
+    const margin = this.distancePerFrame();
+    const result = this.mover().checkCharacter(this._realX, this._realY, this.direction(), $gamePlayer);
+    return result && result.collisionLengthX() >= (1 - margin) && result.collisionLengthY() >= (1 - margin);
 };
 
 
@@ -2331,12 +2403,19 @@ Game_Followers.prototype.areGathering = function() {
 
 const _Game_Followers_areGathered = Game_Followers.prototype.areGathered;
 Game_Followers.prototype.areGathered = function() {
-    // 480フレーム経過してもgatherが終了しない場合、フリーズ回避のために強制的にgatherを終了する
-    if (this._gatherCount >= 480) {
+    // 600フレーム経過してもgatherが終了しない場合、フリーズ回避のために強制的にgatherを終了する
+    if (this._gatherCount >= 600) {
         this._gatherCount = 0;
         return true;
     }
     return _Game_Followers_areGathered.call(this);
+};
+
+
+const _Game_Vehicle_getOn = Game_Vehicle.prototype.getOn;
+Game_Vehicle.prototype.getOn = function() {
+    _Game_Vehicle_getOn.call(this);
+    $gamePlayer.setPosition(this._realX, this._realY);
 };
 
 
@@ -2402,6 +2481,6 @@ return {
     PlayerMover: PlayerMover,
     EventMover: EventMover,
     FollowerMover: FollowerMover,
-}
+};
 
 })();
