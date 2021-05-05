@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.3.1
+@plugindesc Skill replacement system v1.3.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -253,7 +253,7 @@ Specify the cost wording to be displayed on the ability management screen.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.3.1
+@plugindesc スキル付け替えシステム v1.3.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -962,6 +962,8 @@ Game_Actor.prototype.initMembers = function() {
     this._hasAbilitySkills = [];
     this._equipAbilitySkills = [];
     this._maxCost = null;
+    // This flag is used to display all acquired ability skills as you level up.
+    this._addedSkillsReturnAllFlag = false;
 };
 
 const _Game_Actor_setup = Game_Actor.prototype.setup;
@@ -973,11 +975,17 @@ Game_Actor.prototype.setup = function(actorId) {
 const _Game_Actor_addedSkills = Game_Actor.prototype.addedSkills;
 Game_Actor.prototype.addedSkills = function() {
     let skills = _Game_Actor_addedSkills.call(this);
-    if (EnableUsableAllSkillsByMapSceneSwitchId > 0 && $gameSwitches.value(EnableUsableAllSkillsByMapSceneSwitchId)) {
-        if (!(SceneManager._scene instanceof Scene_Battle)) {
-            skills = skills.concat(this._hasAbilitySkills);
+    let isIncludeHasAbilitySkills = false;
+    if (this._addedSkillsReturnAllFlag) {
+        isIncludeHasAbilitySkills = true;
+    } else {
+        if (EnableUsableAllSkillsByMapSceneSwitchId > 0 && $gameSwitches.value(EnableUsableAllSkillsByMapSceneSwitchId)) {
+            if (!(SceneManager._scene instanceof Scene_Battle)) {
+                isIncludeHasAbilitySkills = true;
+            }
         }
     }
+    if (isIncludeHasAbilitySkills) skills = skills.concat(this._hasAbilitySkills);
     return skills;
 };
 
@@ -1119,6 +1127,23 @@ Game_Actor.prototype.forgetSkill = function(skillId) {
     } else {
         this.originForgetSkill(skillId);
     }
+};
+
+Game_Actor.prototype.skills = function() {
+    const list = [];
+    for (const id of this._skills.concat(this.addedSkills())) {
+        if (!list.includes($dataSkills[id])) {
+            list.push($dataSkills[id]);
+        }
+    }
+    return list;
+};
+
+const _Game_Actor_changeExp = Game_Actor.prototype.changeExp;
+Game_Actor.prototype.changeExp = function(exp, show) {
+    this._addedSkillsReturnAllFlag = true;
+    _Game_Actor_changeExp.call(this, exp, show);
+    this._addedSkillsReturnAllFlag = false;
 };
 
 
