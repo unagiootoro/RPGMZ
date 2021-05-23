@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc リングコマンドメニュー v1.0.0
+@plugindesc リングコマンドメニュー v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/RingCommandMenu.js
 @help
@@ -32,6 +32,13 @@ subMenu: サブコマンドの一覧を開く
 @desc
 メインメニューに表示するコマンドの一覧を指定します。
 
+@param SelectActorCommands
+@text アクター選択コマンド
+@type struct<SelectActorCommand>[]
+@default []
+@desc
+アクター選択のアクターコマンドを指定します。
+
 @param OpenSe
 @text 開始SE
 @type struct<SE>
@@ -45,6 +52,13 @@ subMenu: サブコマンドの一覧を開く
 @default {"FileName":"Magic2","Volume":"90","Pitch":"100","Pan":"0"}
 @desc
 リングコマンドメニューを終了するときのSEを指定します。
+
+@param BackGroundOpacity
+@text 背景不透明度
+@type number
+@default 192
+@desc
+リングコマンドメニューの背景の不透明度を指定します。
 
 @param InOutSpeed
 @text 開閉スピード
@@ -140,6 +154,22 @@ subMenu: サブコマンドの一覧を開く
 @default 0
 @desc
 再生するSEのpanを指定します。
+*/
+
+
+/*~struct~SelectActorCommand:
+@param ActorId
+@text アクターID
+@type actor
+@desc
+アクター選択用のアクターIDを指定します。
+
+@param Image
+@text 画像
+@type file
+@dir img/pictures
+@desc
+アクター選択用のアクターの画像を指定します。
 */
 
 const RingCommandMenuPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
@@ -358,6 +388,7 @@ const typeDefine = {
     MainMenuCommands: [{}],
     OpenSe: {},
     CloseSe: {},
+    SelectActorCommands: [{}],
 };
 const PP = PluginParamsParser.parse(PluginManager.parameters(RingCommandMenuPluginName), typeDefine);
 
@@ -1151,7 +1182,8 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
         this._backgroundFilter = new PIXI.filters.BlurFilter();
         this._backgroundSprite = new SpriteMVMZ();
         this._backgroundSprite.bitmap = SceneManager.backgroundBitmap();
-        this.setBackgroundOpacity(192);
+        const backGroundOpacity = PP.BackGroundOpacity == null ? 192 : PP.BackGroundOpacity;
+        this.setBackgroundOpacity(backGroundOpacity);
     }
 
     isReady() {
@@ -1206,9 +1238,20 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
     }
 
     createRingCommnadActorDatas() {
-        return $gameParty.members().map((actor, i) => {
-            return new RingCommandData("actorData", actor.name(), 0, "", "", null, i);
-        });
+        return $gameParty.members().map(this.createRingiCommandActorData);
+    }
+
+    createRingiCommandActorData(actor, index) {
+        let actorImageName = "";
+        if (PP.SelectActorCommands) {
+            for (const selectActorCommand of PP.SelectActorCommands) {
+                console.log(selectActorCommand);
+                if (selectActorCommand.ActorId === actor.actorId()) {
+                    actorImageName = selectActorCommand.Image;
+                }
+            }
+        }
+        return new RingCommandData("actorData", actor.name(), 0, actorImageName, "", null, index);
     }
 
     updateRingCommand() {
@@ -1414,6 +1457,16 @@ class Spriteset_RingCommandMenu extends Spriteset_Base {
         if (this._ringCommandSpriteController) this._ringCommandSpriteController.update();
     }
 
+    createUpperLayer() {
+        super.createUpperLayer();
+        this.createUpperLayerBaseSprite();
+    }
+
+    createUpperLayerBaseSprite() {
+        this._upperLayerBaseSprite = new Sprite();
+        this.addChild(this._upperLayerBaseSprite);
+    }
+
     ringCommandCenterX() {
         return $gamePlayer.screenX();
     }
@@ -1435,21 +1488,21 @@ class Spriteset_RingCommandMenu extends Spriteset_Base {
         for (const data of datas) {
             const sprite = new Sprite_RingCommand(0, 0, data, this._ringCommandSpriteCallbacks);
             this._ringCommandSprites.push(sprite);
-            this._baseSprite.addChild(sprite);
+            this._upperLayerBaseSprite.addChild(sprite);
         }
         this._ringCommandLabel = new Sprite_RingCommandLabel();
         const baseRingCommandSprite = this._ringCommandSprites[0];
         this._ringCommandCursor = new Sprite_RingCommandCursor(baseRingCommandSprite.width, baseRingCommandSprite.height);
-        this._baseSprite.addChild(this._ringCommandLabel);
-        this._baseSprite.addChild(this._ringCommandCursor);
+        this._upperLayerBaseSprite.addChild(this._ringCommandLabel);
+        this._upperLayerBaseSprite.addChild(this._ringCommandCursor);
     }
 
     disposeRingCommandSprites() {
         for (const sprite of this._ringCommandSprites) {
-            this._baseSprite.removeChild(sprite);
+            this._upperLayerBaseSprite.removeChild(sprite);
         }
-        this._baseSprite.removeChild(this._ringCommandLabel);
-        this._baseSprite.removeChild(this._ringCommandCursor);
+        this._upperLayerBaseSprite.removeChild(this._ringCommandLabel);
+        this._upperLayerBaseSprite.removeChild(this._ringCommandCursor);
         this._ringCommandSprites = [];
         this._ringCommandLabel = null;
         this._ringCommandCursor = null;
