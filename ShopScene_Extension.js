@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Shop screen expansion v1.0.0
+@plugindesc Shop screen expansion v1.0.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/ShopScene_Extension.js
 
@@ -60,7 +60,7 @@ Specifies the width of the status window on the shop screen.
 
 /*:ja
 @target MZ
-@plugindesc ショップ画面拡張 v1.0.0
+@plugindesc ショップ画面拡張 v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/ShopScene_Extension.js
 
@@ -369,16 +369,11 @@ Window_ShopStatus.prototype.refresh = function() {
     if (!this._item) return;
     const x = this.itemPadding();
     this.drawPossession(x, 0);
-    for (let i = 0; i < $gameParty.members().length; i++) {
-        const actorSprite = this._actorSprites[i];
-        actorSprite.hide();
-    }
+    this.hideActorCharacters();
+    if (EnableActorArrow) this.hideActorCursors();
     if (this.isEquipItem()) {
         const y = this.lineHeight();
         this.drawEquipInfo(x, y);
-    } else {
-        this._leftActorArrowSprite.hide();
-        this._rightActorArrowSprite.hide();
     }
 };
 
@@ -504,6 +499,13 @@ Window_ShopStatus.prototype.setupActorCharacters = function(x, y) {
     }
 };
 
+Window_ShopStatus.prototype.hideActorCharacters = function() {
+    for (let i = 0; i < $gameParty.members().length; i++) {
+        const actorSprite = this._actorSprites[i];
+        actorSprite.hide();
+    }
+};
+
 Window_ShopStatus.prototype.getActorEquipState = function(actor) {
     const currentEquippedItem = this.currentEquippedItem(actor, this._item.etypeId);
     if (!actor.canEquip(this._item)) {
@@ -526,6 +528,11 @@ Window_ShopStatus.prototype.setupActorCursors = function(y) {
     this._rightActorArrowSprite.show();
     this._rightActorArrowSprite.x = this.width - this.padding - this._rightActorArrowSprite.width;
     this._rightActorArrowSprite.y = y + 16;
+};
+
+Window_ShopStatus.prototype.hideActorCursors = function() {
+    this._leftActorArrowSprite.hide();
+    this._rightActorArrowSprite.hide();
 };
 
 Window_ShopStatus.prototype.drawAllParams = function(x, y) {

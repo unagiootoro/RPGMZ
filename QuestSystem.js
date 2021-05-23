@@ -1,6 +1,6 @@
 /*:
-@target MZ
-@plugindesc Quest system v1.3.0
+@target MV MZ
+@plugindesc Quest system v1.4.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -74,6 +74,11 @@ reportedQuest: View reported quests
 failedQuest: Show failed quests
 expiredQuest: Show expired quests
 hiddenQuest: Show hidden quests
+
+[About MV version]
+Since the plug-in command of this plug-in is created according to the MZ format,
+"CallPluginCommandMZ.js" is required separately to operate on MV.
+Please install "callPluginCommandMZ.js" before "QuestSystem.js".
 
 【License】
 This plugin is available under the terms of the MIT license.
@@ -846,8 +851,8 @@ Specifies the color of the expired text.
 
 
 /*:ja
-@target MZ
-@plugindesc クエストシステム v1.3.0
+@target MV MZ
+@plugindesc クエストシステム v1.4.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -920,6 +925,11 @@ reportedQuest: 報告済みのクエストを表示する
 failedQuest: 失敗したクエストを表示する
 expiredQuest: 期限切れのクエストを表示する
 hiddenQuest: 隠しクエストを表示する
+
+【MV版について】
+このプラグインのプラグインコマンドはMZの形式に合わせて作成しているため、
+MVで動作させるには「callPluginCommandMZ.js」が別途必要となります。
+「callPluginCommandMZ.js」は「QuestSystem.js」よりも前に導入してください。
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -2051,7 +2061,148 @@ const COMMAND_TABLE = {
     "hiddenQuest": { state: ["hidden"], text: Text.HiddenQuestCommandText },
 };
 
-class Scene_QuestSystem extends Scene_Message {
+
+// MV compatible
+if (Utils.RPGMAKER_NAME === "MV") {
+    ImageManager.iconWidth = 32;
+    ImageManager.iconHeight = 32;
+    ImageManager.faceWidth = 144;
+    ImageManager.faceHeight = 144;
+
+    Window_Base.prototype.drawRect = function(x, y, width, height) {
+        const outlineColor = this.contents.outlineColor;
+        const mainColor = this.contents.textColor;
+        this.contents.fillRect(x, y, width, height, outlineColor);
+        this.contents.fillRect(x + 1, y + 1, width - 2, height - 2, mainColor);
+    };
+    
+    Window_Base.prototype.itemPadding = function() {
+        return 8;
+    };
+    
+    Window_Selectable.prototype.itemRectWithPadding = function(index) {
+        const rect = this.itemRect(index);
+        const padding = this.itemPadding();
+        rect.x += padding;
+        rect.width -= padding * 2;
+        return rect;
+    };
+    
+    Window_Selectable.prototype.itemLineRect = function(index) {
+        const rect = this.itemRectWithPadding(index);
+        const padding = (rect.height - this.lineHeight()) / 2;
+        rect.y += padding;
+        rect.height -= padding * 2;
+        return rect;
+    };
+    
+    Window_Base.prototype.createTextState = function(text, x, y, width) {
+        const textState = { index: 0, x: x, y: y, left: x };
+        textState.text = this.convertEscapeCharacters(text);
+        textState.height = this.calcTextHeight(textState, false);
+        return textState;
+    };
+
+    Window_Base.prototype.processAllText = function(textState) {
+        while (textState.index < textState.text.length) {
+            this.processCharacter(textState);
+        }
+        return textState;
+    };
+
+    Object.defineProperty(Window.prototype, "innerWidth", {
+        get: function() {
+            return Math.max(0, this._width - this._padding * 2);
+        },
+        configurable: true
+    });
+
+    Object.defineProperty(Window.prototype, "innerHeight", {
+        get: function() {
+            return Math.max(0, this._height - this._padding * 2);
+        },
+        configurable: true
+    });
+
+    Scene_Base.prototype.calcWindowHeight = function(numLines, selectable) {
+        if (selectable) {
+            return Window_Selectable.prototype.fittingHeight(numLines);
+        } else {
+            return Window_Base.prototype.fittingHeight(numLines);
+        }
+    };
+}
+
+class Window_Selectable_MZMV extends Window_Selectable {
+    initialize(rect) {
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            super.initialize(rect);
+        } else {
+            super.initialize(rect.x, rect.y, rect.width, rect.height);
+        }
+    }
+}
+
+class Window_Command_MZMV extends Window_Command {
+    initialize(rect) {
+        if (Utils.RPGMAKER_NAME === "MZ") {
+            super.initialize(rect);
+        } else {
+            this._windowRect = rect;
+            super.initialize(rect.x, rect.y);
+        }
+    }
+
+    windowWidth() {
+        return this._windowRect.width;
+    }
+
+    windowHeight() {
+        return this._windowRect.height;
+    }
+}
+
+let superScene_Message;
+if (Utils.RPGMAKER_NAME === "MZ") {
+    superScene_Message = Scene_Message;
+} else {
+    function Scene_Message_MV() {
+        this.initialize(...arguments);
+    }
+
+    Scene_Message_MV.prototype = Object.create(Scene_Base.prototype);
+    Scene_Message_MV.prototype.constructor = Scene_Message_MV;
+    
+    Scene_Message_MV.prototype.initialize = function() {
+        Scene_Base.prototype.initialize.call(this);
+    };
+    
+    Scene_Message_MV.prototype.isMessageWindowClosing = function() {
+        return this._messageWindow.isClosing();
+    };
+    
+    Scene_Message_MV.prototype.createAllWindows = function() {
+        this.createMessageWindow();
+    };
+    
+    Scene_Message_MV.prototype.createMessageWindow = function() {
+        const rect = this.messageWindowRect();
+        this._messageWindow = new Window_Message(rect);
+        this.addWindow(this._messageWindow);
+    };
+    
+    Scene_Message_MV.prototype.messageWindowRect = function() {
+        const ww = Graphics.boxWidth;
+        const wh = this.calcWindowHeight(4, false) + 8;
+        const wx = (Graphics.boxWidth - ww) / 2;
+        const wy = 0;
+        return new Rectangle(wx, wy, ww, wh);
+    };
+
+    superScene_Message = Scene_Message_MV;
+}
+
+class Scene_QuestSystem extends superScene_Message {
     prepare(commandList, backgroundImage) {
         this._commandList = commandList;
         this._backgroundImage = backgroundImage;
@@ -2217,6 +2368,17 @@ class Scene_QuestSystem extends Scene_Message {
         this.addWindow(this._questCancelWindow);
     }
 
+    // MV compatible
+    isBottomButtonMode() {
+        if (Utils.RPGMAKER_NAME === "MZ") return super.isBottomButtonMode();
+        return false;
+    }
+
+    buttonAreaHeight() {
+        if (Utils.RPGMAKER_NAME === "MZ") return super.buttonAreaHeight();
+        return 0;
+    }
+
     // Window rectangle
     questCommandWindowRect() {
         const x = 0;
@@ -2249,7 +2411,7 @@ class Scene_QuestSystem extends Scene_Message {
 
     questOrderWindowRect() {
         const w = WindowSize.DialogWindowWidth;
-        const h = 160;
+        const h = (Utils.RPGMAKER_NAME === "MZ" ? 160 : 150);
         const x = Graphics.boxWidth / 2 - w / 2;
         const y = Graphics.boxHeight / 2 - h / 2;
         return new Rectangle(x, y, w, h);
@@ -2496,7 +2658,7 @@ class Scene_QuestSystem extends Scene_Message {
     }
 }
 
-class Window_QuestCommand extends Window_Command {
+class Window_QuestCommand extends Window_Command_MZMV {
     initialize(rect, commandList) {
         this._commandList = commandList;
         super.initialize(rect);
@@ -2527,7 +2689,7 @@ class Window_QuestCommand extends Window_Command {
     }
 }
 
-class Window_QuestList extends Window_Command {
+class Window_QuestList extends Window_Command_MZMV {
     initialize(rect) {
         this._questList = [];
         super.initialize(rect);
@@ -2576,7 +2738,7 @@ class Window_QuestList extends Window_Command {
     }
 }
 
-class Window_QuestDetail extends Window_Selectable {
+class Window_QuestDetail extends Window_Selectable_MZMV {
     initialize(rect) {
         super.initialize(rect);
         this._questData = null;
@@ -2764,7 +2926,7 @@ class Window_QuestDetail extends Window_Selectable {
     }
 }
 
-class Window_QuestOrder extends Window_Command {
+class Window_QuestOrder extends Window_Command_MZMV {
     initialize(rect) {
         super.initialize(rect);
         this.deactivate();
@@ -2778,14 +2940,14 @@ class Window_QuestOrder extends Window_Command {
     }
 
     drawAllItems() {
-        const rect = this.itemLineRect(0);
-        rect.y = this.padding;
+        const rect = this.itemLineRect(-1);
         this.drawText(Text.QuestOrderText, rect.x, rect.y, rect.width);
         super.drawAllItems();
     }
 
     itemRect(index) {
-        return super.itemRect(index + 1);
+        const rect = super.itemRect(index + 1);
+        return rect;
     }
 
     playOkSound() {
@@ -2805,7 +2967,7 @@ class Window_QuestOrder extends Window_Command {
     }
 }
 
-class Window_QuestOrderFailed extends Window_Selectable {
+class Window_QuestOrderFailed extends Window_Selectable_MZMV {
     initialize(rect) {
         super.initialize(rect);
         this.deactivate();
@@ -2823,7 +2985,7 @@ class Window_QuestOrderFailed extends Window_Selectable {
     }
 }
 
-class Window_QuestCancel extends Window_Command {
+class Window_QuestCancel extends Window_Command_MZMV {
     initialize(rect) {
         super.initialize(rect);
         this.deactivate();
@@ -2837,18 +2999,18 @@ class Window_QuestCancel extends Window_Command {
     }
 
     drawAllItems() {
-        const rect = this.itemLineRect(0);
-        rect.y = this.padding;
+        const rect = this.itemLineRect(-1);
         this.drawText(Text.QuestCancelText, rect.x, rect.y, rect.width);
         super.drawAllItems();
     }
 
     itemRect(index) {
-        return super.itemRect(index + 1);
+        const rect = super.itemRect(index + 1);
+        return rect;
     }
 }
 
-class Window_QuestReport extends Window_Command {
+class Window_QuestReport extends Window_Command_MZMV {
     initialize(rect) {
         super.initialize(rect);
         this.deactivate();
@@ -2862,14 +3024,14 @@ class Window_QuestReport extends Window_Command {
     }
 
     drawAllItems() {
-        const rect = this.itemLineRect(0);
-        rect.y = this.padding;
+        const rect = this.itemLineRect(-1);
         this.drawText(Text.QuestReportText, rect.x, rect.y, rect.width);
         super.drawAllItems();
     }
 
     itemRect(index) {
-        return super.itemRect(index + 1);
+        const rect = super.itemRect(index + 1);
+        return rect;
     }
 
     playOkSound() {
@@ -2889,7 +3051,7 @@ class Window_QuestReport extends Window_Command {
     }
 }
 
-class Window_QuestGetReward extends Window_Selectable {
+class Window_QuestGetReward extends Window_Selectable_MZMV {
     initialize(rect) {
         super.initialize(rect);
         this.deactivate();
@@ -2906,7 +3068,7 @@ class Window_QuestGetReward extends Window_Selectable {
     updateWindowRect() {
         const numRewards = this._questData.rewards.length;
         const w = WindowSize.GetRewardWindowWidth;
-        const h = 80 + numRewards * 40;
+        const h = (Utils.RPGMAKER_NAME === "MZ" ? 80 : 70) + numRewards * 40;
         const x = Graphics.boxWidth / 2 - w / 2;
         const y = Graphics.boxHeight / 2 - h / 2;
         this.move(x, y, w, h);

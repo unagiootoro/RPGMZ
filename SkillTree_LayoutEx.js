@@ -1,6 +1,140 @@
 /*:
 @target MV MZ
-@plugindesc スキルツリー レイアウト拡張 v1.1.0
+@plugindesc Skill Tree Layout Extension v1.2.1
+@author unagi ootoro
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
+
+@help
+Extend the layout of the skill tree.
+By installing this plugin, you will be able to:
+-Display the skill name on the skill tree icon
+-Display a background image on the skill tree icon
+-Add an image to the icon when learning skills
+-Display an icon in the skill tree type options
+・ Display background image in skill tree scene
+
+[Display skill name on skill tree icon]
+Apply "icon_ex" to the icon information.
+When using an icon ["icon_ex", icon background image, iconIndex]
+iconIndex ... Index of the icon to use
+            iconIndex is optional. If omitted, the icon set for the skill will be used.
+Icon Background image ... Specify the file name of the background image or the index of the background.
+                 When specifying the index, [Background image file name, X-axis index, Y-axis index]
+                 Specify in the format of.
+fileName ... The file name of the image. Import the images into the "img / pictures" folder.
+
+[Display icon in skill tree type choice]
+By adding icon information to the type information in the skill tree type setting, the icon will be displayed in the options.
+In this case, the type information is set in the following format.
+
+[Type type, type name, type description, type enabled / disabled, icon index]
+Type Type ... Sets a unique identifier to identify the type in the skill derivation settings.
+Type name ... Set the type name to be displayed in the type list window.
+Type Description ... Sets the type description to display in the Type List window.
+Type Enabled / Disabled ... Specify true to enable the type, false to disable it.
+Icon index ... Index of the icon to use
+
+[license]
+This plugin is available under the terms of the MIT license.
+
+@param IconXOfs
+@type number
+@default 5
+@desc
+Specifies the X coordinate offset of the icon.
+
+@param OpenedImage
+@type struct <OpenedImage>
+@desc
+Set the image to be added to the acquired skill.
+
+@param ChangeOpenedTextColor
+@type boolean
+@default true
+@desc
+Set to true to change the text color of acquired skills.
+
+@param IconFontSize
+@type number
+@default 20
+@desc
+Specifies the font size of the skill's characters.
+
+@param BackgroundImage
+@type struct <BackgroundImage>
+@desc
+Set the background image of the skill tree scene.
+*/
+
+/*~struct~OpenedImage:
+@param EnableOpenedImage
+@type boolean
+@default false
+@desc
+Set to true to add an image to the acquired skill.
+
+@param FileName
+@type file
+@dir img
+@desc
+Specify the file name of the image to be added to the acquired skill.
+
+@param XOfs
+@type number
+@default 0
+@desc
+Specifies the X coordinate offset of the image to add to the acquired skill.
+
+@param YOfs
+@type number
+@default 0
+@desc
+Specifies the Y coordinate offset of the image to add to the acquired skill.
+*/
+
+/*~struct~BackgroundImage:
+@param FileName
+@type file
+@dir img
+@desc
+Specifies the file name of the background image of the skill tree scene.
+
+@param BackgroundImage2
+@type struct <BackgroundImage2>[]
+@dir img
+@desc
+Skill Tree Specifies the file name of the image to add to the background image of the scene.
+
+@param BackgroundImage2XOfs
+@type number
+@default 240
+@desc
+Specifies the X coordinate offset of the image to add to the background image of the skill tree scene.
+
+@param BackgroundImage2YOfs
+@type number
+@default 300
+@desc
+Skill Tree Specifies the Y coordinate offset of the image to add to the background image of the scene.
+*/
+
+/*~struct~BackgroundImage2:
+@param FileName
+@type file
+@dir img
+@desc
+Specifies the file name of the background image of the skill tree scene.
+
+@param ActorId
+@type actor
+@desc
+Specify the actor ID.
+*/
+
+
+/*:ja
+@target MV MZ
+@plugindesc スキルツリー レイアウト拡張 v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
 
@@ -95,12 +229,14 @@ trueを設定すると、習得済みスキルに画像を追加します。
 /*~struct~BackgroundImage:
 @param FileName
 @type file
+@default {"FileName":"","BackgroundImage2":"[]","BackgroundImage2XOfs":"240","BackgroundImage2YOfs":"300"}
 @dir img
 @desc
 スキルツリーシーンの背景画像のファイル名を指定します。
 
 @param BackgroundImage2
 @type struct<BackgroundImage2>[]
+@default []
 @dir img
 @desc
 スキルツリーシーンの背景画像に追加する画像のファイル名を指定します。
@@ -225,7 +361,6 @@ const IconFontSize = params.IconFontSize;
 const skillTreeParams = PluginParamsParser.parse(PluginManager.parameters(SkillTreePluginName), {});
 const IconWidth = skillTreeParams.IconWidth;
 const IconHeight = skillTreeParams.IconHeight;
-const RectImageFileName = skillTreeParams.RectImageFileName;
 const ViewRectColor = skillTreeParams.ViewRectColor;
 const ViewRectOfs = skillTreeParams.ViewRectOfs;
 
@@ -276,12 +411,7 @@ SkillTreeNodeInfo.prototype.iconBitmap = function(opened) {
         } else {
             iconIndex = this.skill().iconIndex;
         }
-        const srcBitmap = ImageManager.loadSystem("IconSet");
-        const dstBitmap = new Bitmap(32, 32);
-        const sx = iconIndex % 16 * 32;
-        const sy = Math.floor(iconIndex / 16) * 32;
-        dstBitmap.blt(srcBitmap, sx, sy, 32, 32, 0, 0);
-        return dstBitmap;
+        return this.trimIconset(iconIndex);
     } else if (this._iconData[0] === "icon_ex") {
         return this.iconExBitmap(opened);
     }
@@ -295,10 +425,8 @@ SkillTreeNodeInfo.prototype.iconExBitmap = function(opened) {
     } else {
         iconIndex = this.skill().iconIndex;
     }
-    const srcBitmap = ImageManager.loadSystem("IconSet");
+    const iconBitmap = this.trimIconset(iconIndex);
     const dstBitmap = new Bitmap(IconWidth, IconHeight);
-    const sx = iconIndex % 16 * 32;
-    const sy = Math.floor(iconIndex / 16) * 32;
     const dx = IconXOfs;
     let dy = (IconHeight - 32) / 2;
     if (IconHeight % 2 !== 0) dy -= 1;
@@ -315,8 +443,11 @@ SkillTreeNodeInfo.prototype.iconExBitmap = function(opened) {
             dstBitmap.blt(backBitmap, x, y, IconWidth, IconHeight, 0, 0);
         }
     }
-    dstBitmap.blt(srcBitmap, sx, sy, 32, 32, dx, dy);
+    dstBitmap.blt(iconBitmap, 0, 0, 32, 32, dx, dy);
     const textWidth = IconWidth - 32 - dx - IconXOfs;
+    if (Utils.RPGMAKER_NAME === "MZ") {
+        dstBitmap.fontFace = $gameSystem.mainFontFace();
+    }
     dstBitmap.fontSize = IconFontSize;
     const iconTextSpace = 5;
     if (ChangeOpenedTextColor && opened) {
@@ -346,7 +477,7 @@ SkillTreeView.prototype.viewDrawNode = function(bitmap) {
         if (node.isSelectable()) {
             this.drawIcon(bitmap, node.iconBitmap(), px, py);
         } else {
-            this.drawIcon(bitmap, node.iconBitmap(), px, py, 64);
+            this.drawIcon(bitmap, node.iconBitmap(), px, py, 96);
         }
         if (node.isOpened()) {
             if (OpenedImage.EnableOpenedImage) {
@@ -357,14 +488,9 @@ SkillTreeView.prototype.viewDrawNode = function(bitmap) {
             } else {
                 const x = px - ViewRectOfs;
                 const y = py - ViewRectOfs;
-                if (RectImageFileName) {
-                    const rectImage = ImageManager.loadBitmap("img/", RectImageFileName);
-                    bitmap.blt(rectImage, 0, 0, rectImage.width, rectImage.height, x, y);
-                } else {
-                    const width = IconWidth + ViewRectOfs * 2;
-                    const height = IconHeight + ViewRectOfs * 2;
-                    this.drawRect(bitmap, ViewRectColor, x, y, width, height);
-                }
+                const width = IconWidth + ViewRectOfs * 2;
+                const height = IconHeight + ViewRectOfs * 2;
+                this.drawRect(bitmap, ViewRectColor, x, y, width, height);
             }
         }
     }

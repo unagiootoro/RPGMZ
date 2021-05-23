@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc TPB戦闘拡張プラグイン v1.0.4
+@plugindesc TPB戦闘拡張プラグイン v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/TPB_Extension.js
 
@@ -59,6 +59,18 @@ trueを設定すると、パーティウィンドウが開いている間はゲ�
 @desc
 trueを設定すると、ステータスウィンドウを固定します。
 
+@param WaitActorSelectWindow
+@type boolean
+@default false
+@desc
+trueを設定すると、アクター選択時はゲージの進行を停止します。
+
+@param WaitEnemySelectWindow
+@type boolean
+@default false
+@desc
+trueを設定すると、エネミー選択時はゲージの進行を停止します。
+
 @help
 TPB戦闘を拡張するプラグインです。
 このプラグインは、次の機能を提供します。
@@ -68,6 +80,8 @@ TPB戦闘を拡張するプラグインです。
 ・初回パーティコマンドの表示を無効化
 ・パーティウィンドウでゲージ進行の許可/停止切り替え
 ・スキル/アイテム選択画面でゲージ進行の許可/停止切り替え
+・アクター選択画面でゲージ進行の許可/停止切り替え
+・エネミー選択画面でゲージ進行の許可/停止切り替え
 ・ステータスウィンドウの固定化
 
 [ライセンス]
@@ -91,6 +105,8 @@ const TPBExParams = {};
 
     TPBExParams.WaitSkillOrItemWindow = (params["WaitSkillOrItemWindow"] === "true" ? true : false);
     TPBExParams.WaitPartyWindow = (params["WaitPartyWindow"] === "true" ? true : false);
+    TPBExParams.WaitActorSelectWindow = (params["WaitActorSelectWindow"] === "true" ? true : false);
+    TPBExParams.WaitEnemySelectWindow = (params["WaitEnemySelectWindow"] === "true" ? true : false);
 
     TPBExParams.FixedStatusWindow = (params["FixedStatusWindow"] === "true" ? true : false);
 
@@ -181,8 +197,8 @@ const TPBExParams = {};
     };
 
     Scene_Battle.prototype.selectPreviousCommand = function() {
-        const canChangePartyCommand = BattleManager.selectPreviousCommand();
-        if (canChangePartyCommand) this.startPartyCommandSelection();
+        BattleManager.selectPreviousCommand();
+        if (BattleManager.canChangePartyCommand()) this.startPartyCommandSelection();
     };
 
     Scene_Battle.prototype.changeActor = function(tpbForward = true) {
@@ -207,17 +223,20 @@ const TPBExParams = {};
         return this._skillWindow.active || this._itemWindow.active;
     };
 
+    Scene_Battle.prototype.isActorSelecting = function() {
+        return this._actorWindow.active;
+    };
+
+    Scene_Battle.prototype.isEnemySelecting = function() {
+        return this._enemyWindow.active;
+    };
+
     Scene_Battle.prototype.isTimeActive = function() {
-        const skillOrItemWindowSelecting = this.isSkillOrItemCommandSelecting();
-        const partyCommandWindowSelecting = this.isPartyCommandSelecting();
         if (BattleManager.isActiveTpb()) {
-            if (TPBExParams.WaitSkillOrItemWindow && TPBExParams.WaitPartyWindow) {
-                return !skillOrItemWindowSelecting && !partyCommandWindowSelecting;
-            } else if (TPBExParams.WaitSkillOrItemWindow && !TPBExParams.WaitPartyWindow) {
-                return !skillOrItemWindowSelecting;
-            } else if (!TPBExParams.WaitSkillOrItemWindow && TPBExParams.WaitPartyWindow) {
-                return !partyCommandWindowSelecting;
-            }
+            if (TPBExParams.WaitSkillOrItemWindow && this.isSkillOrItemCommandSelecting()) return false;
+            if (TPBExParams.WaitPartyWindow && this.isPartyCommandSelecting()) return false;
+            if (TPBExParams.WaitActorSelectWindow && this.isActorSelecting()) return false;
+            if (TPBExParams.WaitEnemySelectWindow && this.isEnemySelecting()) return false;
             return true;
         } else {
             return !this.isAnyInputWindowActive();
@@ -277,6 +296,7 @@ const TPBExParams = {};
         if (!this.isTpb()) throw new Error("This plugin can not used when turn battle.");
         _BattleManager_initMembers.call(this);
         this._tpbNeedsPartyCommand = false;
+        this._canChangePartyCommand = false;
     };
 
     BattleManager.changeCurrentActor = function(forward) {
@@ -334,16 +354,24 @@ const TPBExParams = {};
     };
 
     // パーティウィンドウに変更できるかどうかを返す。
+    // パーティウィンドウに変更する際は必ずselectPreviousCommandが実行されるため、
+    // そっちでthis._canChangePartyCommandを設定する。
+    BattleManager.canChangePartyCommand = function() {
+        return this._canChangePartyCommand;
+    };
+
     BattleManager.selectPreviousCommand = function() {
         if (this._currentActor) {
             if (this._currentActor.selectPreviousCommand()) {
-                return false;
+                this._canChangePartyCommand = false;
+            } else {
+                this._canChangePartyCommand = true;
             }
-            return true;
         } else {
             // this._currentActorがnullの場合、this._inputtingを更新する。
             // this._inputtingがfalseであれば、コマンドウィンドウは表示されない。
             this._inputting = $gameParty.canInput();
+            this._canChangePartyCommand = false;
         }
     };
 

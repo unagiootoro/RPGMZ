@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.0.3
+@plugindesc formation system v1.1.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -176,6 +176,31 @@ Sets the text used in the game.
 @type variable
 @default 0
 @desc Specifies the variable ID that stores the formation ID to forget.
+
+
+@command ChangeEquipFormations
+@text Equipment formation change
+@desc Change the formation you are equipped with.
+
+@arg EquipSlotIndex
+@text Equipment formation slot
+@type number
+@desc Specifies the formation slot to change. If -1 is specified, the equipment formation of the slot will be removed.
+
+@arg HasFormationId
+@text Formation ID in possession
+@type number
+@desc Specify the formation ID you have.
+
+
+@command ChangeFormation
+@text Current formation change
+@desc Change the current formation.
+
+@arg SlotIndex
+@text Equipment formation slot
+@type number
+@desc Specifies the formation slot to change.
 */
 
 
@@ -308,7 +333,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.0.3
+@plugindesc 陣形システム v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -487,6 +512,31 @@ trueを設定すると、戦闘中の陣形変更を有効化します。
 @type variable
 @default 0
 @desc 忘れる陣形IDが格納された変数IDを指定します。
+
+
+@command ChangeEquipFormations
+@text 装備陣形変更
+@desc 装備中の陣形を変更します。
+
+@arg EquipSlotIndex
+@text 装備陣形スロット
+@type number
+@desc 変更する陣形スロットを指定します。-1を指定した場合、スロットの装備陣形を外します。
+
+@arg HasFormationId
+@text 所持している陣形ID
+@type number
+@desc 所持している陣形IDを指定します。
+
+
+@command ChangeFormation
+@text 現在陣形変更
+@desc 現在の陣形を変更します。
+
+@arg SlotIndex
+@text 装備陣形スロット
+@type number
+@desc 変更する陣形のスロットを指定します。
 */
 
 
@@ -627,47 +677,57 @@ const MapLoaders = {};
 
 
 // Common library.
+class HttpResponse {
+    constructor(result, xhr, event) {
+        this._result = result;
+        this._xhr = xhr;
+        this._event = event;
+    }
+
+    result() {
+        return this._result;
+    }
+
+    status() {
+        return this._xhr.status;
+    }
+
+    response() {
+        return this._xhr.response;
+    }
+}
+
 class HttpRequest {
-    static get(path, responseCallback) {
-        const req = new HttpRequest(path, "GET", responseCallback);
+    static get(path, opt = { mimeType: null }, responseCallback) {
+        const req = new HttpRequest(path, "GET", opt, responseCallback);
         req.send();
         return req;
     }
 
-    static post(path, params, responseCallback) {
-        const req = new HttpRequest(path, "POST", responseCallback);
+    static post(path, params, opt = { mimeType: null }, responseCallback) {
+        const req = new HttpRequest(path, "POST", opt, responseCallback);
         req.send(params);
         return req;
     }
 
-    constructor(path, method, responseCallback) {
+    constructor(path, method, opt = { mimeType: null }, responseCallback) {
         this._path = path;
         this._method = method;
         this._responseCallback = responseCallback;
+        this._mimeType = opt.mimeType;
     }
 
     send(params = null) {
         const xhr = new XMLHttpRequest();
         xhr.open(this._method, this._path);
+        if (this._mimeType) xhr.overrideMimeType(this._mimeType);
         let json = null;
         if (params) json = JSON.stringify(params);
         xhr.addEventListener("load", (e) => {
-            const res = {
-                result: "load",
-                status: xhr.status,
-                response: xhr.response,
-                event: e
-            };
-            this._responseCallback(res);
+            this._responseCallback(new HttpResponse("load", xhr, e));
         });
         xhr.addEventListener("error", (e) => {
-            const res = {
-                result: "error",
-                status: xhr.status,
-                response: xhr.response,
-                event: e
-            };
-            this._responseCallback(res);
+            this._responseCallback(new HttpResponse("error", xhr, e));
         });
         xhr.send(json);
     }
@@ -925,7 +985,6 @@ class WindowModule_DataListTitle {
         return -1;
     };
 }
-
 
 // Parse plugin parameters.
 const typeDefine = {
@@ -1387,11 +1446,11 @@ class ActorPosition {
 class FormationController {
     // mode: "menu" or "battle"
     constructor(actorSprites, mode) {
-        this._actorSprites = actorSprites;
         this._actorPositions = {};
         this._mode = mode;
-        this.createActorPositions();
+        this._actorSprites = null;
         this._lastFormation = null;
+        this.reset(actorSprites);
     }
 
     // Generate a position from an actor sprite.
@@ -1401,7 +1460,7 @@ class FormationController {
     }
 
     createActorPositions() {
-        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+        for (let i = 0; i < $gameParty.members().length; i++) {
             const actor = $gameParty.members()[i];
             const actorId = actor.actorId();
             if (!(actorId in this._actorPositions)) {
@@ -1413,7 +1472,7 @@ class FormationController {
 
     update() {
         if (!this._lastFormation) return;
-        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+        for (let i = 0; i < $gameParty.members().length; i++) {
             const actor = $gameParty.members()[i];
             const position = this._actorPositions[actor.actorId()];
             // If an actor has just been added, it will not be updated because there is no position.
@@ -1425,10 +1484,12 @@ class FormationController {
     changeFormation(newFormation, fast = false) {
         if (!newFormation) newFormation = this.defaultFormation();
         this._lastFormation = newFormation;
-        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+        for (let i = 0; i < $gameParty.members().length; i++) {
             const actor = $gameParty.members()[i];
             const actorId = actor.actorId();
             const position = this._actorPositions[actorId];
+            // If there is no position, it is set by setActorHome, so it is not set here.
+            if (!position) return;
             if (fast) {
                 position.fastChangePosition(newFormation.position(actorId));
             } else {
@@ -1452,8 +1513,7 @@ class Window_FormationDetail extends Window_Selectable {
     }
 
     createActorSprites() {
-        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
-            const actor = $gameParty.members()[i];
+        for (const actor of $gameParty.members()) {
             const sprite = new Sprite_MenuFormationActor(actor);
             sprite.startMotion("walk");
             this._actorSprites.push(sprite);
@@ -1534,19 +1594,6 @@ Game_Party.prototype.hasFormations = function() {
     return this._hasFormationIds.map(id => $dataFormations[id]);
 };
 
-Game_Party.prototype.changeFormation = function(newFormation) {
-    if (newFormation) {
-        const slotIndex = this._equipFormationIds.indexOf(newFormation.id);
-        if (slotIndex === -1) {
-            this._currentFormationSlot = 0;
-        } else {
-            this._currentFormationSlot = slotIndex;
-        }
-    } else {
-        this._currentFormationSlot = 0;
-    }
-};
-
 Game_Party.prototype.changeEquipFormations = function(slotIndex, targetFormation) {
     const equipFormationId = this._equipFormationIds[slotIndex];
     const hasFormationId = (targetFormation ? targetFormation.id : null);
@@ -1562,27 +1609,18 @@ Game_Party.prototype.changeCurrentSlot = function(slotIndex) {
     return true;
 };
 
-Game_Party.prototype.addFormation = function(formationId) {
-    return this._hasFormationIds.push(formationId);
-};
-
 
 // Battle formation.
 class Window_BattleFormationList extends Window_FormationList {
-    initialize(rect, actorSprites) {
+    initialize(rect) {
         super.initialize(rect);
         this.hide();
         this.deactivate();
         this.refresh();
-        this._formationController = new FormationController(actorSprites, "battle");
     }
 
     maxCols() {
         return 2;
-    }
-
-    resetFormationController(actorSprites) {
-        this._formationController.reset(actorSprites);
     }
 
     makeCommandList() {
@@ -1594,12 +1632,6 @@ class Window_BattleFormationList extends Window_FormationList {
 
     update() {
         super.update();
-        this._formationController.update();
-    }
-
-    changeFormation(newFormation, fast = false) {
-        this._formationController.changeFormation(newFormation, fast);
-        this._formationData = newFormation;
     }
 }
 
@@ -1610,10 +1642,28 @@ Sprite_Actor.prototype.setActorHome = function(index) {
     this.setHome(position.x + BattleFormationXOfs, position.y + BattleFormationYOfs);
 };
 
+Window_PartyCommand.prototype.insertCommand = function(index, name, symbol, enabled = true, ext = null) {
+    const command = { name: name, symbol: symbol, enabled: enabled, ext: ext };
+    this._list.splice(index, 0, command);
+};
+
 const _Window_PartyCommand_makeCommandList = Window_PartyCommand.prototype.makeCommandList;
 Window_PartyCommand.prototype.makeCommandList = function() {
     _Window_PartyCommand_makeCommandList.call(this);
-    if (EnabledBattleFormationChange) this.addCommand(Text.MenuFormationText, "battleFormation");
+    if (EnabledBattleFormationChange) this.insertCommand(1, Text.MenuFormationText, "battleFormation");
+};
+
+const _Scene_Battle_create = Scene_Battle.prototype.create;
+Scene_Battle.prototype.create = function() {
+    _Scene_Battle_create.call(this);
+    this._formationController = new FormationController(this._spriteset._actorSprites, "battle");
+    BattleManager.setFormationController(this._formationController);
+};
+
+const _Scene_Battle_update = Scene_Battle.prototype.update;
+Scene_Battle.prototype.update = function() {
+    _Scene_Battle_update.call(this);
+    this._formationController.update();
 };
 
 const _Scene_Battle_createPartyCommandWindow = Scene_Battle.prototype.createPartyCommandWindow;
@@ -1630,7 +1680,7 @@ Scene_Battle.prototype.createAllWindows = function() {
 
 Scene_Battle.prototype.createBattleFormationListWindow = function() {
     const rect = this.battleFormationListWindowRect();
-    this._battleFormationListWindow = new Window_BattleFormationList(rect, this._spriteset._actorSprites);
+    this._battleFormationListWindow = new Window_BattleFormationList(rect);
     this._battleFormationListWindow.setHelpWindow(this._helpWindow);
     this._battleFormationListWindow.setHandler("ok", this.onBattleFormationListOk.bind(this));
     this._battleFormationListWindow.setHandler("cancel", this.onBattleFormationListCancel.bind(this));
@@ -1643,6 +1693,8 @@ Scene_Battle.prototype.battleFormationListWindowRect = function() {
 };
 
 Scene_Battle.prototype.commandBattleFormation = function() {
+    this._formationController.reset(this._spriteset._actorSprites);
+    this._battleFormationListWindow.refresh();
     this.change_PartyCommandWindow_To_BattleFormationListWindow();
 }
 
@@ -1655,18 +1707,14 @@ Scene_Battle.prototype.onBattleFormationListCancel = function() {
 };
 
 Scene_Battle.prototype.onBattleFormationListSelect = function() {
-    FormationStateUtils.clearFormationEffect();
-    const formation = this._battleFormationListWindow.formation();
-    $gameParty.changeFormation(formation);
-    this._battleFormationListWindow.changeFormation(formation);  
-    FormationStateUtils.applyFormationEffect();
+    const slotIndex = this._battleFormationListWindow.index();
+    BattleManager.changeFormation(slotIndex);
 };
 
 Scene_Battle.prototype.change_PartyCommandWindow_To_BattleFormationListWindow = function() {
     this._partyCommandWindow.hide();
     this._partyCommandWindow.deactivate();
     this._helpWindow.show();
-    this._battleFormationListWindow.resetFormationController(this._spriteset._actorSprites);
     this._battleFormationListWindow.show();
     this._battleFormationListWindow.activate();
 };
@@ -1677,6 +1725,18 @@ Scene_Battle.prototype.change_BattleFormationListWindow_To_PartyCommandWindow = 
     this._battleFormationListWindow.deactivate();
     this._partyCommandWindow.show();
     this._partyCommandWindow.activate();
+};
+
+BattleManager.setFormationController = function(formationController) {
+    this._formationController = formationController;
+};
+
+BattleManager.changeFormation = function(slotIndex) {
+    FormationStateUtils.clearFormationEffect();
+    $gameParty.changeCurrentSlot(slotIndex);
+    const newFormation = $gameParty.currentFormation();
+    this._formationController.changeFormation(newFormation);
+    FormationStateUtils.applyFormationEffect();
 };
 
 
@@ -1733,7 +1793,11 @@ Game_Actor.prototype.applyFormationEffect = function() {
     if (!(SceneManager._scene instanceof Scene_Battle)) return;
     if (FormationStateUtils.isFormationInvalid()) return;
     const position = formation.position(this.actorId());
-    if (position.stateId) this.addState(position.stateId);
+    if (position.stateId && this.hp > 0) {
+        // revive直後はisAliveがtrueにならないためaddStateではなくaddNewStateを使用
+        // addStateで行う処理は陣形ステートには無関係のためaddNewStateで問題なし
+        this.addNewState(position.stateId);
+    }
 };
 
 Game_Actor.prototype.clearFormationEffect = function() {
@@ -1741,6 +1805,12 @@ Game_Actor.prototype.clearFormationEffect = function() {
     const formation = $gameParty.currentFormation();
     const position = formation.position(this.actorId());
     if (position.stateId) this.eraseState(position.stateId);
+};
+
+const _Game_Actor_revive = Game_Actor.prototype.revive;
+Game_Actor.prototype.revive = function() {
+    _Game_Actor_revive.call(this);
+    this.applyFormationEffect();
 };
 
 const _Game_Actor_clearStates = Game_Actor.prototype.clearStates;
@@ -1828,11 +1898,11 @@ class FormationMapLoader {
     loadMap(mapId) {
         this._response = null;
         const filename = "Map%1.json".format(mapId.padZero(3));
-        HttpRequest.get(`data/${filename}`, (res) => {
-            if (res.result === "error") {
+        HttpRequest.get(`data/${filename}`, { mimeType: "application/json" }, (res) => {
+            if (res.result() === "error") {
                 throw new Error(`Unknow file: ${filename}`);
-            } else if (res.status === 200) {
-                this._response = res.response;
+            } else if (res.status() === 200) {
+                this._response = res.response();
             } else {
                 throw new Error(`Load failed: ${filename}`);
             }
@@ -1883,6 +1953,22 @@ PluginManager.registerCommand(FormationSystemPluginName, "ForgetFormation", args
     const params = PluginParamsParser.parse(args, { FormationId: "number", VariableId: "number" });
     const formationId = (params.VariableId ? $gameVariables.value(params.VariableId) : params.FormationId);
     $gameParty.forgetFormation(formationId);
+});
+
+PluginManager.registerCommand(FormationSystemPluginName, "ChangeEquipFormations", args => {
+    const params = PluginParamsParser.parse(args, { EquipSlotIndex: "number", HasFormationId: "number" });
+    const equipSlotIndex = params.EquipSlotIndex;
+    const targetFormation = params.HasFormationId >= 0 ? $dataFormations[params.HasFormationId] : null;
+    $gameParty.changeEquipFormations(equipSlotIndex, targetFormation);
+});
+
+PluginManager.registerCommand(FormationSystemPluginName, "ChangeFormation", args => {
+    const params = PluginParamsParser.parse(args, { SlotIndex: "number" });
+    if ($gameParty.inBattle()) {
+        BattleManager.changeFormation(params.SlotIndex);
+    } else {
+        $gameParty.changeCurrentSlot(params.SlotIndex);
+    }
 });
 
 
