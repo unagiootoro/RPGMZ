@@ -1,10 +1,6 @@
 /*:
 @target MV MZ
-<<<<<<< HEAD
 @plugindesc アイテム合成プラグイン v1.2.2
-=======
-@plugindesc アイテム合成プラグイン v1.2.1
->>>>>>> b44ad28756e5fadc57611a5ad23f7deeae1c0b78
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -192,19 +188,11 @@ if (Utils.RPGMAKER_NAME === "MV") {
         this.contents.fillRect(x, y, width, height, outlineColor);
         this.contents.fillRect(x + 1, y + 1, width - 2, height - 2, mainColor);
     };
-<<<<<<< HEAD
 
     Window_Base.prototype.itemPadding = function() {
         return 8;
     };
 
-=======
-    
-    Window_Base.prototype.itemPadding = function() {
-        return 8;
-    };
-    
->>>>>>> b44ad28756e5fadc57611a5ad23f7deeae1c0b78
     Window_Selectable.prototype.itemRectWithPadding = function(index) {
         const rect = this.itemRect(index);
         const padding = this.itemPadding();
@@ -212,11 +200,7 @@ if (Utils.RPGMAKER_NAME === "MV") {
         rect.width -= padding * 2;
         return rect;
     };
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> b44ad28756e5fadc57611a5ad23f7deeae1c0b78
     Window_Selectable.prototype.itemLineRect = function(index) {
         const rect = this.itemRectWithPadding(index);
         const padding = (rect.height - this.lineHeight()) / 2;
@@ -252,21 +236,13 @@ if (Utils.RPGMAKER_NAME === "MV") {
     };
 
     Scene_MenuBase.prototype.mainAreaTop = function() {
-<<<<<<< HEAD
         return this.helpAreaHeight();;
-=======
-        return this.helpAreaHeight();
->>>>>>> b44ad28756e5fadc57611a5ad23f7deeae1c0b78
     };
 
     Scene_MenuBase.prototype.mainAreaBottom = function() {
         return this.mainAreaTop() + this.mainAreaHeight();
     };
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> b44ad28756e5fadc57611a5ad23f7deeae1c0b78
     Scene_MenuBase.prototype.mainAreaHeight = function() {
         return Graphics.boxHeight - this.helpAreaHeight();
     };
@@ -807,15 +783,11 @@ class Window_AlchemyNumber extends Window_ShopNumber {
             this.drawItemBackground(0);
             this.drawCurrentItemName();
         } else {
-<<<<<<< HEAD
             let width = this.innerWidth;
             const sign = "\u00d7";
             width = width - this.textWidth(sign) - this.itemPadding() * 2;
             width = width - this.cursorWidth() - this.itemPadding() * 2;
             this.drawItemName(this._item, 0, this.itemY(), width);
-=======
-            this.drawItemName(this._item, 0, this.itemY());
->>>>>>> b44ad28756e5fadc57611a5ad23f7deeae1c0b78
         }
         this.drawMultiplicationSign();
         this.drawNumber();
