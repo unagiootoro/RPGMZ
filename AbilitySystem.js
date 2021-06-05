@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.3.2
+@plugindesc Skill replacement system v1.4.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -104,6 +104,12 @@ Set the size of various windows.
 @default {"MenuAbilitySystemText": "Ability", "CostText": "Cost:", "EmptySlotText": "------"}
 @desc
 Sets the text used in the game.
+
+@param BackgroundImage
+@text Background image
+@type struct<BackgroundImage>
+@desc
+Specify the background image of the quest scene in the menu.
 
 
 @command StartAbilityScene
@@ -251,9 +257,52 @@ Specify the cost wording to be displayed on the ability management screen.
 */
 
 
+/*~struct~BackgroundImage:
+@param FileName
+@type file
+@default {"FileName": "", "BackgroundImage2": "[]", "BackgroundImage2XOfs": "240", "BackgroundImage2YOfs": "300"}
+@dir img
+@desc
+Specify the file name of the background image of the scene.
+
+@param BackgroundImage2
+@type struct <BackgroundImage2> []
+@default []
+@dir img
+@desc
+Specify the file name of the image to be added to the background image of the scene.
+
+@param BackgroundImage2XOfs
+@type number
+@ default 240
+@desc
+Specifies the X coordinate offset of the image to add to the background image of the scene.
+
+@param BackgroundImage2YOfs
+@type number
+@default 300
+@desc
+Specifies the Y coordinate offset of the image to add to the background image of the scene.
+*/
+
+/*~struct~BackgroundImage2:
+@param FileName
+@type file
+@dir img
+@desc
+Specify the file name of the background image of the scene.
+
+@param ActorId
+@type actor
+@desc
+Specify the actor ID.
+*/
+
+
+
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.3.2
+@plugindesc スキル付け替えシステム v1.4.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -357,6 +406,12 @@ Specify the cost wording to be displayed on the ability management screen.
 @default {"MenuAbilitySystemText":"アビリティ","CostText":"コスト：","EmptySlotText":"------"}
 @desc
 ゲーム中で使用されるテキストを設定します。
+
+@param BackgroundImage
+@text メニュー背景画像
+@type struct<BackgroundImage>
+@desc
+シーンの背景画像を指定します。
 
 
 @command StartAbilityScene
@@ -503,6 +558,48 @@ Specify the cost wording to be displayed on the ability management screen.
 @desc 空欄のテキストを指定します。
 */
 
+
+/*~struct~BackgroundImage:
+@param FileName
+@type file
+@default {"FileName":"","BackgroundImage2":"[]","BackgroundImage2XOfs":"240","BackgroundImage2YOfs":"300"}
+@dir img
+@desc
+シーンの背景画像のファイル名を指定します。
+
+@param BackgroundImage2
+@type struct<BackgroundImage2>[]
+@default []
+@dir img
+@desc
+シーンの背景画像に追加する画像のファイル名を指定します。
+
+@param BackgroundImage2XOfs
+@type number
+@default 240
+@desc
+シーンの背景画像に追加する画像のX座標オフセットを指定します。
+
+@param BackgroundImage2YOfs
+@type number
+@default 300
+@desc
+シーンの背景画像に追加する画像のY座標オフセットを指定します。
+*/
+
+/*~struct~BackgroundImage2:
+@param FileName
+@type file
+@dir img
+@desc
+シーンの背景画像のファイル名を指定します。
+
+@param ActorId
+@type actor
+@desc
+アクターIDを指定します。
+*/
+
 const AbilitySystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
 
 const AbilitySystemClassAlias = (() => {
@@ -536,6 +633,7 @@ class PluginParamsParser {
     }
 
     convertParam(param, type, loopCount) {
+        if (param == null || param === "") return null;
         if (typeof type === "string") {
             return this.cast(param, type);
         } else if (typeof type === "object" && type instanceof Array) {
@@ -585,6 +683,9 @@ const typeDefine = {
     EquipAbilitySe: {},
     WindowSize: {},
     Text: {},
+    BackgroundImage: {
+        BackgroundImage2: [{}]
+    },
 };
 
 const params = PluginParamsParser.parse(PluginManager.parameters(AbilitySystemPluginName), typeDefine);
@@ -597,6 +698,7 @@ const EnableCost = params.EnableCost;
 const EquipAbilitySe = params.EquipAbilitySe;
 const WindowSize = params.WindowSize;
 const Text = params.Text;
+const BackgroundImage = params.BackgroundImage;
 
 class AbilitySystemUtils {
     static getSkillCost(skillId) {
@@ -640,6 +742,26 @@ class Scene_Ability extends Scene_MenuBase {
         this.createStatusAbilityWindow();
     }
 
+    isReady() {
+        const result = super.isReady();
+        if (!result) return false;
+        if (BackgroundImage) {
+            if (BackgroundImage.FileName) {
+                const backgroundImage1 = ImageManager.loadBitmap("img/", BackgroundImage.FileName);
+                if (!backgroundImage1.isReady()) return false;
+            }
+            if (BackgroundImage.BackgroundImage2) {
+                for (const img2 of BackgroundImage.BackgroundImage2) {
+                    if (img2.FileName) {
+                        const backgroundImage2 = ImageManager.loadBitmap("img/", img2.FileName);
+                        if (!backgroundImage2.isReady()) return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     start() {
         super.start();
         this.updateActor();
@@ -660,6 +782,49 @@ class Scene_Ability extends Scene_MenuBase {
         this._windowEquipAbilities.select(0);
         this._windowHasAbilities.deactivate();
         this._windowHasAbilities.deselect();
+    }
+
+    createBackground() {
+        this._backgroundSprite = new Sprite();
+        if (BackgroundImage && BackgroundImage.FileName) {
+            const bitmap1 = ImageManager.loadBitmap("img/", BackgroundImage.FileName);
+            this._backgroundSprite.bitmap = bitmap1;
+            const sprite = new Sprite();
+            sprite.x = BackgroundImage.BackgroundImage2XOfs;
+            sprite.y = BackgroundImage.BackgroundImage2YOfs;
+            this._backgroundSprite.addChild(sprite);
+            this._backgroundSprite2 = sprite;
+            this.addChild(this._backgroundSprite);
+        } else {
+            this._backgroundFilter = new PIXI.filters.BlurFilter();
+            this._backgroundSprite.bitmap = SceneManager.backgroundBitmap();
+            this._backgroundSprite.filters = [this._backgroundFilter];
+            this.addChild(this._backgroundSprite);
+            this.setBackgroundOpacity(192);
+        }
+    }
+
+    getBackgroundImage2(actorId) {
+        if (BackgroundImage.BackgroundImage2) {
+            const img2 = BackgroundImage.BackgroundImage2.find(img2 => img2.ActorId === actorId);
+            if (img2) return ImageManager.loadBitmap("img/", img2.FileName);
+        }
+        return null;
+    }
+
+    updateActor() {
+        super.updateActor();
+        this.updateBackgroundImage2();
+    }
+
+    updateBackgroundImage2() {
+        if (!this._backgroundSprite2) return;
+        const backgroundImage2 = this.getBackgroundImage2($gameParty.menuActor().actorId());
+        if (backgroundImage2) {
+            this._backgroundSprite2.bitmap = backgroundImage2;
+        } else {
+            this._backgroundSprite2.bitmap = null;
+        }
     }
 
     createEquipAbilitiesWindow() {
