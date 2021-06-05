@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.5.4
+@plugindesc Dot movement system v1.6.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -31,7 +31,8 @@ By writing, you can move the event in the direction of the player in dot units.
 In the travel route script
 this.moveToTarget(X coordinate, Y coordinate);
 You can move it toward the specified coordinates by writing.
-(If it collides with a wall etc. on the way, the arrival coordinates will shift.)
+※1 If it collides with a wall etc. on the way, the arrival coordinates will shift.
+※2 The movement with respect to the specified coordinates is performed with the upper left of the character as the origin.
 
 ■ Event contact judgment settings
 Annotate the very first event command on the EV page on the first page of the event
@@ -53,7 +54,7 @@ If neither the horizontal axis nor the vertical axis is set, 0.5 will be applied
 Annotate the very first event command on the EV page on the first page of the event
 You can set the size of the event in more detail by including the following in the annotation.
 ・ Horizontal size
-<width: width (real number greater than 0>
+<width: width (real number greater than 0)>
 
 ・ Vertical size
 <height: height (real number greater than 0)>
@@ -72,13 +73,23 @@ You need to adjust the display offset.
 <offsetX: 0.5>
 <offsetY: 1>
 
+■ Other functions that can be used in scripts
+Game_CharacterBase#isMoved()
+Gets whether the character has moved into that frame.
+
+Game_CharacterBase#calcFar(targetCharacter)
+Gets the distance between the characters. The origin of the distance calculation uses the center point.
+
+Game_CharacterBase#calcDeg(targetCharacter)
+Gets the angle to the target character. The origin of the angle calculation uses the center point.
+
 【License】
 This plugin is available under the terms of the MIT license.
 */
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.5.4
+@plugindesc ドット移動システム v1.6.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -109,7 +120,8 @@ this.dotMoveToPlayer();
 移動ルートのスクリプトで
 this.moveToTarget(X座標, Y座標);
 と記載することで、指定した座標に向けて移動させることができます。
-(途中で壁などに衝突した場合は到達座標がずれます。)
+※1 途中で壁などに衝突した場合は到達座標がずれます。
+※2 指定の座標に対する移動はキャラクターの左上を原点として行います。
 
 ■イベント接触判定の設定
 イベントの1ページ目のEVページの一番最初のイベントコマンドを注釈にしたうえで、
@@ -150,6 +162,16 @@ this.moveToTarget(X座標, Y座標);
 <offsetX: 0.5>
 <offsetY: 1>
 
+■その他スクリプトで使用可能な関数
+Game_CharacterBase#isMoved()
+キャラクターがそのフレーム中に移動したか否かを取得します。
+
+Game_CharacterBase#calcFar(targetCharacter)
+キャラクター間の距離を取得します。距離計算の原点は中心点を使用します。
+
+Game_CharacterBase#calcDeg(targetCharacter)
+ターゲットのキャラクターに対する角度を取得します。角度計算の原点は中心点を使用します。
+
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
@@ -159,75 +181,74 @@ const DotMoveSystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)
 const DotMoveSystemClassAlias = (() => {
 "use strict";
 
-const PLAYER_SLIDE_LENGTH = 0.5;
-const EVENT_SLIDE_LENGTH = 0.5;
-const FOLLOWER_SLIDE_LENGTH = 0.75;
-
 const DIALOG_COST = 1 / Math.sin(Math.PI / 4);
 
 class EventParamParser {
     static getWidth(event) {
         let width = 1;
-        let noteWidth = this.getNoteValue(event, "width");
+        let noteWidth = this.getAnnotationValue(event, "width");
         if (noteWidth != null) width = parseFloat(noteWidth);
         return width;
     }
 
     static getHeight(event) {
         let height = 1;
-        let noteHeight = this.getNoteValue(event, "height");
+        let noteHeight = this.getAnnotationValue(event, "height");
         if (noteHeight != null) height = parseFloat(noteHeight);
         return height;
     }
 
     static getOffsetX(event) {
         let offsetX = 0;
-        let noteOffsetX = this.getNoteValue(event, "offsetX");
+        let noteOffsetX = this.getAnnotationValue(event, "offsetX");
         if (noteOffsetX != null) offsetX = parseFloat(noteOffsetX);
         return offsetX;
     }
 
     static getOffsetY(event) {
         let offsetY = 0;
-        let noteOffsetY = this.getNoteValue(event, "offsetY");
+        let noteOffsetY = this.getAnnotationValue(event, "offsetY");
         if (noteOffsetY != null) offsetY = parseFloat(noteOffsetY);
         return offsetY;
     }
 
     static getWidthArea(event) {
         let widthArea = 0.5;
-        let noteWidthArea = this.getNoteValue(event, "widthArea");
+        let noteWidthArea = this.getAnnotationValue(event, "widthArea");
         if (noteWidthArea != null) widthArea = parseFloat(noteWidthArea);
         return widthArea;
     }
 
     static getHeightArea(event) {
         let heightArea = 0.5;
-        let noteHeightArea = this.getNoteValue(event, "heightArea");
+        let noteHeightArea = this.getAnnotationValue(event, "heightArea");
         if (noteHeightArea != null) heightArea = parseFloat(noteHeightArea);
         return heightArea;
     }
 
-    static getNoteValue(event, name) {
-        const note = this.getNote(event);
+    static getAnnotationValue(event, name) {
+        const note = this.getAnnotation(event);
         const data = { note: note };
         DataManager.extractMetadata(data);
         if (data.meta[name]) return data.meta[name];
         return null;
     }
 
-    static getNote(event) {
-        const noteLines = [];
-        const page0List = event.event().pages[0].list;
-        if (page0List.length > 0 && page0List[0].code === 108) {
-            for (let i = 0; i < page0List.length; i++) {
-                if (page0List[0].code === 108 || page0List[0].code === 408) {
-                    noteLines.push(page0List[i].parameters[0]);
-                } else {
-                    break;
+    static getAnnotation(event) {
+        const eventData = event.event();
+        if (eventData) {
+            const noteLines = [];
+            const page0List = eventData.pages[0].list;
+            if (page0List.length > 0 && page0List[0].code === 108) {
+                for (let i = 0; i < page0List.length; i++) {
+                    if (page0List[0].code === 108 || page0List[0].code === 408) {
+                        noteLines.push(page0List[i].parameters[0]);
+                    } else {
+                        break;
+                    }
                 }
+                return noteLines.join("\n");
             }
-            return noteLines.join("\n");
         }
         return "";
     };
@@ -633,7 +654,7 @@ class CharacterCollisionChecker {
         if (x1 === x2) return [];
         if (!(this.checkMass(x1, y1, 4) && this.checkMass(x2, y1, 6))) {
             let massRect;
-            if (x - x1 > 0.5) {
+            if (x - x1 > this._character.minTouchWidth()) {
                 massRect = { x: x1, y: y1, width: 1, height: 1 };
             } else {
                 massRect = { x: x2, y: y1, width: 1, height: 1 };
@@ -650,7 +671,7 @@ class CharacterCollisionChecker {
         if (y1 === y2) return [];
         if (!(this.checkMass(x1, y1, 8) && this.checkMass(x1, y2, 2))) {
             let massRect;
-            if (y - y1 > 0.5) {
+            if (y - y1 > this._character.minTouchHeight()) {
                 massRect = { x: x1, y: y1, width: 1, height: 1 };
             } else {
                 massRect = { x: x1, y: y2, width: 1, height: 1 };
@@ -1105,7 +1126,7 @@ class CharacterController {
             const diagDis = target[axis] < collisionResults[0].collisionRect[axis] ? this.calcDistance(deg1) : this.calcDistance(deg2);
             if (len < Math.abs(diagDis[axis])) {
                 newDis[axis] = diagDis[axis] < 0 ? -len : len;
-            } else if (len < this.slideLength()) {
+            } else if (len < this.getSlideLength(axis)) {
                 newDis[axis] = diagDis[axis];
             } else {
                 return newDis;
@@ -1144,8 +1165,20 @@ class CharacterController {
         return this._collisionChecker.checkCollision(x, y, dir);
     }
 
-    slideLength() {
-        return 0;
+    slideLengthX() {
+        return this._character.minTouchWidth();
+    }
+
+    slideLengthY() {
+        return this._character.minTouchHeight();
+    }
+
+    getSlideLength(axis) {
+        if (axis === "x") {
+            return this.slideLengthX();
+        } else {
+            return this.slideLengthY();
+        }
     }
 
     initMapEventCache() {
@@ -1161,19 +1194,11 @@ class PlayerController extends CharacterController {
     constructor(character) {
         super(character, new PlayerCollisionChecker(character));
     }
-
-    slideLength() {
-        return PLAYER_SLIDE_LENGTH;
-    }
 }
 
 class EventController extends CharacterController {
     constructor(character) {
         super(character, new EventCollisionChecker(character));
-    }
-
-    slideLength() {
-        return EVENT_SLIDE_LENGTH;
     }
 }
 
@@ -1182,8 +1207,14 @@ class FollowerController extends CharacterController {
         super(character, new FollowerCollisionChecker(character));
     }
 
-    slideLength() {
-        return FOLLOWER_SLIDE_LENGTH;
+    slideLengthX() {
+        const len = super.slideLengthX();
+        return len + len / 2;
+    }
+
+    slideLengthY() {
+        const len = super.slideLengthY();
+        return len + len / 2;
     }
 }
 
@@ -1194,34 +1225,29 @@ class CharacterMover {
     constructor(character) {
         this._character = character;
         this._controller = new CharacterController(character, new CharacterCollisionChecker(character));
+        this._moverData = character.moverData();
         this._width = 1;
         this._height = 1;
         this._offsetX = 0;
         this._offsetY = 0;
-        this._targetCount = 0;
-        this._moving = false;
-        this._setThroughReserve = null;
-        this._setMoveSpeedReserve = null;
-        this._moveDeg = null;
-        this._moveDir = null;
-        this._gatherStart = false;
     }
 
     update() {
-        if (this._targetCount > 0) {
+        this.clearMovedFlagFromCharacterMoverUpdate();
+        if (this._moverData.targetCount > 0) {
             this.moveProcess();
         }
-        if (this._targetCount === 0) {
-            this._moving = false;
-            this._moveDeg = null;
-            this._moveDir = null;
-            if (this._setThroughReserve != null) {
-                this._character._through = this._setThroughReserve;
-                this._setThroughReserve = null;
+        if (this._moverData.targetCount === 0) {
+            this._moverData.moving = false;
+            this._moverData.moveDeg = null;
+            this._moverData.moveDir = null;
+            if (this._moverData.setThroughReserve != null) {
+                this._character._through = this._moverData.setThroughReserve;
+                this._moverData.setThroughReserve = null;
             }
-            if (this._setMoveSpeedReserve != null) {
-                this._character._moveSpeed = this._setMoveSpeedReserve;
-                this._setMoveSpeedReserve = null;
+            if (this._moverData.setMoveSpeedReserve != null) {
+                this._character._moveSpeed = this._moverData.setMoveSpeedReserve;
+                this._moverData.setMoveSpeedReserve = null;
             }
             this._character.refreshBushDepth();
         }
@@ -1247,45 +1273,55 @@ class CharacterMover {
         return this._controller.checkCharacter(x, y, direction, character);
     }
 
+    // Game_Player#updateでCharacterMover#updateがGame_Player#moveByInputの後にコールされるため移動済みフラグのクリアをメソッド化する
+    clearMovedFlagFromCharacterMoverUpdate() {
+        this.clearMovedFlag();
+    }
+
+    clearMovedFlag() {
+        this._moverData.moved = false;
+    }
+
     // 移動が行われた場合、ここで毎フレーム移動処理を行う
     moveProcess() {
         let moved;
-        if (this._targetCount === 0) return;
-        if (this._moveDeg != null) {
-            moved = this._controller.dotMoveByDeg(this._moveDeg);
+        if (this._moverData.targetCount === 0) return;
+        if (this._moverData.moveDeg != null) {
+            moved = this._controller.dotMoveByDeg(this._moverData.moveDeg);
         } else {
-            moved = this._controller.dotMoveByDirection(this._moveDir);
+            moved = this._controller.dotMoveByDirection(this._moverData.moveDir);
         }
         if (moved) {
-            this._moving = true;
+            this._moverData.moved = true;
+            this._moverData.moving = true;
             this._character.setMovementSuccess(true);
             this._character.incrementTotalDpf();
-            if (this._targetCount > 0) this._targetCount--;
+            if (this._moverData.targetCount > 0) this._moverData.targetCount--;
         } else {
             this._character.setMovementSuccess(false);
             this._character.checkEventTriggerTouchFront(this._character._direction);
-            this._moving = false;
-            this._targetCount = 0;
+            this._moverData.moving = false;
+            this._moverData.targetCount = 0;
         }
     }
 
     startMassMove(fromPoint, targetPoint) {
         const far = DotMoveUtils.calcFar(fromPoint, targetPoint);
-        this._targetCount = Math.round(far / this._character.distancePerFrame());
+        this._moverData.targetCount = Math.round(far / this._character.distancePerFrame());
         this.moveProcess();
     }
 
     dotMoveByDirection(direction) {
         this.setDirection(direction);
-        this._targetCount = 1;
-        this._moveDir = direction;
+        this._moverData.targetCount = 1;
+        this._moverData.moveDir = direction;
         this.moveProcess();
     }
 
     dotMoveByDeg(deg) {
         this.setDirection(DotMoveUtils.deg2direction4(deg, this._character.direction()));
-        this._targetCount = 1;
-        this._moveDeg = deg;
+        this._moverData.targetCount = 1;
+        this._moverData.moveDeg = deg;
         this.moveProcess();
     }
 
@@ -1299,7 +1335,11 @@ class CharacterMover {
     }
 
     isMoving() {
-        return this._moving;
+        return this._moverData.moving;
+    }
+
+    isMoved() {
+        return this._moverData.moved;
     }
 
     moveByDirection(d, moveUnit) {
@@ -1314,7 +1354,7 @@ class CharacterMover {
     moveStraight(d, moveUnit) {
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
         const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d, moveUnit);
-        this._moveDir = d;
+        this._moverData.moveDir = d;
         this.setDirection(d);
         this.startMassMove(fromPoint, targetPoint);
     }
@@ -1327,23 +1367,23 @@ class CharacterMover {
             this.setDirection(vert);
         }
         if (vert === 8 && horz === 6) {
-            this._moveDir = 9;
+            this._moverData.moveDir = 9;
         } else if (vert === 2 && horz === 6) {
-            this._moveDir = 3;
+            this._moverData.moveDir = 3;
         } else if (vert === 2 && horz === 4) {
-            this._moveDir = 1;
+            this._moverData.moveDir = 1;
         } else if (vert === 8 && horz === 4) {
-            this._moveDir = 7;
+            this._moverData.moveDir = 7;
         }
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
-        const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._moveDir, moveUnit);
+        const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._moverData.moveDir, moveUnit);
         this.startMassMove(fromPoint, targetPoint);
     }
 
     moveToTarget(targetPoint) {
         const fromPoint = { x: this._character._realX, y: this._character._realY };
         const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
-        this._moveDeg = deg;
+        this._moverData.moveDeg = deg;
         const dir = DotMoveUtils.deg2direction4(deg);
         this.setDirection(dir);
         this.startMassMove(fromPoint, targetPoint);
@@ -1354,7 +1394,7 @@ class CharacterMover {
         if (!this.isMoving()) {
             this._character._through = through;
         } else {
-            this._setThroughReserve = through;
+            this._moverData.setThroughReserve = through;
         }
     }
 
@@ -1363,7 +1403,7 @@ class CharacterMover {
         if (!this.isMoving()) {
             this._character._moveSpeed = moveSpeed;
         } else {
-            this._setMoveSpeedReserve = moveSpeed;
+            this._moverData.setMoveSpeedReserve = moveSpeed;
         }
     };
 }
@@ -1372,6 +1412,10 @@ class PlayerMover extends CharacterMover {
     constructor(character) {
         super(character);
         this._controller = new PlayerController(character);
+    }
+
+    // CharacterMover#updateで移動済みフラグがクリアされないようにする
+    clearMovedFlagFromCharacterMoverUpdate() {
     }
 }
 
@@ -1454,6 +1498,14 @@ Game_CharacterBase.prototype.initMembers = function() {
     _Game_CharacterBase_initMembers.call(this);
     this._totalDpf = 0; // 歩数計算のために使用
     this._moveUnit = 1; // 移動単位
+    this._moverData = {}; // CharacterMoverのデータのうちセーブデータに保持する必要のあるものを持たせる
+    this._moverData.moved = false;
+    this._moverData.targetCount = 0;
+    this._moverData.moving = false;
+    this._moverData.setThroughReserve = null;
+    this._moverData.setMoveSpeedReserve = null;
+    this._moverData.moveDeg = null;
+    this._moverData.moveDir = null;
 };
 
 Game_CharacterBase.prototype.makeMover = function() {
@@ -1462,6 +1514,10 @@ Game_CharacterBase.prototype.makeMover = function() {
 
 Game_CharacterBase.prototype.mover = function() {
     return $gameTemp.mover(this);
+};
+
+Game_CharacterBase.prototype.moverData = function() {
+    return this._moverData;
 };
 
 const _Game_CharacterBase_update = Game_CharacterBase.prototype.update;
@@ -1476,6 +1532,10 @@ Game_CharacterBase.prototype.updateMove = function() {
 
 Game_CharacterBase.prototype.isMoving = function() {
     return this.mover().isMoving();
+};
+
+Game_CharacterBase.prototype.isMoved = function() {
+    return this.mover().isMoved();
 };
 
 Game_CharacterBase.prototype.moveUnit = function() {
@@ -1546,6 +1606,26 @@ Game_CharacterBase.prototype.offsetY = function() {
     return this.mover().offsetY();
 };
 
+Game_CharacterBase.prototype.centerRealX = function() {
+    return this._realX + this.width() / 2;
+};
+
+Game_CharacterBase.prototype.centerRealY = function() {
+    return this._realY + this.height() / 2;
+};
+
+// タッチ幅(キャラクターとのタッチ判定に必要な幅)を取得する。
+// タッチ幅はキャラクターのスライドやイベント起動用の衝突判定に使用する。
+Game_CharacterBase.prototype.minTouchWidth = function() {
+    const width = this.width();
+    return width >= 1 ? 0.5 : width / 2;
+};
+
+Game_CharacterBase.prototype.minTouchHeight = function() {
+    const height = this.height();
+    return height >= 1 ? 0.5 : height / 2;
+};
+
 // スクロール座標にオフセットを反映させる
 Game_CharacterBase.prototype.scrolledX = function() {
     return $gameMap.adjustX(this._realX + this.offsetX());
@@ -1586,6 +1666,18 @@ Game_CharacterBase.prototype.isCollidedWithEvents = function(x, y) {
         }
     }
     return false;
+};
+
+Game_CharacterBase.prototype.calcDeg = function(targetCharacter) {
+    const fromPoint = { x: this.centerRealX(), y: this.centerRealY() };
+    const targetPoint = { x: targetCharacter.centerRealX(), y: targetCharacter.centerRealY() };
+    return DotMoveUtils.calcDeg(fromPoint, targetPoint);
+};
+
+Game_CharacterBase.prototype.calcFar = function(targetCharacter) {
+    const fromPoint = { x: this.centerRealX(), y: this.centerRealY() };
+    const targetPoint = { x: targetCharacter.centerRealX(), y: targetCharacter.centerRealY() };
+    return DotMoveUtils.calcFar(fromPoint, targetPoint);
 };
 
 
@@ -1779,9 +1871,7 @@ Game_Character.prototype.moveByDirection = function(direction) {
 };
 
 Game_Character.prototype.dotMoveToPlayer = function() {
-    const fromPoint = { x: this._realX, y: this._realY };
-    const targetPoint = { x: $gamePlayer._realX, y: $gamePlayer._realY };
-    const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
+    const deg = this.calcDeg($gamePlayer);
     this.dotMoveByDeg(deg);
 };
 
@@ -1831,6 +1921,7 @@ Game_Character.prototype.moveAwayFromCharacter = function(character) {
 };
 
 Game_Character.prototype.turnTowardCharacter = function(character) {
+    if (this.x === character.x && this.y === character.y) return;
     const sx = this.deltaRealXFrom(character._realX);
     const sy = this.deltaRealYFrom(character._realY);
     if (Math.abs(sx) > Math.abs(sy)) {
@@ -1841,6 +1932,7 @@ Game_Character.prototype.turnTowardCharacter = function(character) {
 };
 
 Game_Character.prototype.turnAwayFromCharacter = function(character) {
+    if (this.x === character.x && this.y === character.y) return;
     const sx = this.deltaRealXFrom(character._realX);
     const sy = this.deltaRealYFrom(character._realY);
     if (Math.abs(sx) > Math.abs(sy)) {
@@ -1849,7 +1941,6 @@ Game_Character.prototype.turnAwayFromCharacter = function(character) {
         this.setDirection(sy > 0 ? 2 : 8);
     }
 };
-
 
 
 const _Game_Player_initMembers = Game_Player.prototype.initMembers;
@@ -1884,20 +1975,12 @@ Game_Player.prototype.getInputDirection = function() {
     return Input.dir8;
 };
 
-Game_Player.prototype.getInputDeg = function() {
-    return null;
-};
-
 Game_Player.prototype.moveByInput = function() {
     if (!this.isMoving() && this.canMove()) {
         let direction = this.getInputDirection();
-        let deg = this.getInputDeg();
         if (direction > 0) {
             $gameTemp.clearDestination();
             this.executeMove(direction);
-        } else if (deg != null) {
-            $gameTemp.clearDestination();
-            this.dotMoveByDeg(deg);
         } else if ($gameTemp.isDestinationValid()) {
             const x = $gameTemp.destinationX();
             const y = $gameTemp.destinationY();
@@ -1936,6 +2019,7 @@ Game_Player.prototype.forceMoveOffAirship = function() {
 };
 
 Game_Player.prototype.update = function(sceneActive) {
+    this.mover().clearMovedFlag();
     const lastScrolledX = this.scrolledX();
     const lastScrolledY = this.scrolledY();
     this.updateDashing();
@@ -2044,20 +2128,21 @@ Game_Player.prototype.checkRideVehicles = function() {
     if (airship._mapId === $gameMap.mapId() && !airship.isThrough()) {
         airshipResult = this.mover().checkCharacter(x1, y1, dir, airship);
     }
-    if (airshipResult && airshipResult.collisionLengthX() >= 0.5 && airshipResult.collisionLengthY() >= 0.5) {
+    if (airshipResult && airshipResult.collisionLengthX() >= this.minTouchWidth() && airshipResult.collisionLengthY() >= this.minTouchHeight()) {
         return "airship";
     } else {
         const axis = dir === 8 || dir === 2 ? "x" : "y";
+        const minTouchWidthOrHeight = axis === "x" ? this.minTouchWidth() : this.minTouchHeight();
         if (ship._mapId === $gameMap.mapId() && !ship.isThrough()) {
             shipResult = this.mover().checkCharacter(x2, y2, dir, ship);
         }
-        if (shipResult && shipResult.getCollisionLength(axis) >= 0.5) {
+        if (shipResult && shipResult.getCollisionLength(axis) >= minTouchWidthOrHeight) {
             return "ship";
         } else {
             if (boat._mapId === $gameMap.mapId() && !boat.isThrough()) {
                 boatResult = this.mover().checkCharacter(x2, y2, dir, boat);
             }
-            if (boatResult && boatResult.getCollisionLength(axis) >= 0.5) {
+            if (boatResult && boatResult.getCollisionLength(axis) >= minTouchWidthOrHeight) {
                 return "boat";
             }
         }
@@ -2180,7 +2265,8 @@ Game_Player.prototype.startMapEventFront = function(x, y, d, triggers, normal) {
             const result = this.mover().checkCharacter(x2, y2, d, event);
             const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
             if (!result) continue;
-            if (result.getCollisionLength(axis) >= event.widthArea()) {
+            const area = axis === "x" ? event.widthArea() : event.heightArea();
+            if (result.getCollisionLength(axis) >= area) {
                 if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
                     event.start();
                 }
@@ -2247,7 +2333,8 @@ Game_Event.prototype.checkEventTriggerTouchFront = function(d) {
         const y = this._realY + dis.y;
         const result = this.mover().checkCharacter(x, y, d, $gamePlayer);
         const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
-        if (result && result.getCollisionLength(axis) >= 0.5) {
+        const minTouchWidthOrHeight = axis === "x" ? this.minTouchWidth() : this.minTouchHeight();
+        if (result && result.getCollisionLength(axis) >= minTouchWidthOrHeight) {
             if (!this.isJumping() && this.isNormalPriority()) {
                 this.start();
             }
@@ -2260,7 +2347,8 @@ Game_Event.prototype.checkEventTriggerTouch = function(x, y) {
     if (this._trigger === 2) {
         const result = this.mover().checkCharacter(x, y, this._direction, $gamePlayer);
         const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
-        if (result && result.getCollisionLength(axis) >= 0.5) {
+        const minTouchWidthOrHeight = axis === "x" ? this.minTouchWidth() : this.minTouchHeight();
+        if (result && result.getCollisionLength(axis) >= minTouchWidthOrHeight) {
             if (!this.isJumping() && this.isNormalPriority()) {
                 this.start();
             }
@@ -2268,12 +2356,6 @@ Game_Event.prototype.checkEventTriggerTouch = function(x, y) {
     }
 };
 
-
-const _Game_Follower_initMembers = Game_Follower.prototype.initMembers;
-Game_Follower.prototype.initMembers = function() {
-    _Game_Follower_initMembers.call(this);
-    this._moveSpeed = 4;
-};
 
 if (Utils.RPGMAKER_NAME === "MV") {
     Game_Followers.prototype.data = function() {
@@ -2309,10 +2391,8 @@ Game_Follower.prototype.update = function() {
 };
 
 Game_Follower.prototype.chaseCharacter = function(character) {
-    const realFromPoint = { x: this._realX, y: this._realY };
-    const realTargetPoint = { x: character._realX, y: character._realY };
-    const deg = DotMoveUtils.calcDeg(realFromPoint, realTargetPoint);
-    const far = DotMoveUtils.calcFar(realFromPoint, realTargetPoint);
+    const deg = this.calcDeg(character);
+    const far = this.calcFar(character);
     if (far >= 1) {
         if (far >= 4) {
             // 前のキャラとの距離が4以上離れている場合はすり抜けを行う
@@ -2334,9 +2414,7 @@ Game_Follower.prototype.gatherCharacter = function(character) {
         this.setThrough(false);
     } else {
         this.setMoveSpeed($gamePlayer.moveSpeed());
-        const realFromPoint = { x: this._realX, y: this._realY };
-        const realTargetPoint = { x: character._realX, y: character._realY };
-        const deg = DotMoveUtils.calcDeg(realFromPoint, realTargetPoint);
+        const deg = this.calcDeg(character);
         this.dotMoveByDeg(deg);
     }
 };
@@ -2401,14 +2479,14 @@ Game_Followers.prototype.areGathering = function() {
     return _Game_Followers_areGathering.call(this);
 };
 
-const _Game_Followers_areGathered = Game_Followers.prototype.areGathered;
 Game_Followers.prototype.areGathered = function() {
     // 600フレーム経過してもgatherが終了しない場合、フリーズ回避のために強制的にgatherを終了する
     if (this._gatherCount >= 600) {
         this._gatherCount = 0;
         return true;
     }
-    return _Game_Followers_areGathered.call(this);
+    // MVにはGame_Follower#isGatheredがないため再定義する
+    return this.visibleFollowers().every(follower => follower.isGathered());
 };
 
 
