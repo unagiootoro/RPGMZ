@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.6.0
+@plugindesc Dot movement system v1.6.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.6.0
+@plugindesc ドット移動システム v1.6.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -1498,7 +1498,12 @@ Game_CharacterBase.prototype.initMembers = function() {
     _Game_CharacterBase_initMembers.call(this);
     this._totalDpf = 0; // 歩数計算のために使用
     this._moveUnit = 1; // 移動単位
-    this._moverData = {}; // CharacterMoverのデータのうちセーブデータに保持する必要のあるものを持たせる
+    this.initMoverData();
+};
+
+// CharacterMoverのデータのうちセーブデータに保持する必要のあるものを持たせる
+Game_CharacterBase.prototype.initMoverData = function() {
+    this._moverData = {}; 
     this._moverData.moved = false;
     this._moverData.targetCount = 0;
     this._moverData.moving = false;
@@ -1517,6 +1522,7 @@ Game_CharacterBase.prototype.mover = function() {
 };
 
 Game_CharacterBase.prototype.moverData = function() {
+    if (this._moverData  == null) this.initMoverData();
     return this._moverData;
 };
 
