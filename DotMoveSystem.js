@@ -251,7 +251,7 @@ class EventParamParser {
             }
         }
         return "";
-    };
+    }
 }
 
 class DotMoveUtils {
