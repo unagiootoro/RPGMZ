@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc リングコマンドメニュー v1.1.0
+@plugindesc リングコマンドメニュー v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/RingCommandMenu.js
 @help
@@ -38,6 +38,13 @@ subMenu: サブコマンドの一覧を開く
 @default []
 @desc
 アクター選択のアクターコマンドを指定します。
+
+@param SaveCommandText
+@text セーブコマンドテキスト
+@type string
+@default セーブ
+@desc
+セーブコマンドのテキストを指定します。このパラメータはコマンドがセーブコマンドか否かの判定に使用します。
 
 @param OpenSe
 @text 開始SE
@@ -425,6 +432,13 @@ class RingCommandData {
         this._subCommands = subCommands;
         this._internalIndex = internalIndex;
     }
+
+    isEnabled() {
+        if (this._text === PP.SaveCommandText) {
+            return $gameSystem.isSaveEnabled();
+        }
+        return true;
+    }
 }
 
 PP.MainMenuCommands.forEach((param, i) => {
@@ -537,7 +551,16 @@ class Sprite_RingCommand extends Sprite_ClickableMVMZ {
 
     update() {
         super.update();
+        this.updateOpacity();
         if (this._targetDegPlus != null) this.updateRotation();
+    }
+
+    updateOpacity() {
+        if (this._data.isEnabled()) {
+            this.opacity = 255;
+        } else {
+            this.opacity = 128;
+        }
     }
 
     updateRotation() {
@@ -1087,13 +1110,21 @@ class RingCommandManager {
             const actor = $gameParty.members()[data.internalIndex];
             $gameParty.setMenuActor(actor);
             const subjectData = this._holdDataStatus[this._holdDataStatus.length - 2].currentData();
-            eval(subjectData.script);
+            this.evaluateData(subjectData);
             break;
         case "normal":
-            eval(data.script);
+            this.evaluateData(data);
             break;
         }
         return commandType;
+    }
+
+    evaluateData(data) {
+        if (data.isEnabled()) {
+            eval(data.script);
+        } else {
+            SoundManager.playBuzzer();
+        }
     }
 
     inputCancelKey() {
