@@ -1,6 +1,6 @@
 /*:
-@target MZ
-@plugindesc アナログスティック拡張 v1.0.0
+@target MV MZ
+@plugindesc アナログスティック拡張 v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AnalogStickEx.js
 
@@ -15,6 +15,11 @@
 プラグインコマンド「スティック状態取得」を実行することで
 スティックの角度と倒れた強さを取得することができます。
 角度は0～359度、強さは0～1000の値となります。
+
+ツクールMVの場合は下記のプラグインコマンドを実行してください。
+AnalogStickEx GetStickState left or right スティックの角度を格納する変数ID 倒れた強さを格納する変数ID
+(例) 右スティックの状態を取得し、角度を変数ID1に倒れた強さを変数ID2に格納する場合
+AnalogStickEx GetStickState right 1 2
 
 ■ スクリプトからアナログスティックの状態を取得する
 以下のスクリプトによってスティックの状態を取得できます。
@@ -92,43 +97,72 @@ const PP = {
     EnabledStickDashSwitchId: parseInt(params["EnabledStickDashSwitchId"]),
 };
 
-PluginManager.registerCommand(AnalogStickExPluginName, "GetStickState", (args) => {
+const getStickStatePC = (leftOrRight, stickDegVariableId, stickPowerVariableId) => {
     let rad, power;
-    if (args.LeftOrRight === "left") {
+    if (leftOrRight === "left") {
         [rad, power] = Input.leftStick;
-    } else if (args.LeftOrRight === "right") {
+    } else if (leftOrRight === "right") {
         [rad, power] = Input.rightStick;
     } else {
-        throw new Error(`LeftOrRight(${args.LeftOrRight}) is invalid.`);
+        throw new Error(`LeftOrRight(${leftOrRight}) is invalid.`);
     }
-    const stickDegVariableId = parseInt(args.StickDegVariableId);
-    const stickPowerVariableId = parseInt(args.StickPowerVariableId);
     let deg = AnalogStickUtils.rad2deg(rad);
     deg = AnalogStickUtils.degNormalization(Math.round(deg));
     const intPower = Math.round(power * 1000);
     if (stickDegVariableId > 0) $gameVariables.setValue(stickDegVariableId, deg);
     if (stickPowerVariableId > 0) $gameVariables.setValue(stickPowerVariableId, intPower);
-});
+};
 
+if (Utils.RPGMAKER_NAME === "MZ") {
+    PluginManager.registerCommand(AnalogStickExPluginName, "GetStickState", (args) => {
+        const leftOrRight = args.LeftOrRight;
+        const stickDegVariableId = parseInt(args.StickDegVariableId);
+        const stickPowerVariableId = parseInt(args.StickPowerVariableId);
+        getStickStatePC(leftOrRight, stickDegVariableId, stickPowerVariableId);
+    });
+}
+
+const _Game_Interpreter_pluginCommand = Game_Interpreter.prototype.pluginCommand;
+Game_Interpreter.prototype.pluginCommand = function(command, args) {
+    _Game_Interpreter_pluginCommand.call(this, command, args);
+    if (command !== AnalogStickExPluginName) return;
+    switch (args[0]) {
+    case "GetStickState":
+        const leftOrRight = args[1];
+        const stickDegVariableId = parseInt(args[2]);
+        const stickPowerVariableId = parseInt(args[3]);
+        getStickStatePC(leftOrRight, stickDegVariableId, stickPowerVariableId);
+        break;
+    }
+};
+
+
+const _Input_clear = Input.clear;
+Input.clear = function() {
+    _Input_clear.call(this);
+    this._analogStickState = {};
+};
 
 const _Input__updateGamepadState = Input._updateGamepadState;
 Input._updateGamepadState = function(gamepad) {
     _Input__updateGamepadState.call(this, gamepad);
     const axes = gamepad.axes;
-    this._currentState["stick_left_x"] = axes[0];
-    this._currentState["stick_left_y"] = axes[1];
-    this._currentState["stick_right_x"] = axes[2];
-    this._currentState["stick_right_y"] = axes[3];
+    if (axes.length >= 4) {
+        this._analogStickState["stick_left_x"] = axes[0];
+        this._analogStickState["stick_left_y"] = axes[1];
+        this._analogStickState["stick_right_x"] = axes[2];
+        this._analogStickState["stick_right_y"] = axes[3];
+    }
 };
 
 Input._getStickState = function(stickType) {
     let x, y;
     if (stickType === "leftStick") {
-        x = this._currentState["stick_left_x"];
-        y = this._currentState["stick_left_y"];
+        x = this._analogStickState["stick_left_x"];
+        y = this._analogStickState["stick_left_y"];
     } else if (stickType === "rightStick") {
-        x = this._currentState["stick_right_x"];
-        y = this._currentState["stick_right_y"];
+        x = this._analogStickState["stick_right_x"];
+        y = this._analogStickState["stick_right_y"];
     } else {
         return [0, 0];
     }
@@ -246,9 +280,11 @@ Game_Player.prototype.moveByInput = function() {
                     direction = $virtualPad.dir4();
                 }
             } else {
-                const x = $gameTemp.destinationX();
-                const y = $gameTemp.destinationY();
-                direction = this.findDirectionTo(x, y);
+                if ($gameTemp.isDestinationValid()) {
+                    const x = $gameTemp.destinationX();
+                    const y = $gameTemp.destinationY();
+                    direction = this.findDirectionTo(x, y);
+                }
             }
         }
         if (direction > 0) {

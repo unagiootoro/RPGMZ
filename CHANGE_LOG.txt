@@ -1,6 +1,8 @@
 AnalogStickEx.js
     2021/06/17 v1.0.0
         ・新規作成
+    2021/06/20 v1.1.0
+        ・ツクールMVに対応
 
 RingCommandMenu.js
     2021/06/15 v1.1.1
