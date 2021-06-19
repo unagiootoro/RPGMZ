@@ -84,7 +84,7 @@ powerはスティックが倒された強さ(0.0～1.0)を表します。
 @type variable
 @default 0
 @desc
-スティックを倒したパワーを格納する変数を指定します。パワーの範囲は0～255です。
+スティックを倒したパワーを格納する変数を指定します。パワーの範囲は0～1000です。
 */
 
 const AnalogStickExPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
