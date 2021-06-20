@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 連続魔法 v1.2.0
+@plugindesc 連続魔法 v1.3.0
 @author うなぎおおとろ
 
 @param MagicSkillTypeId
@@ -14,6 +14,12 @@
 @default true
 @desc
 trueを指定すると、2回目の魔法発動時のメッセージを変更します。
+
+@param EnableReduceMpWhenDoubleMagic
+@type boolean
+@default true
+@desc
+trueを指定すると、2回目の魔法発動時にMPを消費します。
 
 @param UseConstnuousMagicMessage
 @type string
@@ -49,6 +55,8 @@ const params = PluginManager.parameters(DoubleMagicPluginName);
 const MagicSkillTypeId = parseInt(params["MagicSkillTypeId"]);
 const EnableUseConstnuousMagicMessage = (params["EnableUseConstnuousMagicMessage"] === "true" ? true : false);
 const UseConstnuousMagicMessage = params["UseConstnuousMagicMessage"];
+const EnableReduceMpWhenDoubleMagic = (params["EnableReduceMpWhenDoubleMagic"] === "true" ? true : false);
+
 
 /* class Game_Battler */
 const _Game_Battler_removeCurrentAction = Game_Battler.prototype.removeCurrentAction
@@ -67,12 +75,25 @@ Game_Battler.prototype.isContinuousMagic = function() {
     return false;
 };
 
+const _Game_Battler_skillMpCost = Game_Battler.prototype.skillMpCost;
+Game_Battler.prototype.skillMpCost = function(skill) {
+    if (EnableReduceMpWhenDoubleMagic) {
+        return _Game_Battler_skillMpCost.call(this, skill);
+    } else {
+        if (this.currentAction().isFirstAction()) {
+            return _Game_Battler_skillMpCost.call(this, skill);
+        }
+    }
+    return 0;
+};
+
 
 /* class Game_Actor */
 Game_Actor.prototype.isContinuousMagic = function() {
     const result = Game_Battler.prototype.isContinuousMagic.call(this);
     if (result) return true;
-    for (const equip of this._states) {
+    for (const equip of this.equips()) {
+        if (!equip) continue;
         if (equip.meta.DoubleMagic) return true;
     }
     for (const skillId of this._skills) {
@@ -111,7 +132,7 @@ Game_Action.prototype.reduceContinuousActionCount = function() {
 
 Game_Action.prototype.isFirstAction = function() {
     return this._maxContinuousActionCount === this._continuousActionCount;
-}
+};
 
 
 /* class Window_BattleLog */
@@ -132,9 +153,9 @@ Window_BattleLog.prototype.startAction = function(subject, action, targets) {
 
 Window_BattleLog.prototype.displayConstinuousAction = function(subject, item) {
     const numMethods = this._methods.length;
-    this.push('addText', UseConstnuousMagicMessage);
+    this.push("addText", UseConstnuousMagicMessage);
     if (this._methods.length === numMethods) {
-        this.push('wait');
+        this.push("wait");
     }
 };
 
@@ -146,4 +167,5 @@ Window_BattleLog.prototype.endAction = function(subject) {
         this.push("performActionEnd", subject);
     }
 };
+
 })();
