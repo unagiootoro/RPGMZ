@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill Tree Layout Extension v1.2.1
+@plugindesc Skill Tree Layout Extension v1.2.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
 
@@ -134,7 +134,7 @@ Specify the actor ID.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー レイアウト拡張 v1.2.1
+@plugindesc スキルツリー レイアウト拡張 v1.2.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
 
@@ -267,7 +267,7 @@ trueを設定すると、習得済みスキルに画像を追加します。
 アクターIDを指定します。
 */
 
-const SkillTree_LayoutExPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const SkillTree_LayoutExPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 (() => {
 "use strict";

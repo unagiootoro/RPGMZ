@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.6.1
+@plugindesc Dot movement system v1.6.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.6.1
+@plugindesc ドット移動システム v1.6.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -176,7 +176,7 @@ Game_CharacterBase#calcDeg(targetCharacter)
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const DotMoveSystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const DotMoveSystemPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 const DotMoveSystemClassAlias = (() => {
 "use strict";

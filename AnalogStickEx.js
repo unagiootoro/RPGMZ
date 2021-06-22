@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc アナログスティック拡張 v1.1.0
+@plugindesc アナログスティック拡張 v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AnalogStickEx.js
 
@@ -87,7 +87,7 @@ powerはスティックが倒された強さ(0.0～1.0)を表します。
 スティックを倒したパワーを格納する変数を指定します。パワーの範囲は0～1000です。
 */
 
-const AnalogStickExPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const AnalogStickExPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 (() => {
 

@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc リングコマンドメニュー v1.1.1
+@plugindesc リングコマンドメニュー v1.1.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/RingCommandMenu.js
 @help
@@ -179,7 +179,7 @@ subMenu: サブコマンドの一覧を開く
 アクター選択用のアクターの画像を指定します。
 */
 
-const RingCommandMenuPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const RingCommandMenuPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 const RingCommandMenuClassAlias = (() => {
 "use strict";

@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc XY座標スクロール v1.1.0
+@plugindesc XY座標スクロール v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/XYScroll.js
 @help
@@ -79,7 +79,7 @@ trueを設定すると、スクロール状態をセーブデータに保存し�
 trueを設定すると、スクロール完了まで待機します。
 */
 
-const XYScrollPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const XYScrollPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 (() => {
 "use strict";

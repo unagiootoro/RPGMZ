@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 時間経過システム ver1.3.0
+@plugindesc 時間経過システム ver1.3.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AdvanceTimeSystem.js
 
@@ -168,7 +168,7 @@ AdvanceTimeSystem EnableTimeEffect
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const AdvanceTimeSystemPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const AdvanceTimeSystemPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 (() => {
 "use strict";

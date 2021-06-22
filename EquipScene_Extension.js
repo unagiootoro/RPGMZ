@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Equipment scene expansion v1.4.0
+@plugindesc Equipment scene expansion v1.4.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipScene_Extension.js
 
@@ -174,7 +174,7 @@ If set to true, the equipment will be forcibly changed.
 
 /*:ja
 @target MZ
-@plugindesc 装備シーン拡張 v1.4.0
+@plugindesc 装備シーン拡張 v1.4.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EquipScene_Extension.js
 
@@ -346,7 +346,7 @@ LayoutModeに2を設定した場合は、ステータス画面を縮小し、装
 trueを設定すると強制的に装備を変更します。
 */
 
-const EquipScenePluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const EquipScenePluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 (() => {
 "use strict";

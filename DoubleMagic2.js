@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 連続魔法2 v1.2.1
+@plugindesc 連続魔法2 v1.2.2
 @author うなぎおおとろ
 
 @param MagicSkillTypeIds
@@ -29,7 +29,7 @@ FFの連続魔みたいなのを作ることができます。
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const DoubleMagic2PluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const DoubleMagic2PluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 (() => {
 "use strict";

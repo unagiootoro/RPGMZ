@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc virtual stick v1.1.0
+@plugindesc virtual stick v1.1.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualPad.js
 @help
@@ -128,7 +128,7 @@ Stick fill Specifies the color at the end of the gradient.
 
 /*:ja
 @target MV MZ
-@plugindesc 仮想スティック v1.1.0
+@plugindesc 仮想スティック v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualPad.js
 @help
@@ -254,7 +254,7 @@ trueを設定するとパッド移動が常にダッシュになります。
 スティックの塗りつぶしグラデーション終端の色を指定します。
 */
 
-const VirtualPadPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
+const VirtualPadPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
 
 let $virtualPad = null;
 
