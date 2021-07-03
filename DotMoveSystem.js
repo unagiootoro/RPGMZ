@@ -1,10 +1,10 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.6.2
+@plugindesc Dot movement system v1.7.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
-It is a plug-in that allows you to move in dot units.
+It is a plugin that allows you to move in dot units.
 
 【How to use】
 Basically, it can be used just by installing it, but more detailed control is possible by setting the following contents.
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.6.2
+@plugindesc ドット移動システム v1.7.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -176,7 +176,7 @@ Game_CharacterBase#calcDeg(targetCharacter)
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const DotMoveSystemPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+const DotMoveSystemPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+)\.js$/)[1];
 
 const DotMoveSystemClassAlias = (() => {
 "use strict";
@@ -300,28 +300,28 @@ class DotMoveUtils {
         }
     }
 
-    static deg2direction4(deg, direction) {
+    static deg2direction4(deg, lastDirection) {
         deg = this.degNormalization(deg);
         const t = Math.round(deg / 45);
         if (t === 0 || t === 8) {
             return 8;
         } else if (t === 1) {
-            if (direction === 8) return 8;
+            if (lastDirection === 8) return 8;
             return 6;
         } else if (t === 2) {
             return 6;
         } else if (t === 3) {
-            if (direction === 6) return 6;
+            if (lastDirection === 6) return 6;
             return 2;
         } else if (t === 4) {
             return 2;
         } else if (t === 5) {
-            if (direction === 2) return 2;
+            if (lastDirection === 2) return 2;
             return 4;
         } else if (t === 6) {
             return 4;
         } else if (t === 7) {
-            if (direction === 4) return 4;
+            if (lastDirection === 4) return 4;
             return 8;
         } else {
             throw new Error(`${deg} is not found`);
@@ -371,15 +371,7 @@ class DotMoveUtils {
         const xDiff = $gameMap.deltaX(targetPoint.x, fromPoint.x);
         const yDiff = $gameMap.deltaY(targetPoint.y, fromPoint.y);
         if (xDiff === 0 && yDiff === 0) return 0;
-        return Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff, 2));
-    }
-
-    static reachPoint(realPoint, targetPoint, margin) {
-        if (Math.abs(realPoint.x - targetPoint.x) <= margin &&
-            Math.abs(realPoint.y - targetPoint.y) <= margin) {
-                return true;
-        }
-        return false;
+        return Math.sqrt(xDiff**2 + yDiff**2);
     }
 
     static nextPointWithDirection(point, direction, unit = 1) {
@@ -525,7 +517,11 @@ Game_Map.prototype.distance = function(x1, y1, x2, y2) {
 
 
 class CollisionResult {
-    constructor(targetRect, collisionRect) {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize(targetRect, collisionRect) {
         this._targetRect = targetRect;
         this._collisionRect = collisionRect;
         this._collisionLengthX = this.calcCollisionLengthX();
@@ -574,8 +570,13 @@ class CollisionResult {
 // キャラクターの衝突判定を実施する。
 // このクラスからキャラクターの状態を書き換えることはない。
 class CharacterCollisionChecker {
-    constructor(character) {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize(character) {
         this._character = character;
+        this._characterRealPosMode = true;
     }
 
     checkCollision(x, y, d) {
@@ -586,6 +587,16 @@ class CharacterCollisionChecker {
         if (this._character.isThrough() || this._character.isDebugThrough()) return collisionResults;
         collisionResults = collisionResults.concat(this.checkCollisionCharacters(x, y, d));
         return collisionResults;
+    }
+
+    // characterRealPosModeがfalseの場合はキャラクターの衝突判定に整数座標を使用する
+    // この機能は経路探索のためにマス単位での衝突判定を可能にすることを主な目的としている
+    setCharacterRealPosMode(realPosMode) {
+        this._characterRealPosMode = realPosMode;
+    }
+
+    isCharacterRealPosMode() {
+        return this._characterRealPosMode;
     }
 
     checkCollisionMass(x, y, d) {
@@ -622,7 +633,7 @@ class CharacterCollisionChecker {
         for (let ix = x1; ix <= x2; ix++) {
             for (let iy = y1; iy <= y2; iy++) {
                 const massRect = { x: ix, y: iy, width: 1, height: 1 };
-                if (!this.checkMass(ix, iy, d) && this.isCollidedRect(targetRect, d, massRect)) {
+                if (!this.checkPassMass(ix, iy, d) && this.isCollidedRect(targetRect, d, massRect)) {
                     const collisionResult = new CollisionResult(targetRect, massRect);
                     collisionResults.push(collisionResult);
                 }
@@ -652,7 +663,7 @@ class CharacterCollisionChecker {
 
     checkCollisionXCliff(targetRect, x, x1, x2, y1, d) {
         if (x1 === x2) return [];
-        if (!(this.checkMass(x1, y1, 4) && this.checkMass(x2, y1, 6))) {
+        if (!this.checkPassMass(x1, y1, 4) && !this.checkPassMass(x2, y1, 6)) {
             let massRect;
             if (x - x1 > this._character.minTouchWidth()) {
                 massRect = { x: x1, y: y1, width: 1, height: 1 };
@@ -669,7 +680,7 @@ class CharacterCollisionChecker {
 
     checkCollisionYCliff(targetRect, y, y1, y2, x1, d) {
         if (y1 === y2) return [];
-        if (!(this.checkMass(x1, y1, 8) && this.checkMass(x1, y2, 2))) {
+        if (!this.checkPassMass(x1, y1, 8) && !this.checkPassMass(x1, y2, 2)) {
             let massRect;
             if (y - y1 > this._character.minTouchHeight()) {
                 massRect = { x: x1, y: y1, width: 1, height: 1 };
@@ -688,7 +699,7 @@ class CharacterCollisionChecker {
         return [];
     }
 
-    checkMass(x, y, d) {
+    checkPassMass(x, y, d) {
         const x2 = $gameMap.roundX(x);
         const y2 = $gameMap.roundY(y);
         if (!$gameMap.isValid(x2, y2)) {
@@ -697,11 +708,39 @@ class CharacterCollisionChecker {
         if (this._character.isThrough() || this._character.isDebugThrough()) {
             return true;
         }
+        if (this.isMassCollisionNoTarget(x, y, d)) return true;
         const prevPoint = DotMoveUtils.prevPointWithDirection({ x: x2, y: y2 }, d);
         if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
             return false;
         }
         return true;
+    }
+
+    // キャラクターの位置が小数の場合、逆方向のマスの通行判定が正しく取得できないため、衝突判定対象外とする
+    isMassCollisionNoTarget(x, y, d) {
+        switch (d) {
+        case 8:
+            if (this._character._realY + this._character.height() <= y + 1) {
+                return true;
+            }
+            break;
+        case 6:
+            if (this._character._realX >= x) {
+                return true;
+            }
+            break;
+        case 2:
+            if (this._character._realY >= y) {
+                return true;
+            }
+            break;
+        case 4:
+            if (this._character._realX + this._character.width() <= x + 1) {
+                return true;
+            }
+            break;
+        }
+        return false;
     }
 
     checkPlayer(x, y, d) {
@@ -745,6 +784,10 @@ class CharacterCollisionChecker {
         return collisionResults;
     }
 
+    checkOtherEvents(x, y, d) {
+        return this.checkEvents(x, y, d, []);
+    }
+
     checkVehicles(x, y, d) {
         const collisionResults = [];
         const boat = $gameMap.boat();
@@ -764,8 +807,8 @@ class CharacterCollisionChecker {
         // Over pass考慮
         if (this._character.isHigherPriority() !== character.isHigherPriority()) return null;
 
-        let cx = character._realX;
-        let cy = character._realY;
+        let cx = this.isCharacterRealPosMode() ? character._realX : character._x;
+        let cy = this.isCharacterRealPosMode() ? character._realY : character._y;
         if ($gameMap.isLoopHorizontal() || $gameMap.isLoopVertical()) {
             if ($gameMap.isLoopHorizontal()) {
                 if (cx < this._character.width() && x >= $gameMap.width() - this._character.width()) {
@@ -817,21 +860,25 @@ class CharacterCollisionChecker {
     }
 }
 
+
 class PlayerCollisionChecker extends CharacterCollisionChecker {
     checkCollisionCharacters(x, y, d) {
         let collisionResults = [];
-        collisionResults = collisionResults.concat(this.checkEvents(x, y, d));
+        collisionResults = collisionResults.concat(this.checkOtherEvents(x, y, d));
         collisionResults = collisionResults.concat(this.checkVehicles(x, y, d));
         return collisionResults;
     }
 }
 
+
 class EventCollisionChecker extends CharacterCollisionChecker {
-    constructor(character) {
-        super(character);
-        // マップイベントのキャッシュ更新用に移動前の座標を保持する
+    initialize(character) {
+        super.initialize(character);
+        // マップイベントのキャッシュ更新用に移動前の座標と変更前のサイズを保持する
         this._lastRealX = character._realX;
         this._lastRealY = character._realY;
+        this._lastWidth = 1;
+        this._lastHeight = 1;
     }
 
     checkCollisionCharacters(x, y, d) {
@@ -841,6 +888,11 @@ class EventCollisionChecker extends CharacterCollisionChecker {
         collisionResults = collisionResults.concat(this.checkOtherEvents(x, y, d));
         collisionResults = collisionResults.concat(this.checkVehicles(x, y, d));
         return collisionResults;
+    }
+
+    checkPlayer(x, y, d) {
+        if (!this._character.isNormalPriority()) return [];
+        return super.checkPlayer(x, y, d);
     }
 
     checkOtherEvents(x, y, d) {
@@ -854,29 +906,42 @@ class EventCollisionChecker extends CharacterCollisionChecker {
         const width = this._character.width();
         const height = this._character.height();
         const masses = DotMoveUtils.mapEventCacheMasses(x, y, width, height);
-        $gameTemp.addMapEventCache(masses, this._character);
+        for (const mass of masses) {
+            $gameTemp.addMapEventCache(mass, this._character);
+        }
     }
 
     updateMapEventCache() {
         const realX = this._character._realX;
-        const realY = this._character._realY
-        if (this._lastRealX !== realX || this._lastRealY !== realY) {
-            const width = this._character.width();
-            const height = this._character.height();
-            const beforeMasses = DotMoveUtils.mapEventCacheMasses(this._lastRealX, this._lastRealY, width, height);
+        const realY = this._character._realY;
+        const width = this._character.width();
+        const height = this._character.height();
+        if (this._lastRealX !== realX || this._lastRealY !== realY || this._lastWidth !== width || this._lastHeight !== height) {
+            const beforeMasses = DotMoveUtils.mapEventCacheMasses(this._lastRealX, this._lastRealY, this._lastWidth, this._lastHeight);
             const afterMasses = DotMoveUtils.mapEventCacheMasses(realX, realY, width, height);
-            $gameTemp.removeMapEventCache(beforeMasses, this._character);
-            $gameTemp.addMapEventCache(afterMasses, this._character);
+            for (const afterMass of afterMasses) {
+                if (!beforeMasses.includes(afterMass)) {
+                    $gameTemp.addMapEventCache(afterMass, this._character);
+                }
+            }
+            for (const beforeMass of beforeMasses) {
+                if (!afterMasses.includes(beforeMass)) {
+                    $gameTemp.removeMapEventCache(beforeMass, this._character);
+                }
+            }
             this._lastRealX = realX;
             this._lastRealY = realY;
+            this._lastWidth = width;
+            this._lastHeight = height;
         }
     }
 }
 
+
 class FollowerCollisionChecker extends CharacterCollisionChecker {
     checkCollisionCharacters(x, y, d) {
         let collisionResults = [];
-        collisionResults = collisionResults.concat(this.checkEvents(x, y, d));
+        collisionResults = collisionResults.concat(this.checkOtherEvents(x, y, d));
         collisionResults = collisionResults.concat(this.checkVehicles(x, y, d));
         return collisionResults;
     }
@@ -911,7 +976,11 @@ class FollowerCollisionChecker extends CharacterCollisionChecker {
 // 衝突判定を元にキャラクターの座標を更新する。
 // 座標以外の状態は変更しない。
 class CharacterController {
-    constructor(character, collisionChecker) {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize(character, collisionChecker) {
         this._character = character;
         this._collisionChecker = collisionChecker;
     }
@@ -958,15 +1027,44 @@ class CharacterController {
         const realPoint = { x: this._character._realX, y: this._character._realY };
         const margin = this._character.distancePerFrame() / 256;
         let moved = true;
-        if (DotMoveUtils.reachPoint(realPoint, movedPoint, margin)) moved = false;
+        if (this.reachPoint(realPoint, movedPoint, margin)) moved = false;
         movedPoint.x = $gameMap.roundX(movedPoint.x);
         movedPoint.y = $gameMap.roundY(movedPoint.y);
-        this._character.setPosition(movedPoint.x, movedPoint.y);
+        this._character.setPositionAndRoundIntXy(movedPoint.x, movedPoint.y);
         return moved;
     }
 
     checkCharacter(x, y, direction, character) {
         return this._collisionChecker.checkCharacter(x, y, direction, character);
+    }
+
+    checkCharacterStepDir(x, y, direction, character) {
+        const deg = DotMoveUtils.direction2deg(direction);
+        const dis = this.calcDistance(deg);
+        const x2 = x + dis.x;
+        const y2 = y + dis.y;
+        return this.checkCharacter(x2, y2, direction, character);
+    }
+
+    checkOtherEvents(x, y, d, isCharacterRealPos = true) {
+        this._collisionChecker.setCharacterRealPosMode(isCharacterRealPos);
+        const collisionResults = this._collisionChecker.checkOtherEvents(x, y, d);
+        this._collisionChecker.setCharacterRealPosMode(true);
+        return collisionResults;
+    }
+
+    checkVehicles(x, y, d, isCharacterRealPos = true) {
+        this._collisionChecker.setCharacterRealPosMode(isCharacterRealPos);
+        const collisionResults = this._collisionChecker.checkVehicles(x, y, d);
+        this._collisionChecker.setCharacterRealPosMode(true);
+        return collisionResults;
+    }
+
+    checkPlayer(x, y, d, isCharacterRealPos = true) {
+        this._collisionChecker.setCharacterRealPosMode(isCharacterRealPos);
+        const collisionResults = this._collisionChecker.checkPlayer(x, y, d);
+        this._collisionChecker.setCharacterRealPosMode(true);
+        return collisionResults;
     }
 
     calcUp(dis) {
@@ -1030,6 +1128,11 @@ class CharacterController {
     }
 
     calcUpRight(dis) {
+        if (this._character.direction() === 8) {
+            if (this._character.height() === 1) return this.calcUp(dis);
+        } else if (this._character.direction() === 6) {
+            if (this._character.width() === 1) return this.calcRight(dis);
+        }
         const target = this._character.collisionRect();
         dis = this.correctUpDistance(target, dis);
         target.y += dis.y;
@@ -1039,6 +1142,11 @@ class CharacterController {
     }
 
     calcRightDown(dis) {
+        if (this._character.direction() === 6) {
+            if (this._character.width() === 1) return this.calcRight(dis);
+        } else if (this._character.direction() === 2) {
+            if (this._character.height() === 1) return this.calcDown(dis);
+        }
         const target = this._character.collisionRect();
         dis = this.correctRightDistance(target, dis);
         target.x += dis.x;
@@ -1048,6 +1156,11 @@ class CharacterController {
     }
 
     calcDownLeft(dis) {
+        if (this._character.direction() === 2) {
+            if (this._character.height() === 1) return this.calcDown(dis);
+        } else if (this._character.direction() === 4) {
+            if (this._character.width() === 1) return this.calcLeft(dis);
+        }
         const target = this._character.collisionRect();
         dis = this.correctDownDistance(target, dis);
         target.y += dis.y;
@@ -1057,6 +1170,11 @@ class CharacterController {
     }
 
     calcLeftUp(dis) {
+        if (this._character.direction() === 4) {
+            if (this._character.width() === 1) return this.calcLeft(dis);
+        } else if (this._character.direction() === 8) {
+            if (this._character.height() === 1) return this.calcUp(dis);
+        }
         const target = this._character.collisionRect();
         dis = this.correctLeftDistance(target, dis);
         target.x += dis.x;
@@ -1126,7 +1244,7 @@ class CharacterController {
             const diagDis = target[axis] < collisionResults[0].collisionRect[axis] ? this.calcDistance(deg1) : this.calcDistance(deg2);
             if (len < Math.abs(diagDis[axis])) {
                 newDis[axis] = diagDis[axis] < 0 ? -len : len;
-            } else if (len < this.getSlideLength(axis)) {
+            } else if (len <= this.getSlideLength(axis)) {
                 newDis[axis] = diagDis[axis];
             } else {
                 return newDis;
@@ -1181,6 +1299,28 @@ class CharacterController {
         }
     }
 
+    reachPoint(realPoint, targetPoint, margin) {
+        if (Math.abs(realPoint.x - targetPoint.x) <= margin &&
+            Math.abs(realPoint.y - targetPoint.y) <= margin) {
+                return true;
+        }
+        return false;
+    }
+}
+
+
+class PlayerController extends CharacterController {
+    initialize(character) {
+        super.initialize(character, new PlayerCollisionChecker(character));
+    }
+}
+
+
+class EventController extends CharacterController {
+    initialize(character) {
+        super.initialize(character, new EventCollisionChecker(character));
+    }
+
     initMapEventCache() {
         this._collisionChecker.initMapEventCache();
     }
@@ -1190,21 +1330,10 @@ class CharacterController {
     }
 }
 
-class PlayerController extends CharacterController {
-    constructor(character) {
-        super(character, new PlayerCollisionChecker(character));
-    }
-}
-
-class EventController extends CharacterController {
-    constructor(character) {
-        super(character, new EventCollisionChecker(character));
-    }
-}
 
 class FollowerController extends CharacterController {
-    constructor(character) {
-        super(character, new FollowerCollisionChecker(character));
+    initialize(character) {
+        super.initialize(character, new FollowerCollisionChecker(character));
     }
 
     slideLengthX() {
@@ -1222,7 +1351,11 @@ class FollowerController extends CharacterController {
 // CharacterControllerを用いてキャラクターの座標を更新し、
 // それに合わせてキャラクターの各種状態を更新する。
 class CharacterMover {
-    constructor(character) {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize(character) {
         this._character = character;
         this._controller = new CharacterController(character, new CharacterCollisionChecker(character));
         this._moverData = character.moverData();
@@ -1271,6 +1404,30 @@ class CharacterMover {
 
     checkCharacter(x, y, direction, character) {
         return this._controller.checkCharacter(x, y, direction, character);
+    }
+
+    checkCharacterStepDir(x, y, direction, character) {
+        return this._controller.checkCharacterStepDir(x, y, direction, character);
+    }
+
+    isCollidedWithEvents(x, y) {
+        const margin = 0.5;
+        const collisionResults = this._controller.checkOtherEvents(x, y, this._character.direction(), false);
+        if (collisionResults.length > 0) {
+            if (collisionResults.length > 1) return true;
+            if (collisionResults[0].collisionLengthX() >= margin || collisionResults[0].collisionLengthY() >= margin) return true;
+        }
+        return false;
+    }
+
+    isCollidedWithVehicles(x, y) {
+        const margin = 0.5;
+        const collisionResults = this._controller.checkVehicles(x, y, this._character.direction(), false);
+        if (collisionResults.length > 0) {
+            if (collisionResults.length > 1) return true;
+            if (collisionResults[0].collisionLengthX() >= margin || collisionResults[0].collisionLengthY() >= margin) return true;
+        }
+        return false;
     }
 
     // Game_Player#updateでCharacterMover#updateがGame_Player#moveByInputの後にコールされるため移動済みフラグのクリアをメソッド化する
@@ -1408,9 +1565,10 @@ class CharacterMover {
     };
 }
 
+
 class PlayerMover extends CharacterMover {
-    constructor(character) {
-        super(character);
+    initialize(character) {
+        super.initialize(character);
         this._controller = new PlayerController(character);
     }
 
@@ -1421,8 +1579,8 @@ class PlayerMover extends CharacterMover {
 
 
 class EventMover extends CharacterMover {
-    constructor(character) {
-        super(character);
+    initialize(character) {
+        super.initialize(character);
         this._controller = new EventController(character);
         this._width = null;
         this._height = null;
@@ -1482,12 +1640,21 @@ class EventMover extends CharacterMover {
     initMapEventCache() {
         this._controller.initMapEventCache();
     }
+
+    isCollidedWithPlayerCharacters(x, y) {
+        const margin = 0.5;
+        const collisionResults = this._controller.checkPlayer(x, y, this._character.direction(), false);
+        if (collisionResults.length > 0) {
+            if (collisionResults[0].collisionLengthX() >= margin || collisionResults[0].collisionLengthY() >= margin) return true;
+        }
+        return false;
+    }
 }
 
 
 class FollowerMover extends CharacterMover {
-    constructor(character) {
-        super(character);
+    initialize(character) {
+        super.initialize(character);
         this._controller = new FollowerController(character);
     }
 }
@@ -1503,7 +1670,7 @@ Game_CharacterBase.prototype.initMembers = function() {
 
 // CharacterMoverのデータのうちセーブデータに保持する必要のあるものを持たせる
 Game_CharacterBase.prototype.initMoverData = function() {
-    this._moverData = {}; 
+    this._moverData = {};
     this._moverData.moved = false;
     this._moverData.targetCount = 0;
     this._moverData.moving = false;
@@ -1581,11 +1748,18 @@ Game_CharacterBase.prototype.isMapPassable = function(x, y, d) {
     return $gameMap.isPassable(x, y, d) && $gameMap.isPassable(nextPoint.x, nextPoint.y, d2);
 };
 
-Game_CharacterBase.prototype.pos = function(x, y) {
-    const realPoint = { x: this._x, y: this._y };
-    const targetPoint = { x, y };
-    const margin = this.distancePerFrame() / 2;
-    return DotMoveUtils.reachPoint(realPoint, targetPoint, margin);
+Game_CharacterBase.prototype.setPositionAndRoundIntXy = function(x, y) {
+    this.setPosition(x, y);
+    // ループマップでsetPositionを行うと整数座標が範囲外の値になる場合があるため、それを防ぐ
+    if ($gameMap.isLoopHorizontal()) this._x %= $gameMap.width();
+    if ($gameMap.isLoopVertical()) this._y %= $gameMap.height();
+};
+
+const _Game_CharacterBase_jump = Game_CharacterBase.prototype.jump;
+Game_CharacterBase.prototype.jump = function(xPlus, yPlus) {
+    // ループマップで加算後の整数座標がループ実施前の値になるようにする
+    this.setPosition(this._realX, this._realY);
+    _Game_CharacterBase_jump.call(this, xPlus, yPlus);
 };
 
 Game_CharacterBase.prototype.setThrough = function(through) {
@@ -1661,17 +1835,12 @@ Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
     return false;
 };
 
-// isCollidedWithEventsは経路探索用にマス単位の判定とする
 Game_CharacterBase.prototype.isCollidedWithEvents = function(x, y) {
-    const massIdx = y * $gameMap.width() + x;
-    const massEvents = $gameTemp.mapEventsCache()[massIdx];
-    if (massEvents) {
-        const targetEvents = massEvents.filter(event => event.x === x && event.y === y);
-        if (targetEvents.some(event => event.isNormalPriority() && !event.isThrough())) {
-            return true;
-        }
-    }
-    return false;
+    return this.mover().isCollidedWithEvents(x, y);
+};
+
+Game_CharacterBase.prototype.isCollidedWithVehicles = function(x, y) {
+    return this.mover().isCollidedWithVehicles(x, y);
 };
 
 Game_CharacterBase.prototype.calcDeg = function(targetCharacter) {
@@ -1747,11 +1916,11 @@ Game_Character.prototype.computeRoute = function(goalX, goalY, searchLimit = thi
             }
             if (direction % 2 === 0) {
                 if (!this.canPass(x1, y1, direction)) {
-                    if (!(x2 === goalX && y2 === goalY)) continue;
+                    continue;
                 }
             } else {
                 if (!this.canPassDiagonally(x1, y1, horz, vert)) {
-                    if (!(x2 === goalX && y2 === goalY)) continue;
+                    continue;
                 }
             }
 
@@ -1862,9 +2031,6 @@ Game_Character.prototype.updateRoutineMove = function() {
 Game_Character.prototype.moveRandom = function() {
     const d = 2 + Math.randomInt(4) * 2;
     // canPassは行わない
-    // if (this.canPass(this.x, this.y, d)) {
-    //     this.moveStraight(d);
-    // }
     this.moveStraight(d);
 };
 
@@ -1886,17 +2052,17 @@ Game_Character.prototype.moveToTarget = function(x, y) {
 };
 
 Game_Character.prototype.deltaRealXFrom = function(x) {
-    return $gameMap.deltaX(this._realX, x);
+    return $gameMap.deltaX(this.centerRealX(), x);
 };
 
 Game_Character.prototype.deltaRealYFrom = function(y) {
-    return $gameMap.deltaY(this._realY, y);
+    return $gameMap.deltaY(this.centerRealY(), y);
 };
 
 // 整数座標ではなく実数座標で処理するように変更
 Game_Character.prototype.moveTowardCharacter = function(character) {
-    const sx = this.deltaRealXFrom(character._realX);
-    const sy = this.deltaRealYFrom(character._realY);
+    const sx = this.deltaRealXFrom(character.centerRealX());
+    const sy = this.deltaRealYFrom(character.centerRealY());
     if (Math.abs(sx) > Math.abs(sy)) {
         this.moveStraight(sx > 0 ? 4 : 6);
         if (!this.isMovementSucceeded() && sy !== 0) {
@@ -1911,8 +2077,8 @@ Game_Character.prototype.moveTowardCharacter = function(character) {
 };
 
 Game_Character.prototype.moveAwayFromCharacter = function(character) {
-    const sx = this.deltaRealXFrom(character._realX);
-    const sy = this.deltaRealYFrom(character._realY);
+    const sx = this.deltaRealXFrom(character.centerRealX());
+    const sy = this.deltaRealYFrom(character.centerRealY());
     if (Math.abs(sx) > Math.abs(sy)) {
         this.moveStraight(sx > 0 ? 6 : 4);
         if (!this.isMovementSucceeded() && sy !== 0) {
@@ -1928,8 +2094,8 @@ Game_Character.prototype.moveAwayFromCharacter = function(character) {
 
 Game_Character.prototype.turnTowardCharacter = function(character) {
     if (this.x === character.x && this.y === character.y) return;
-    const sx = this.deltaRealXFrom(character._realX);
-    const sy = this.deltaRealYFrom(character._realY);
+    const sx = this.deltaRealXFrom(character.centerRealX());
+    const sy = this.deltaRealYFrom(character.centerRealY());
     if (Math.abs(sx) > Math.abs(sy)) {
         this.setDirection(sx > 0 ? 4 : 6);
     } else if (sy !== 0) {
@@ -1939,8 +2105,8 @@ Game_Character.prototype.turnTowardCharacter = function(character) {
 
 Game_Character.prototype.turnAwayFromCharacter = function(character) {
     if (this.x === character.x && this.y === character.y) return;
-    const sx = this.deltaRealXFrom(character._realX);
-    const sy = this.deltaRealYFrom(character._realY);
+    const sx = this.deltaRealXFrom(character.centerRealX());
+    const sy = this.deltaRealYFrom(character.centerRealY());
     if (Math.abs(sx) > Math.abs(sy)) {
         this.setDirection(sx > 0 ? 6 : 4);
     } else if (sy !== 0) {
@@ -2313,11 +2479,6 @@ Game_Player.prototype.dotMoveToPlayer = function() {
 };
 
 
-const _Game_Event_initMembers = Game_Event.prototype.initMembers;
-Game_Event.prototype.initMembers = function() {
-    _Game_Event_initMembers.call(this);
-};
-
 Game_Event.prototype.makeMover = function() {
     return new EventMover(this);
 };
@@ -2330,14 +2491,14 @@ Game_Event.prototype.heightArea = function() {
     return this.mover().heightArea();
 };
 
+Game_Event.prototype.isCollidedWithPlayerCharacters = function(x, y) {
+    return this.mover().isCollidedWithPlayerCharacters(x, y);
+};
+
 Game_Event.prototype.checkEventTriggerTouchFront = function(d) {
     if ($gameMap.isEventRunning()) return;
     if (this._trigger === 2) {
-        const deg = DotMoveUtils.direction2deg(d);
-        const dis = DotMoveUtils.calcDistance(deg, this.distancePerFrame());
-        const x = this._realX + dis.x;
-        const y = this._realY + dis.y;
-        const result = this.mover().checkCharacter(x, y, d, $gamePlayer);
+        const result = this.mover().checkCharacterStepDir(this._realX, this._realY, d, $gamePlayer);
         const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
         const minTouchWidthOrHeight = axis === "x" ? this.minTouchWidth() : this.minTouchHeight();
         if (result && result.getCollisionLength(axis) >= minTouchWidthOrHeight) {
@@ -2387,7 +2548,6 @@ Game_Follower.prototype.isDebugThrough = function() {
 Game_Follower.prototype.update = function() {
     Game_Character.prototype.update.call(this);
     // フォロワーの移動速度はchaseCharacterで設定するため、ここでは設定しない
-    // this.setMoveSpeed($gamePlayer.realMoveSpeed());
     this.setOpacity($gamePlayer.opacity());
     this.setBlendMode($gamePlayer.blendMode());
     this.setWalkAnime($gamePlayer.hasWalkAnime());
@@ -2416,7 +2576,7 @@ Game_Follower.prototype.chaseCharacter = function(character) {
 Game_Follower.prototype.gatherCharacter = function(character) {
     this.setThrough(true);
     if (this.isGathered()) {
-        this.setPosition(character._realX, character._realY);
+        this.setPositionAndRoundIntXy(character._realX, character._realY);
         this.setThrough(false);
     } else {
         this.setMoveSpeed($gamePlayer.moveSpeed());
@@ -2491,7 +2651,7 @@ Game_Followers.prototype.areGathered = function() {
         this._gatherCount = 0;
         return true;
     }
-    // MVにはGame_Follower#isGatheredがないため再定義する
+    // MVにはGame_Follower#isGatheredがないためGame_Followers#areGatheredの処理を再定義する
     return this.visibleFollowers().every(follower => follower.isGathered());
 };
 
@@ -2499,7 +2659,7 @@ Game_Followers.prototype.areGathered = function() {
 const _Game_Vehicle_getOn = Game_Vehicle.prototype.getOn;
 Game_Vehicle.prototype.getOn = function() {
     _Game_Vehicle_getOn.call(this);
-    $gamePlayer.setPosition(this._realX, this._realY);
+    $gamePlayer.setPositionAndRoundIntXy(this._realX, this._realY);
 };
 
 
@@ -2532,20 +2692,16 @@ Game_Temp.prototype.mapEventsCache = function() {
     return this._mapEventsCache;
 };
 
-Game_Temp.prototype.addMapEventCache = function(masses, event) {
-    for (const i of masses) {
-        if (!this._mapEventsCache[i]) this._mapEventsCache[i] = [];
-        if (!this._mapEventsCache[i].includes(i)) {
-            this._mapEventsCache[i].push(event);
-        }
+Game_Temp.prototype.addMapEventCache = function(mass, event) {
+    if (!this._mapEventsCache[mass]) this._mapEventsCache[mass] = [];
+    if (!this._mapEventsCache[mass].includes(mass)) {
+        this._mapEventsCache[mass].push(event);
     }
 };
 
-Game_Temp.prototype.removeMapEventCache = function(masses, event) {
-    for (const i of masses) {
-        if (this._mapEventsCache[i]) {
-            this._mapEventsCache[i] = this._mapEventsCache[i].filter(evt => evt !== event);
-        }
+Game_Temp.prototype.removeMapEventCache = function(mass, event) {
+    if (this._mapEventsCache[mass]) {
+        this._mapEventsCache[mass] = this._mapEventsCache[mass].filter(evt => evt !== event);
     }
 };
 
