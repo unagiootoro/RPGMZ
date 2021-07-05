@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc ドット移動システム 競合回避用パッチ v1.0.0
+@plugindesc ドット移動システム 競合回避用パッチ v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_ConflictPatch.js
 @help
@@ -8,8 +8,8 @@
 
 【使用方法】
 下記の順にプラグインを導入してください。
-・RegionBase.js
 ・DotMoveSystem.js
+・RegionBase.js
 ・DotMoveSystem_ConflictPatch.js
 
 【ライセンス】
