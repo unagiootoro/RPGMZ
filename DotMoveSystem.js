@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.7.0
+@plugindesc Dot movement system v1.7.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.7.0
+@plugindesc ドット移動システム v1.7.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -176,7 +176,7 @@ Game_CharacterBase#calcDeg(targetCharacter)
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const DotMoveSystemPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+)\.js$/)[1];
+const DotMoveSystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 const DotMoveSystemClassAlias = (() => {
 "use strict";
@@ -2124,6 +2124,8 @@ Game_Player.prototype.initMembers = function() {
     // 少し移動しただけで何度も足元のイベントが起動されるのと
     // 場所移動時に足元のイベントが起動されるのを防ぐために使用
     this._disableHereEventRect = null;
+    // 船から陸地に移動しているか否かを管理するフラグ
+    this._shipOrBoatTowardingLand = false;
 };
 
 Game_Player.prototype.makeMover = function() {
@@ -2162,23 +2164,17 @@ Game_Player.prototype.moveByInput = function() {
     }
 };
 
-Game_Player.prototype.forceMoveOnShipOrBoat = function() {
+Game_Player.prototype.forceMoveOnVehicle = function() {
+    this._dashing = false;
+    this.setMoveSpeed(4);
     this.setThrough(true);
     const point = { x: this.vehicle()._realX, y: this.vehicle()._realY };
     this.mover().moveToTarget(point);
     this.setThrough(false);
 };
 
-Game_Player.prototype.forceMoveOffShipOrBoat = function() {
-    this.setThrough(true);
-    // 乗り物から降りた時にハマらないように整数座標に着陸する
-    const fromPoint = { x: this.x, y: this.y };
-    const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._direction);
-    this.mover().moveToTarget(targetPoint);
-    this.setThrough(false);
-};
-
 Game_Player.prototype.forceMoveOffAirship = function() {
+    this.setMoveSpeed(4);
     // 乗り物から降りた時にハマらないように整数座標に着陸する
     const targetPoint = { x: this.x, y: this.y };
     // リセットした乗り物の向きにプレイヤーを合わせる
@@ -2188,6 +2184,16 @@ Game_Player.prototype.forceMoveOffAirship = function() {
     this.vehicle().setDirectionFix(true);
     this.setDirectionFix(true);
     this.mover().moveToTarget(targetPoint);
+};
+
+Game_Player.prototype.forceMoveOffShipOrBoat = function() {
+    this.setMoveSpeed(4);
+    this.setThrough(true);
+    // 乗り物から降りた時にハマらないように整数座標に着陸する
+    const fromPoint = { x: this.x, y: this.y };
+    const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._direction);
+    this.mover().moveToTarget(targetPoint);
+    this.setThrough(false);
 };
 
 Game_Player.prototype.update = function(sceneActive) {
@@ -2275,9 +2281,8 @@ Game_Player.prototype.getOnVehicle = function() {
     if (vehicleType) {
         this._vehicleType = vehicleType;
         this._vehicleGettingOn = true;
-        if (!this.isInAirship()) {
-            this.forceMoveOnShipOrBoat();
-        }
+        this.forceMoveOnVehicle();
+        this._disableHereEventRect = this.vehicle().collisionRect();
         this.gatherFollowers();
     }
     return this._vehicleGettingOn;
@@ -2285,12 +2290,6 @@ Game_Player.prototype.getOnVehicle = function() {
 
 Game_Player.prototype.checkRideVehicles = function() {
     const dir = this.direction();
-    const x1 = this._realX;
-    const y1 = this._realY;
-    const deg = DotMoveUtils.direction2deg(dir);
-    const dis = DotMoveUtils.calcDistance(deg, this.distancePerFrame());
-    const x2 = x1 + dis.x;
-    const y2 = y1 + dis.y;
     const airship = $gameMap.airship();
     const ship = $gameMap.ship();
     const boat = $gameMap.boat();
@@ -2298,23 +2297,22 @@ Game_Player.prototype.checkRideVehicles = function() {
     let shipResult = null;
     let boatResult = null;
     if (airship._mapId === $gameMap.mapId() && !airship.isThrough()) {
-        airshipResult = this.mover().checkCharacter(x1, y1, dir, airship);
+        airshipResult = this.mover().checkCharacter(this._realX, this._realY, dir, airship);
     }
     if (airshipResult && airshipResult.collisionLengthX() >= this.minTouchWidth() && airshipResult.collisionLengthY() >= this.minTouchHeight()) {
         return "airship";
     } else {
-        const axis = dir === 8 || dir === 2 ? "x" : "y";
-        const minTouchWidthOrHeight = axis === "x" ? this.minTouchWidth() : this.minTouchHeight();
+        const nextPoint = DotMoveUtils.nextPointWithDirection({ x: this._realX, y: this._realY }, this.direction());
         if (ship._mapId === $gameMap.mapId() && !ship.isThrough()) {
-            shipResult = this.mover().checkCharacter(x2, y2, dir, ship);
+            shipResult = this.mover().checkCharacter(nextPoint.x, nextPoint.y, dir, ship);
         }
-        if (shipResult && shipResult.getCollisionLength(axis) >= minTouchWidthOrHeight) {
+        if (shipResult && shipResult.collisionLengthX() >= this.minTouchWidth() && shipResult.collisionLengthY() >= this.minTouchHeight()) {
             return "ship";
         } else {
             if (boat._mapId === $gameMap.mapId() && !boat.isThrough()) {
-                boatResult = this.mover().checkCharacter(x2, y2, dir, boat);
+                boatResult = this.mover().checkCharacter(nextPoint.x, nextPoint.y, dir, boat);
             }
-            if (boatResult && boatResult.getCollisionLength(axis) >= minTouchWidthOrHeight) {
+            if (boatResult && boatResult.collisionLengthX() >= this.minTouchWidth() && boatResult.collisionLengthY() >= this.minTouchHeight()) {
                 return "boat";
             }
         }
@@ -2323,36 +2321,60 @@ Game_Player.prototype.checkRideVehicles = function() {
 };
 
 Game_Player.prototype.getOffVehicle = function() {
-    if (!this.isInAirship()) {
-        // 船に乗っている場合、ハマり防止のためにX座標またはY座標の小数がdpfの半分を超える場合は着地を禁止する
-        let floatXorY;
-        if (this.direction() === 2 || this.direction() === 8) {
-            floatXorY = this._realY - Math.floor(this._realY);
-        } else {
-            floatXorY = this._realX - Math.floor(this._realX);
-        }
-        if (floatXorY > this.distancePerFrame() / 2) return this._vehicleGettingOff;
+    if (this.isInAirship()) {
+        return this.getOffAirship();
+    } else {
+        return this.getOffShipOrBoat();
     }
+};
+
+Game_Player.prototype.getOffAirship = function() {
     if (this.vehicle().isLandOk(this.x, this.y, this.direction())) {
-        this.setMoveSpeed(4);
-        this._followers.synchronize(this.x, this.y, this.direction());
-        this.vehicle().getOff();
-        if (this.isInAirship()) {
-            this.forceMoveOffAirship();
-        }
-        if (!this.isInAirship()) {
-            this.forceMoveOffShipOrBoat();
-            this.setTransparent(false);
-        }
-        this._vehicleGettingOff = true;
-        this.setThrough(false);
-        this.makeEncounterCount();
+        this.getOffVehicleLastPhase();
     }
     return this._vehicleGettingOff;
 };
 
+Game_Player.prototype.getOffShipOrBoat = function() {
+    if (this.vehicle().isLandOk(this.x, this.y, this.direction())) {
+        this.setDirectionFix(true);
+        this.setMoveSpeed(4);
+        this._shipOrBoatTowardingLand = true;
+        this.setThrough(true);
+        const point = { x: this.x, y: this.y };
+        this.mover().moveToTarget(point);
+        this.setThrough(false);
+    }
+    return false;
+};
+
+Game_Player.prototype.getOffVehicleLastPhase = function() {
+    this._followers.synchronize(this.x, this.y, this.direction());
+    this.vehicle().getOff();
+    if (this.isInAirship()) {
+        this.forceMoveOffAirship();
+    } else {
+        this.forceMoveOffShipOrBoat();
+        this.setTransparent(false);
+    }
+    this._vehicleGettingOff = true;
+    this.setThrough(false);
+    this.makeEncounterCount();
+};
+
+Game_Player.prototype.updateTowardLandShipOrBoat = function() {
+    this.vehicle().syncWithPlayer();
+    if (!this.isMoving()) {
+        this._shipOrBoatTowardingLand = false;
+        this.setDirectionFix(false);
+        this.getOffVehicleLastPhase();
+    }
+};
+
 Game_Player.prototype.updateVehicle = function() {
-    if (this.isInVehicle() && !this.areFollowersGathering()) {
+    if (this._shipOrBoatTowardingLand) {
+        this.updateTowardLandShipOrBoat();
+    } else if (this.isInVehicle() && !this.areFollowersGathering()) {
         if (this._vehicleGettingOn) {
             this.updateVehicleGetOn();
         } else if (this._vehicleGettingOff) {
@@ -2387,6 +2409,7 @@ Game_Player.prototype.updateVehicleGetOff = function() {
         if (!this.isMoving()) {
             this.gatherFollowers();
             this._gatherStart = true;
+            this._disableHereEventRect = { x: this.x, y: this.y, width: this.width(), height: this.height() };
         }
     }
 };
