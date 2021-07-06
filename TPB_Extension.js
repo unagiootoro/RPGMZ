@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc TPB戦闘拡張プラグイン v1.1.1
+@plugindesc TPB戦闘拡張プラグイン v1.1.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/TPB_Extension.js
 
@@ -88,7 +88,7 @@ TPB戦闘を拡張するプラグインです。
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const TPB_ExtensionPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+const TPB_ExtensionPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 const TPBExParams = {};
 
 (() => {

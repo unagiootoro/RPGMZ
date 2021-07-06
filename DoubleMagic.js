@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 連続魔法 v1.3.1
+@plugindesc 連続魔法 v1.3.2
 @author うなぎおおとろ
 
 @param MagicSkillTypeId
@@ -46,7 +46,7 @@ trueを指定すると、2回目の魔法発動時にMPを消費します。
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const DoubleMagicPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+const DoubleMagicPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 (() => {
 "use strict";

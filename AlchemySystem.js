@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc アイテム合成プラグイン v1.2.3
+@plugindesc アイテム合成プラグイン v1.2.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -153,7 +153,7 @@ AlchemySystem StartAlchemyScene
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const AlchemySystemPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+const AlchemySystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 const AlchemyClassAlias = (() => {
 "use strict";

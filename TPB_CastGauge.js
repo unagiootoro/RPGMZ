@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc スキル発動待機時間ゲージ表示プラグイン v1.0.2
+@plugindesc スキル発動待機時間ゲージ表示プラグイン v1.0.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/TPB_CastGauge.js
 
@@ -30,7 +30,7 @@ v1.0.0 新規作成
 (() => {
     "use strict";
 
-    const pluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+    const pluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
     const params = PluginManager.parameters(pluginName);
     const CastGaugeColor1 = params["CastGaugeColor1"];
     const CastGaugeColor2 = params["CastGaugeColor2"];

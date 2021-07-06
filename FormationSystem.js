@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.1.3
+@plugindesc formation system v1.1.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -333,7 +333,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.1.3
+@plugindesc 陣形システム v1.1.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -666,7 +666,7 @@ trueを設定すると、戦闘中の陣形変更を有効化します。
 空スロットに表示するテキストを指定します。
 */
 
-const FormationSystemPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+const FormationSystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 let $dataFormations = null;
 

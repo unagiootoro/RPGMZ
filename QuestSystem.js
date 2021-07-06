@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Quest system v1.4.1
+@plugindesc Quest system v1.4.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -852,7 +852,7 @@ Specifies the color of the expired text.
 
 /*:ja
 @target MV MZ
-@plugindesc クエストシステム v1.4.1
+@plugindesc クエストシステム v1.4.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -1699,7 +1699,7 @@ MVで動作させるには「callPluginCommandMZ.js」が別途必要となり�
 期限切れの状態のテキストのカラーを指定します。
 */
 
-const QuestSystemPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+const QuestSystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 let $dataQuests = null;
 

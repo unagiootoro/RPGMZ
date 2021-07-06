@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Shop screen expansion v1.0.2
+@plugindesc Shop screen expansion v1.0.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/ShopScene_Extension.js
 
@@ -60,7 +60,7 @@ Specifies the width of the status window on the shop screen.
 
 /*:ja
 @target MZ
-@plugindesc ショップ画面拡張 v1.0.2
+@plugindesc ショップ画面拡張 v1.0.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/ShopScene_Extension.js
 
@@ -127,7 +127,7 @@ Specifies the width of the status window on the shop screen.
 ショップ画面で現在装備中のアイテムがない場合に表示するテキストを指定します。
 */
 
-const ShopScene_ExtensionPluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+const ShopScene_ExtensionPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 (() => {
 "use strict";

@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.6.3
+@plugindesc Skill tree v1.6.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.6.3
+@plugindesc スキルツリー v1.6.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -400,7 +400,7 @@ trueを設定すると、RPGツクールMZのレイアウト形式に合わせ�
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const SkillTreePluginName = decodeURIComponent(document.currentScript.src).match(/^.*\/js\/plugins\/(.+).js$/)[1];
+const SkillTreePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 let $skillTreeData = null;
 let $skillTreeConfigLoader = null;
 const $skillTreeMapLoaders = {};
