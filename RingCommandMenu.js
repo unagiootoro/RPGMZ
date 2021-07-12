@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc リングコマンドメニュー v1.1.3
+@plugindesc リングコマンドメニュー v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/RingCommandMenu.js
 @help
@@ -39,6 +39,13 @@ subMenu: サブコマンドの一覧を開く
 @desc
 アクター選択のアクターコマンドを指定します。
 
+@param EnableSubCommandRotation
+@text サブコマンド回転有効
+@type boolean
+@default false
+@desc
+サブコマンド表示時の回転を有効にします。
+
 @param SaveCommandText
 @text セーブコマンドテキスト
 @type string
@@ -59,6 +66,20 @@ subMenu: サブコマンドの一覧を開く
 @default {"FileName":"Magic2","Volume":"90","Pitch":"100","Pan":"0"}
 @desc
 リングコマンドメニューを終了するときのSEを指定します。
+
+@param SubOpenSe
+@text サブ開始SE
+@type struct<SE>
+@default {"FileName":"Magic1","Volume":"90","Pitch":"150","Pan":"0"}
+@desc
+サブメニューまたはアクター選択を開始するときのSEを指定します。
+
+@param SubCloseSe
+@text サブ終了SE
+@type struct<SE>
+@default {"FileName":"Magic1","Volume":"90","Pitch":"150","Pan":"0"}
+@desc
+サブメニューまたはアクター選択を終了するときのSEを指定します。
 
 @param BackGroundOpacity
 @text 背景不透明度
@@ -179,7 +200,7 @@ subMenu: サブコマンドの一覧を開く
 アクター選択用のアクターの画像を指定します。
 */
 
-const RingCommandMenuPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
+const RingCommandMenuPluginName = document.currentScript.src.match(/.+\/(.+)\.js/)[1];
 
 const RingCommandMenuClassAlias = (() => {
 "use strict";
@@ -395,6 +416,8 @@ const typeDefine = {
     MainMenuCommands: [{}],
     OpenSe: {},
     CloseSe: {},
+    SubOpenSe: {},
+    SubCloseSe: {},
     SelectActorCommands: [{}],
 };
 const PP = PluginParamsParser.parse(PluginManager.parameters(RingCommandMenuPluginName), typeDefine);
@@ -636,12 +659,8 @@ class Sprite_RingCommand extends Sprite_ClickableMVMZ {
     }
 
     degNormalization(deg) {
-        if (deg >= 360) deg = deg % 360;
-        if (deg < 0) {
-            let rdeg = -deg;
-            if (rdeg > 360) rdeg = rdeg % 360;
-            deg = 360 - rdeg;
-        }
+        deg %= 360;
+        if (deg < 0) deg = 360 + deg;
         return deg;
     }
 
@@ -669,7 +688,6 @@ class RingCommandSpriteController {
         this._maxFar = this._baseMaxFar;
         this._baseRotateSpeed = PP.RotationSpeed;
         this._inOutSpeed = PP.InOutSpeed;
-        this._rotateSpeed = this._baseRotateSpeed;
         this._state = "none";
         this._currentIndex = 0;
         this._startDeg = 0;
@@ -679,28 +697,35 @@ class RingCommandSpriteController {
     reset(sprites, index) {
         this._sprites = sprites;
         this._baseSprite = this._sprites[index];
-        this._rotateSpeed = this._baseRotateSpeed;
         this._state = "none";
         this._currentIndex = index;
     }
 
-    startOutCenter() {
-        this.startRotation("outCenter", this._baseMinFar, this._baseMaxFar, this._baseMinFar, false);
+    startOutCenterAndRotation() {
+        this.startInOutAndRotation("outCenterAndRotation", this._baseMinFar, this._baseMaxFar, this._baseMinFar, false);
     }
 
-    startInCenter() {
-        this.startRotation("inCenter", this._baseMinFar, this._baseMaxFar, this._baseMaxFar, true);
+    startInCenterAndRotation() {
+        this.startInOutAndRotation("inCenterAndRotation", this._baseMinFar, this._baseMaxFar, this._baseMaxFar, true);
     }
 
-    startOutCenter2() {
-        this.startRotation("outCenter", 0, this._baseMinFar, 0, true);
+    startSubOutCenterAndRotation() {
+        this.startInOutAndRotation("outCenterAndRotation", 0, this._baseMinFar, 0, true);
     }
 
-    startInCenter2() {
-        this.startRotation("inCenter", 0, this._baseMinFar, this._baseMinFar, false);
+    startSubInCenterAndRotation() {
+        this.startInOutAndRotation("inCenterAndRotation", 0, this._baseMinFar, this._baseMinFar, false);
     }
 
-    startRotation(changeState, minFar, maxFar, startFar, lastCycleSync) {
+    startSubOutCenter() {
+        this.startInOut("outCenter", 0, this._baseMinFar, 0);
+    }
+
+    startSubInCenter() {
+        this.startInOut("inCenter", 0, this._baseMinFar, this._baseMinFar);
+    }
+
+    startInOutAndRotation(changeState, minFar, maxFar, startFar, lastCycleSync) {
         this._state = changeState;
         this._minFar = minFar;
         this._maxFar = maxFar;
@@ -712,8 +737,24 @@ class RingCommandSpriteController {
         });
     }
 
+    startInOut(changeState, minFar, maxFar, startFar) {
+        this._state = changeState;
+        this._minFar = minFar;
+        this._maxFar = maxFar;
+        this._sprites.forEach((sprite, i) => {
+            sprite.deg = this.calcRelativeIndexDeg(i);
+            sprite.far = startFar;
+        });
+    }
+
     update() {
         switch (this._state) {
+        case "outCenterAndRotation":
+            this.updateOutCenterAndRotation();
+            break;
+        case "inCenterAndRotation":
+            this.updateInCenterAndRotation();
+            break;
         case "outCenter":
             this.updateOutCenter();
             break;
@@ -744,7 +785,7 @@ class RingCommandSpriteController {
         return this.calcIndexDeg(relIndex);
     }
 
-    updateOutCenter() {
+    updateOutCenterAndRotation() {
         if (this._baseSprite.far >= this._maxFar - this._marginFar) {
             if (this._lastCycled) {
                 if (this._lastCycleSync) {
@@ -782,7 +823,7 @@ class RingCommandSpriteController {
         }
     }
 
-    updateInCenter() {
+    updateInCenterAndRotation() {
         if (this._baseSprite.far <= this._minFar + this._marginFar) {
             if (this._lastCycled) {
                 if (this._lastCycleSync) {
@@ -820,6 +861,40 @@ class RingCommandSpriteController {
         }
     }
 
+    updateOutCenter() {
+        if (this._baseSprite.far >= this._maxFar - this._marginFar) {
+            this._sprites.forEach((sprite, i) => {
+                sprite.far = this._maxFar;
+            });
+            this._state = "none";
+        } else {
+            for (const sprite of this._sprites) {
+                if (this._baseSprite.far < this._maxFar) {
+                    sprite.far += this._inOutSpeed;
+                } else {
+                    sprite.far = this._maxFar;
+                }
+            }
+        }
+    }
+
+    updateInCenter() {
+        if (this._baseSprite.far <= this._minFar + this._marginFar) {
+            this._sprites.forEach((sprite, i) => {
+                sprite.far = this._minFar;
+            });
+            this._state = "none";
+        } else {
+            for (const sprite of this._sprites) {
+                if (this._baseSprite.far > this._minFar) {
+                    sprite.far -= this._inOutSpeed;
+                } else {
+                    sprite.far = this._minFar;
+                }
+            }
+        }
+    }
+
     startChangeNextCommand() {
         let index = this._currentIndex + 1;
         let rotationDeg;
@@ -847,6 +922,7 @@ class RingCommandSpriteController {
     startChangeCommand(targetIndex, rotationDeg) {
         this._baseSprite = this._sprites[this._currentIndex];
         for (const sprite of this._sprites) {
+            sprite.rotateSpeed = this._baseRotateSpeed;
             sprite.startRotation(rotationDeg);
         }
         this._currentIndex = targetIndex;
@@ -1276,7 +1352,6 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
         let actorImageName = "";
         if (PP.SelectActorCommands) {
             for (const selectActorCommand of PP.SelectActorCommands) {
-                console.log(selectActorCommand);
                 if (selectActorCommand.ActorId === actor.actorId()) {
                     actorImageName = selectActorCommand.Image;
                 }
@@ -1306,11 +1381,12 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
 
     processStart(isRestart) {
         this._spriteset.createRingCommandSprites($gameTemp.ringCommandManager().datas());
-        this.playOpenSe();
         this._spriteset.ringCommandShow();
         if (isRestart) {
+            this.playSubOpenSe();
             this._spriteset.ringCommandSubStart();
         } else {
+            this.playOpenSe();
             this._spriteset.ringCommandStart();
         }
         this._ringCommandMenuState = "active";
@@ -1347,7 +1423,7 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
     inputCancelKey() {
         $gameTemp.ringCommandManager().inputCancelKey();
         if ($gameTemp.ringCommandManager().hasHoldDatas()) {
-            this.playOpenSe();
+            this.playSubCloseSe();
             this._spriteset.ringCommandSubEnd();
             this._spriteset.ringCommandHideLabel();
             this._spriteset.ringCommandHideCursor();
@@ -1414,7 +1490,7 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
             break;
         }
         if (datas) {
-            this.playOpenSe();
+            this.playSubOpenSe();
             this._spriteset.ringCommandSubEnd();
             this._spriteset.ringCommandHideLabel();
             this._spriteset.ringCommandHideCursor();
@@ -1439,6 +1515,26 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
             pan: parseInt(PP.CloseSe.Pan),
             pitch: parseInt(PP.CloseSe.Pitch),
             volume: parseInt(PP.CloseSe.Volume),
+        }
+        AudioManager.playSe(se);
+    }
+
+    playSubOpenSe() {
+        const se = {
+            name: PP.SubOpenSe.FileName,
+            pan: parseInt(PP.SubOpenSe.Pan),
+            pitch: parseInt(PP.SubOpenSe.Pitch),
+            volume: parseInt(PP.SubOpenSe.Volume),
+        }
+        AudioManager.playSe(se);
+    }
+
+    playSubCloseSe() {
+        const se = {
+            name: PP.SubCloseSe.FileName,
+            pan: parseInt(PP.SubCloseSe.Pan),
+            pitch: parseInt(PP.SubCloseSe.Pitch),
+            volume: parseInt(PP.SubCloseSe.Volume),
         }
         AudioManager.playSe(se);
     }
@@ -1585,17 +1681,25 @@ class Spriteset_RingCommandMenu extends Spriteset_Base {
 
     ringCommandStart() {
         this._ringCommandSpriteController.reset(this._ringCommandSprites, 0);
-        this._ringCommandSpriteController.startInCenter();
+        this._ringCommandSpriteController.startInCenterAndRotation();
     }
 
     ringCommandSubStart() {
         const index = $gameTemp.ringCommandManager().index();
         this._ringCommandSpriteController.reset(this._ringCommandSprites, index);
-        this._ringCommandSpriteController.startOutCenter2();
+        if (PP.EnableSubCommandRotation) {
+            this._ringCommandSpriteController.startSubOutCenterAndRotation();
+        } else {
+            this._ringCommandSpriteController.startSubOutCenter();
+        }
     }
 
     ringCommandSubEnd() {
-        this._ringCommandSpriteController.startInCenter2();
+        if (PP.EnableSubCommandRotation) {
+            this._ringCommandSpriteController.startSubInCenterAndRotation();
+        } else {
+            this._ringCommandSpriteController.startSubInCenter();
+        }
     }
 
     ringCommandHide() {
@@ -1605,7 +1709,7 @@ class Spriteset_RingCommandMenu extends Spriteset_Base {
     }
 
     ringCommandEnd() {
-        this._ringCommandSpriteController.startOutCenter();
+        this._ringCommandSpriteController.startOutCenterAndRotation();
     }
 
     ringCommandNext() {
