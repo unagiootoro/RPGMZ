@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc なめらかカメラ v1.0.0
+@plugindesc なめらかカメラ v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SmoothCamera.js
 @help
@@ -17,6 +17,11 @@
 スクロール速度を変更したい場合、プラグインパラメータ「基本スクロール除数」を変更してください。
 「基本スクロール除数」を大きな値にするとスクロールが遅くなり、小さな値にするとスクロールが早くなります。
 スクロール速度の詳細な仕様については以下の【スクロール距離の計算式】を参照してください。
+
+【イベントコマンドによるマップのスクロールを行った場合の挙動】
+イベントコマンドによるマップのスクロールを行った場合、
+プレイヤーが移動するまでの間はなめらかカメラは禁止されます。
+なおXY座標スクロールプラグイン「XYScroll.js」によるスクロールを行った場合も同様です。
 
 【スクロール距離の計算式】
 ※スクロールの挙動をカスタマイズしたい人向けの情報です。
@@ -61,13 +66,13 @@
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
-const NullNullCameraPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
+const SmoothCameraPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 (() => {
 "use strict";
 
 
-const params = PluginManager.parameters(NullNullCameraPluginName);
+const params = PluginManager.parameters(SmoothCameraPluginName);
 const PP = {
     EnableSmoothCameraSwitchId: parseInt(params.EnableSmoothCameraSwitchId),
     MaxScrollFar: parseInt(params.MaxScrollFar),
@@ -82,6 +87,22 @@ class CameraUtils {
             return $gameSwitches.value(PP.EnableSmoothCameraSwitchId);
         }
         return true;
+    }
+
+    static isScrolling() {
+        const result = $gameMap.isScrolling();
+        if (result) return true;
+        if (typeof XYScrollPluginName !== "undefined") {
+            return $gameMap.isXyScrolling();
+        }
+        return false;
+    }
+
+    static isCharacterMoved(character) {
+        if (typeof DotMoveSystemPluginName !== "undefined") {
+            return character.isMoved();
+        }
+        return character.isMoving();
     }
 
     static xToHorz(x) {
@@ -103,13 +124,39 @@ class CameraUtils {
     }
 }
 
+
+const _Game_Player_initMembers = Game_Player.prototype.initMembers;
+Game_Player.prototype.initMembers = function() {
+    _Game_Player_initMembers.call(this);
+    this._smoothScrollLock = false;
+};
+
 const _Game_Player_updateScroll = Game_Player.prototype.updateScroll;
 Game_Player.prototype.updateScroll = function(lastScrolledX, lastScrolledY) {
+    this.updateSmoothScrollLock();
     if (CameraUtils.isSmoothCamera()) {
-        this.updateSmoothScroll(PP.MinScrollFar, PP.MaxScrollFar, PP.BaseScrollDiv);
+        if (!this.isSmootScrollLocked()) {
+            this.updateSmoothScroll(PP.MinScrollFar, PP.MaxScrollFar, PP.BaseScrollDiv);
+        }
     } else {
         _Game_Player_updateScroll.call(this, lastScrolledX, lastScrolledY);
     }
+};
+
+// イベントによるスクロール中はスムーズスクロールをロックする
+// ロックは非スクロール中のプレイヤー移動によって解除される
+Game_Player.prototype.updateSmoothScrollLock = function() {
+    if (CameraUtils.isScrolling()) {
+        this._smoothScrollLock = true;
+    } else {
+        if (CameraUtils.isCharacterMoved($gamePlayer)) {
+            this._smoothScrollLock = false;
+        }
+    }
+};
+
+Game_Player.prototype.isSmootScrollLocked = function() {
+    return this._smoothScrollLock;
 };
 
 Game_Player.prototype.updateSmoothScroll = function(minFar, maxFar, div) {
