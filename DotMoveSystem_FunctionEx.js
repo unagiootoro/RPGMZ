@@ -465,13 +465,6 @@ const CharacterInfo = {
 Object.assign(Game_Player.prototype, CharacterInfo);
 Object.assign(Game_Follower.prototype, CharacterInfo);
 
-
-FollowerCollisionChecker.prototype.checkCollision = function(x, y, d) {
-    const margin = this._character.distancePerFrame();
-    const correctedPoint = this.correctMarginPoint({ x: x, y: y }, margin);
-    return CharacterCollisionChecker.prototype.checkCollision.call(this, correctedPoint.x, correctedPoint.y, d);
-};
-
 /*
  * ● 移動速度の調整
  */
