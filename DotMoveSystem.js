@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.7.2
+@plugindesc Dot movement system v1.7.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.7.2
+@plugindesc ドット移動システム v1.7.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -822,8 +822,8 @@ class CharacterCollisionChecker {
         // Over pass考慮
         if (this._character.isHigherPriority() !== character.isHigherPriority()) return null;
 
-        let cx = this.isCharacterRealPosMode() ? character._realX : character._x;
-        let cy = this.isCharacterRealPosMode() ? character._realY : character._y;
+        let cx = this.isCharacterRealPosMode() ? character._realX : character.x;
+        let cy = this.isCharacterRealPosMode() ? character._realY : character.y;
         if ($gameMap.isLoopHorizontal() || $gameMap.isLoopVertical()) {
             if ($gameMap.isLoopHorizontal()) {
                 if (cx < this._character.width() && x >= $gameMap.width() - this._character.width()) {
@@ -1428,9 +1428,8 @@ class CharacterMover {
     isCollidedWithEvents(x, y) {
         const margin = 0.5;
         const collisionResults = this._controller.checkOtherEvents(x, y, this._character.direction(), false);
-        if (collisionResults.length > 0) {
-            if (collisionResults.length > 1) return true;
-            if (collisionResults[0].collisionLengthX() >= margin || collisionResults[0].collisionLengthY() >= margin) return true;
+        for (const result of collisionResults) {
+            if (result.collisionLengthX() >= margin || result.collisionLengthY() >= margin) return true;
         }
         return false;
     }
@@ -1438,9 +1437,8 @@ class CharacterMover {
     isCollidedWithVehicles(x, y) {
         const margin = 0.5;
         const collisionResults = this._controller.checkVehicles(x, y, this._character.direction(), false);
-        if (collisionResults.length > 0) {
-            if (collisionResults.length > 1) return true;
-            if (collisionResults[0].collisionLengthX() >= margin || collisionResults[0].collisionLengthY() >= margin) return true;
+        for (const result of collisionResults) {
+            if (result.collisionLengthX() >= margin || result.collisionLengthY() >= margin) return true;
         }
         return false;
     }
@@ -1484,14 +1482,17 @@ class CharacterMover {
     }
 
     dotMoveByDirection(direction) {
-        this.setDirection(direction);
+        const deg = DotMoveUtils.direction2deg(direction);
+        const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
+        this.setDirection(direction4);
         this._moverData.targetCount = 1;
         this._moverData.moveDir = direction;
         this.moveProcess();
     }
 
     dotMoveByDeg(deg) {
-        this.setDirection(DotMoveUtils.deg2direction4(deg, this._character.direction()));
+        const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
+        this.setDirection(direction4);
         this._moverData.targetCount = 1;
         this._moverData.moveDeg = deg;
         this.moveProcess();
@@ -1532,10 +1533,10 @@ class CharacterMover {
     }
 
     moveDiagonally(horz, vert, moveUnit) {
-        if (this._character._direction === this._character.reverseDir(horz)) {
+        if (this._character.direction() === this._character.reverseDir(horz)) {
             this.setDirection(horz);
         }
-        if (this._character._direction === this._character.reverseDir(vert)) {
+        if (this._character.direction() === this._character.reverseDir(vert)) {
             this.setDirection(vert);
         }
         if (vert === 8 && horz === 6) {
@@ -1556,7 +1557,7 @@ class CharacterMover {
         const fromPoint = { x: this._character._realX, y: this._character._realY };
         const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
         this._moverData.moveDeg = deg;
-        const dir = DotMoveUtils.deg2direction4(deg);
+        const dir = DotMoveUtils.deg2direction4(deg, this._character.direction());
         this.setDirection(dir);
         this.startMassMove(fromPoint, targetPoint);
     }
@@ -1577,7 +1578,7 @@ class CharacterMover {
         } else {
             this._moverData.setMoveSpeedReserve = moveSpeed;
         }
-    };
+    }
 }
 
 
@@ -1659,8 +1660,8 @@ class EventMover extends CharacterMover {
     isCollidedWithPlayerCharacters(x, y) {
         const margin = 0.5;
         const collisionResults = this._controller.checkPlayer(x, y, this._character.direction(), false);
-        if (collisionResults.length > 0) {
-            if (collisionResults[0].collisionLengthX() >= margin || collisionResults[0].collisionLengthY() >= margin) return true;
+        for (const result of collisionResults) {
+            if (result.collisionLengthX() >= margin || result.collisionLengthY() >= margin) return true;
         }
         return false;
     }
@@ -1748,13 +1749,6 @@ Game_CharacterBase.prototype.moveStraight = function(d) {
 
 Game_CharacterBase.prototype.moveDiagonally = function(horz, vert) {
     this.mover().moveDiagonally(horz, vert, this._moveUnit);
-};
-
-Game_CharacterBase.prototype.setDirection = function(d) {
-    if (!this.isDirectionFixed() && d) {
-        this._direction = DotMoveUtils.deg2direction4(DotMoveUtils.direction2deg(d), this._direction);
-    }
-    this.resetStopCount();
 };
 
 Game_CharacterBase.prototype.isMapPassable = function(x, y, d) {
@@ -2579,7 +2573,7 @@ if (Utils.RPGMAKER_NAME === "MV") {
     Game_Followers.prototype.data = function() {
         return this._data.clone();
     };
-};
+}
 
 Game_Follower.prototype.makeMover = function() {
     return new FollowerMover(this);
