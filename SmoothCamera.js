@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc なめらかカメラ v1.0.1
+@plugindesc なめらかカメラ v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SmoothCamera.js
 @help
@@ -162,8 +162,8 @@ Game_Player.prototype.isSmootScrollLocked = function() {
 Game_Player.prototype.updateSmoothScroll = function(minFar, maxFar, div) {
     const centerX = $gamePlayer._realX - $gamePlayer.centerX();
     const centerY = $gamePlayer._realY - $gamePlayer.centerY();
-    const xDiff = centerX - $gameMap.displayX();
-    const yDiff = centerY - $gameMap.displayY();
+    const xDiff = $gameMap.deltaX(centerX, $gameMap.displayX());
+    const yDiff = $gameMap.deltaY(centerY, $gameMap.displayY());
     const horz = CameraUtils.xToHorz(xDiff);
     const vert = CameraUtils.yToVert(yDiff);
     let far = Math.sqrt(xDiff**2 + yDiff**2);
