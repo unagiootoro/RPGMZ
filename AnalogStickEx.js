@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc アナログスティック拡張 v1.1.2
+@plugindesc アナログスティック拡張 v1.1.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AnalogStickEx.js
 
@@ -281,9 +281,14 @@ Game_Player.prototype.moveByInput = function() {
                 }
             } else {
                 if ($gameTemp.isDestinationValid()) {
-                    const x = $gameTemp.destinationX();
-                    const y = $gameTemp.destinationY();
-                    direction = this.findDirectionTo(x, y);
+                    if (typeof DotMoveSystemPluginName !== "undefined") {
+                        this.startTouchMove();
+                        return;
+                    } else {
+                        const x = $gameTemp.destinationX();
+                        const y = $gameTemp.destinationY();
+                        direction = this.findDirectionTo(x, y);
+                    }
                 }
             }
         }
