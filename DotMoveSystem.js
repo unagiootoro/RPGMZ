@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.7.3
+@plugindesc Dot movement system v1.7.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.7.3
+@plugindesc ドット移動システム v1.7.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -2156,15 +2156,28 @@ Game_Player.prototype.getInputDirection = function() {
 
 Game_Player.prototype.moveByInput = function() {
     if (!this.isMoving() && this.canMove()) {
-        let direction = this.getInputDirection();
+        const direction = this.getInputDirection();
         if (direction > 0) {
             $gameTemp.clearDestination();
+            $gameTemp.setBeforeTouchMovedPoint(null);
             this.executeMove(direction);
         } else if ($gameTemp.isDestinationValid()) {
-            const x = $gameTemp.destinationX();
-            const y = $gameTemp.destinationY();
-            direction = this.findDirectionTo(x, y);
-            if (direction > 0) this.mover().moveByDirection(direction, 1);
+            this.startTouchMove();
+        }
+    }
+};
+
+Game_Player.prototype.startTouchMove = function() {
+    const x = $gameTemp.destinationX();
+    const y = $gameTemp.destinationY();
+    const direction = this.findDirectionTo(x, y);
+    if (direction > 0) {
+        const beforeTouchMovedPoint = $gameTemp.beforeTouchMovedPoint();
+        const currentPoint = { x: this.x, y: this.y };
+        const nextPoint = DotMoveUtils.nextPointWithDirection(currentPoint, direction);
+        if (!beforeTouchMovedPoint || !(beforeTouchMovedPoint.x === nextPoint.x && beforeTouchMovedPoint.y === nextPoint.y)) {
+            this.mover().moveByDirection(direction, 1);
+            $gameTemp.setBeforeTouchMovedPoint(currentPoint);
         }
     }
 };
@@ -2229,6 +2242,7 @@ Game_Player.prototype.updateTouchPoint = function() {
         if (x === this.x && y === this.y) {
             this.moveToTarget(this.x, this.y);
             $gameTemp.clearDestination();
+            $gameTemp.setBeforeTouchMovedPoint(null);
         }
     }
 };
@@ -2272,6 +2286,7 @@ Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
     }
     if (!wasMoving) {
         $gameTemp.clearDestination();
+        $gameTemp.setBeforeTouchMovedPoint(null);
     }
 };
 
@@ -2716,6 +2731,8 @@ Game_Temp.prototype.initialize = function() {
     this._movers = new Map();
     // イベントとの衝突判定を高速化するため、マスごとにイベントを管理する
     this._mapEventsCache = null;
+    // タッチ移動時に移動前後で移動先のマスが変化する場合に移動処理がループする現象に対応する
+    this._beforeTouchMovedPoint = null;
 };
 
 Game_Temp.prototype.mover = function(character) {
@@ -2749,6 +2766,14 @@ Game_Temp.prototype.removeMapEventCache = function(mass, event) {
     if (this._mapEventsCache[mass]) {
         this._mapEventsCache[mass] = this._mapEventsCache[mass].filter(evt => evt !== event);
     }
+};
+
+Game_Temp.prototype.beforeTouchMovedPoint = function() {
+    return this._beforeTouchMovedPoint;
+};
+
+Game_Temp.prototype.setBeforeTouchMovedPoint = function(point) {
+    this._beforeTouchMovedPoint = point;
 };
 
 return {
