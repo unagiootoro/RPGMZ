@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.0.0
+@plugindesc Dot movement system enhancement v1.0.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -23,17 +23,24 @@ You will be able to specify any movement speed.
 You can also add acceleration and inertia to the movement.
 ・ Adjustment of movement speed
 In the setting of the movement route
-this.setDpf (movement speed);
+this.setDpf(movement speed);
 Specify. The moving speed specifies the moving speed per frame.
+
+(Example) When moving 0.01 squares per frame
+this.setDpf(0.01);
+
+If you want to cancel the movement speed adjustment and reflect the movement speed specified by the event command,
+this.setDpf(null);
+Specify.
 
 ■ Addition of acceleration
 Acceleration is valid only when the movement speed is adjusted.
 To specify the acceleration
-this.setAcc (maximum acceleration, degree of influence);
+this.setAcc(maximum acceleration, degree of influence);
 Specify.
 
 (Example) Acceleration between 20 frames, maximum acceleration at 3x speed
-this.setAcc (20, 3);
+this.setAcc(20, 3);
 
 ■ Addition of inertia
 To specify inertia
@@ -146,7 +153,7 @@ Specifies the slide length of the character in the Y-axis direction.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.0.0
+@plugindesc ドット移動システム機能拡張 v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -171,6 +178,13 @@ Specifies the slide length of the character in the Y-axis direction.
 移動ルートの設定で
 this.setDpf(移動速度);
 と指定します。移動速度は1フレーム当たりの移動速度を指定します。
+
+(例) 1フレーム当たり0.01マス移動する場合
+this.setDpf(0.01);
+
+なお、移動速度の調整をキャンセルしてイベントコマンドで指定する移動速度を反映する場合、
+this.setDpf(null);
+と指定します。
 
 ■ 加速度の追加
 加速度は移動速度の調整を行っている場合のみ有効になります。
@@ -387,6 +401,14 @@ const PP = PluginParamsParser.parse(PluginManager.parameters(DotMoveSystem_Funct
 /*
  * ● 初期化処理
  */
+const _CharacterMover_initialize = CharacterMover.prototype.initialize;
+CharacterMover.prototype.initialize = function(character) {
+    _CharacterMover_initialize.call(this, character);
+    this._lastDirection = character.direction();
+    this._changeDirectionCount = 0;
+    this._direction8 = this._character.direction();
+};
+
 const _Game_CharacterBase_initMembers = Game_CharacterBase.prototype.initMembers;
 Game_CharacterBase.prototype.initMembers = function() {
     _Game_CharacterBase_initMembers.call(this);
@@ -426,6 +448,13 @@ Game_Follower.prototype.initMembers = function() {
 /*
  * ● 更新処理
  */
+const _CharacterMover_update = CharacterMover.prototype.update;
+CharacterMover.prototype.update = function() {
+    _CharacterMover_update.call(this);
+    // TODO: 斜め慣性処理を実装する
+    // this.updateChangeDirection();
+};
+
 const _Game_CharacterBase_update = Game_CharacterBase.prototype.update;
 Game_CharacterBase.prototype.update = function() {
     if (this.isJumping() && this.isSmartJumping()) this.updateSmartJump();
@@ -468,11 +497,69 @@ Object.assign(Game_Follower.prototype, CharacterInfo);
 /*
  * ● 移動速度の調整
  */
-const _Game_CharacterBase_distancePerFrame = Game_CharacterBase.prototype.distancePerFrame;
+CharacterMover.prototype.updateChangeDirection = function() {
+    if (!this._reserveChangeDirection) return;
+    const direction = this._lastDirection;
+    if (direction !== this._character.direction()) {
+        this._changeDirectionCount++;
+        if (this._changeDirectionCount >= 3) {
+            this._reserveChangeDirection = false;
+            const deg = DotMoveUtils.direction2deg(direction);
+            const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
+            this.setDirection8(direction);
+            this.setDirection(direction4);
+            this._reserveSetDirection = null;
+        }
+    }
+};
+
+
+CharacterMover.prototype.setDirection8 = function(direction8) {
+    this._direction8 = direction8;
+};
+
+CharacterMover.prototype.direction8 = function() {
+    return this._direction8;
+};
+
+CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: true }) {
+    if (opt.changeDir) {
+        const direction = DotMoveUtils.deg2direction(deg);
+        this.changeDirectionWhenDotMove(direction);
+    }
+    this._moverData.targetCount = 1;
+    this._moverData.moveDeg = deg;
+    this.moveProcess();
+};
+
+CharacterMover.prototype.dotMoveByDirection = function(direction, opt = { changeDir: true }) {
+    if (opt.changeDir) {
+        this.changeDirectionWhenDotMove(direction);
+    }
+    this._moverData.targetCount = 1;
+    this._moverData.moveDir = direction;
+    this.moveProcess();
+};
+
+CharacterMover.prototype.changeDirectionWhenDotMove = function(direction) {
+    if (this._lastDirection !== direction) {
+        this._lastDirection = direction;
+        this._changeDirectionCount = 0;
+        this._reserveChangeDirection = true;
+        this.setDirection8(direction);
+        const deg = DotMoveUtils.direction2deg(direction);
+        const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
+        this.setDirection(direction4);
+    }
+};
+
+
+Game_CharacterBase.prototype.originDistancePerFrame = Game_CharacterBase.prototype.distancePerFrame;
+
 Game_CharacterBase.prototype.distancePerFrame = function() {
     const isNeedUpdateAcceleration = this.isNeedUpdateAcceleration();
-    if (this._dpf == null) return _Game_CharacterBase_distancePerFrame.call(this);
-    if (isNeedUpdateAcceleration && this._moverData.targetCount > 1) return _Game_CharacterBase_distancePerFrame.call(this);
+    if (this._dpf == null) return this.originDistancePerFrame();
+    if (isNeedUpdateAcceleration && this._moverData.targetCount > 1) return this.originDistancePerFrame();
     const dashMul = this._dashing ? 2 : 1;
     if (isNeedUpdateAcceleration) {
         const acc = 1 + this._acceleration / this._maxAcceleration * this._accelerationPlus;
@@ -486,9 +573,9 @@ Game_CharacterBase.prototype.setDpf = function(dpf) {
     this._dpf = dpf;
 };
 
-Game_CharacterBase.prototype.setAcc = function(accPlus, maxAcc) {
-    this._accelerationPlus = accPlus;
+Game_CharacterBase.prototype.setAcc = function(maxAcc, accPlus) {
     this._maxAcceleration = maxAcc;
+    this._accelerationPlus = accPlus;
 };
 
 Game_CharacterBase.prototype.setInertia = function(inertia) {
@@ -496,7 +583,7 @@ Game_CharacterBase.prototype.setInertia = function(inertia) {
 };
 
 Game_CharacterBase.prototype.isNeedUpdateAcceleration = function() {
-    return this._maxAcceleration != null && this._accelerationPlus != null;
+    return this._dpf != null && this._maxAcceleration != null && this._accelerationPlus != null;
 };
 
 Game_CharacterBase.prototype.updateAcceleration = function() {
@@ -511,7 +598,7 @@ Game_CharacterBase.prototype.updateAcceleration = function() {
             if (this._acceleration > 0) {
                 this._acceleration -= this._inertia;
                 if (this._acceleration < 0) this._acceleration = 0;
-                this.mover().dotMoveByDirection(this._direction);
+                this.mover().dotMoveByDirection(this.mover().direction8(), { changeDir: false });
             }
         }
     }
@@ -519,6 +606,44 @@ Game_CharacterBase.prototype.updateAcceleration = function() {
 
 Game_CharacterBase.prototype.cancelAcceleration = function() {
     this._acceleration = 0;
+};
+
+
+Game_Player.prototype.distancePerFrame = function() {
+    if (this.isInVehicle()) return this.originDistancePerFrame();
+    return Game_CharacterBase.prototype.distancePerFrame.call(this);
+};
+
+Game_Player.prototype.isNeedUpdateAcceleration = function() {
+    if (this.isInVehicle()) return false;
+    return Game_CharacterBase.prototype.isNeedUpdateAcceleration.call(this);
+};
+
+Game_Player.prototype.startMapEvent = function(x, y, triggers, normal) {
+    if ($gameMap.isEventRunning()) return;
+    for (const event of DotMoveUtils.enteringMassesEvents(x, y, this.width(), this.height())) {
+        if (event.isCollidedDisableHereEventRect()) continue;
+        const result = this.mover().checkCharacter(x, y, this._direction, event);
+        if (!result) continue;
+        if (result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea()) {
+            if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
+                $gameMap.setDisableHereEventRect(event.collisionRect());
+                event.start();
+                this.cancelAcceleration();
+            }
+        }
+    }
+};
+
+
+Game_Follower.prototype.distancePerFrame = function() {
+    if ($gamePlayer.isInVehicle()) return this.originDistancePerFrame();
+    return Game_CharacterBase.prototype.distancePerFrame.call(this);
+};
+
+Game_Follower.prototype.isNeedUpdateAcceleration = function() {
+    if ($gamePlayer.isInVehicle()) return false;
+    return Game_CharacterBase.prototype.isNeedUpdateAcceleration.call(this);
 };
 
 Game_Follower.prototype.chaseCharacter = function(character) {
@@ -538,6 +663,7 @@ Game_Follower.prototype.chaseCharacter = function(character) {
         if ($gamePlayer._dpf) {
             this.setDpf(this.calcFollowerDpf(far));
         } else {
+            this.setDpf(null);
             this.setMoveSpeed(this.calcFollowerSpeed(far));
         }
     }
@@ -578,6 +704,7 @@ PlayerMover.prototype.eventPushProcess = function() {
     const width = this._character.width();
     const height = this._character.height();
     const dpf = this._character.distancePerFrame();
+    const margin = dpf / 2;
     const dir = this._character.direction();
     const dis = DotMoveUtils.calcDistance(DotMoveUtils.direction2deg(dir), dpf);
     const x2 = x + dis.x;
@@ -585,7 +712,7 @@ PlayerMover.prototype.eventPushProcess = function() {
     for (const event of DotMoveUtils.enteringMassesEvents(x2, y2, width, height)) {
         if (!event.event().meta.PushableEvent) continue;
         const result = this.checkCharacter(x2, y2, dir, event);
-        if (!(result && result.collisionLengthX() >= dpf && result.collisionLengthY() >= dpf)) continue;
+        if (!(result && result.collisionLengthX() >= margin && result.collisionLengthY() >= margin)) continue;
         event.mover().dotMoveByDirection(dir);
     }
 };
@@ -600,15 +727,11 @@ CharacterCollisionChecker.prototype.checkEventsPrepare = function(notCollisionEv
     const width = this._character.width();
     const height = this._character.height();
     const margin = this._character.distancePerFrame();
-    const masses = DotMoveUtils.mapEventCacheMasses(x, y, width, height);
-    for (const massIdx of masses) {
-        const massEvents = $gameTemp.mapEventsCache()[massIdx];
-        if (!massEvents) continue;
-        for (const event of massEvents) {
-            if (event.isNormalPriority() && !event.isThrough() && !notCollisionEventIds.includes(event.eventId())) {
-                const result = this.checkCharacter(x, y, this._character.direction(), event);
-                if (result && result.collisionLengthX() >= margin && result.collisionLengthY() >= margin) collidedEvents.push(event);
-            }
+    const events = DotMoveUtils.enteringMassesEvents(x, y, width, height);
+    for (const event of events) {
+        if (event.isNormalPriority() && !event.isThrough() && !notCollisionEventIds.includes(event.eventId())) {
+            const result = this.checkCharacter(x, y, this._character.direction(), event);
+            if (result && result.collisionLengthX() >= margin && result.collisionLengthY() >= margin) collidedEvents.push(event);
         }
     }
     return collidedEvents.map(event => event.eventId());
