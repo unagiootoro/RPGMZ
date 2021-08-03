@@ -1,6 +1,6 @@
 /*:
-@target MZ
-@plugindesc リングコマンドメニュー v1.2.0
+@target MV MZ
+@plugindesc リングコマンドメニュー v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/RingCommandMenu.js
 @help
@@ -10,15 +10,19 @@
 基本的に導入するだけで使用できますが、プラグインパラメータ「MainMenuCommands」を編集することで
 よりリングコマンドをカスタマイズすることができます。
 
-■メインメニューコマンドの編集について
+■ メインメニューコマンドの編集について
 メインメニューコマンドに一覧に表示するコマンドを登録します。
 
-■コマンドタイプについて
+■ コマンドタイプについて
 コマンドタイプではコマンドをどのように扱うかを指定します。
 これを設定することでコマンド実行前にアクターの選択を行うか、またはサブコマンドの一覧を開くかを設定することができます。
-normal: シーンを開く
-selectActor: アクターを選択してからシーンを開く
+commonEvent: コモンイベントを実行
+script: スクリプトを実行する(主にシーンを開くために使用)
+selectActor: アクターを選択してからスクリプトを実行((主にアクターを選択するシーンを開くために仕様)
 subMenu: サブコマンドの一覧を開く
+
+※v1.3.0以降より、コマンドタイプのnormalはscriptに変更になりました。
+  ただし互換性のためにnormalを指定した場合はscriptを指定したものとして扱います。
 
 
 【ライセンス】
@@ -28,7 +32,7 @@ subMenu: サブコマンドの一覧を開く
 @param MainMenuCommands
 @text メインメニューコマンド
 @type struct<MenuCommand>[]
-@default ["{\"CommandType\":\"normal\",\"Text\":\"アイテム\",\"IconIndex\":\"208\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Item);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"selectActor\",\"Text\":\"スキル\",\"IconIndex\":\"79\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Skill);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"selectActor\",\"Text\":\"装備\",\"IconIndex\":\"96\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Equip);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"selectActor\",\"Text\":\"ステータス\",\"IconIndex\":\"89\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Status);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"normal\",\"Text\":\"オプション\",\"IconIndex\":\"129\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Options);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"normal\",\"Text\":\"セーブ\",\"IconIndex\":\"121\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Save);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"normal\",\"Text\":\"ゲーム終了\",\"IconIndex\":\"75\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_GameEnd);\",\"SubMenuCommands\":\"\"}"]
+@default ["{\"CommandType\":\"script\",\"Text\":\"アイテム\",\"IconIndex\":\"208\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Item);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"selectActor\",\"Text\":\"スキル\",\"IconIndex\":\"79\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Skill);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"selectActor\",\"Text\":\"装備\",\"IconIndex\":\"96\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Equip);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"selectActor\",\"Text\":\"ステータス\",\"IconIndex\":\"89\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Status);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"script\",\"Text\":\"オプション\",\"IconIndex\":\"129\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Options);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"script\",\"Text\":\"セーブ\",\"IconIndex\":\"121\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_Save);\",\"SubMenuCommands\":\"\"}","{\"CommandType\":\"script\",\"Text\":\"ゲーム終了\",\"IconIndex\":\"75\",\"Image\":\"\",\"Script\":\"SceneManager.push(Scene_GameEnd);\",\"SubMenuCommands\":\"\"}"]
 @desc
 メインメニューに表示するコマンドの一覧を指定します。
 
@@ -121,9 +125,9 @@ subMenu: サブコマンドの一覧を開く
 @param CommandType
 @text コマンドタイプ
 @type string
-@default normal
+@default script
 @desc
-コマンドの用途(normal, selectActor, subMenu)を指定します。
+コマンドの用途(script, selectActor, subMenu)を指定します。
 
 @param Text
 @text テキスト
@@ -150,6 +154,13 @@ subMenu: サブコマンドの一覧を開く
 @type multiline_string
 @desc
 リングコマンド選択時に実行するスクリプトを記述します。
+
+@param CommonEventId
+@text コモンイベントID
+@type common_event
+@default 0
+@desc
+リングコマンド選択時に実行するコモンイベントIDを設定します。0だとコモンイベントを実行しません。
 
 @param SubMenuCommands
 @text サブメニューコマンド
@@ -432,6 +443,7 @@ class RingCommandData {
     get script() { return this._script; }
     get subCommands() { return this._subCommands; }
     get internalIndex() { return this._internalIndex; }
+    get commonEventId() { return this._commonEventId; }
 
     static fromParam(param, internalIndex) {
         if (param.CommandType === "subMenu") {
@@ -440,13 +452,17 @@ class RingCommandData {
                 const subMenuCommandParam = PluginParamsParser.parse(JSON.parse(strSubMenuCommandParam), {});
                 return RingCommandData.fromParam(subMenuCommandParam, i);
             }).filter(command => !!command);
-            return new this(param.CommandType, param.Text, param.IconIndex, param.Image, param.Script, subCommands, internalIndex);
+            return new this(param.CommandType, param.Text, param.IconIndex, param.Image, param.Script, subCommands, param.CommonEventId, internalIndex);
         } else {
-            return new this(param.CommandType, param.Text, param.IconIndex, param.Image, param.Script, null, internalIndex);
+            return new this(param.CommandType, param.Text, param.IconIndex, param.Image, param.Script, null,  param.CommonEventId, internalIndex);
         }
     }
 
-    constructor(commandType, text, iconIndex, image, script, subCommands, internalIndex) {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize(commandType, text, iconIndex, image, script, subCommands, commonEventId, internalIndex) {
         this._commandType = commandType;
         this._text = text;
         this._iconIndex = iconIndex;
@@ -454,6 +470,7 @@ class RingCommandData {
         this._script = script;
         this._subCommands = subCommands;
         this._internalIndex = internalIndex;
+        this._commonEventId = commonEventId;
     }
 
     isEnabled() {
@@ -476,6 +493,14 @@ Game_Temp.prototype.setRingCommandManager = function(manager) {
 
 Game_Temp.prototype.ringCommandManager = function() {
     return this._ringCommandManager;
+};
+
+Game_Temp.prototype.setRingCommandCommonEventRunner = function(commonEventRunner) {
+    this._ringCommandCommonEventRunner = commonEventRunner;
+};
+
+Game_Temp.prototype.ringCommandCommonEventRunner = function() {
+    return this._ringCommandCommonEventRunner;
 };
 
 
@@ -679,7 +704,11 @@ class Sprite_RingCommand extends Sprite_ClickableMVMZ {
 
 
 class RingCommandSpriteController {
-    constructor() {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize() {
         this._sprites = null;
         this._baseSprite = null;
         this._baseMinFar = PP.EndFar;
@@ -1105,7 +1134,11 @@ class Sprite_RingCommandCursor extends SpriteMVMZ {
 
 
 class RingCommandDataStatus {
-    constructor(datas) {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize(datas) {
         this._datas = datas;
         this._index = 0;
     }
@@ -1152,8 +1185,52 @@ class RingCommandDataStatus {
 }
 
 
+class CommonEventRunner {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize(opt = { startEventCallback: null, endEventCallback: null }) {
+        this._startEventCallback = opt.startEventCallback;
+        this._endEventCallback = opt.endEventCallback;
+        this._interpreter = new Game_Interpreter();
+        this._eventState = "none";
+    }
+
+    update() {
+        if (this._eventState === "start") {
+            if (this._startEventCallback) this._startEventCallback();
+            this._eventState = "running";
+        } else if (this._eventState === "running") {
+            if (this._interpreter.isRunning()) this._interpreter.update();
+            if (!this._interpreter.isRunning() && !$gameMessage.isBusy()) this._eventState = "end";
+        } else if (this._eventState === "end") {
+            this._eventState = "none";
+            this._interpreter.clear();
+            if (this._endEventCallback) this._endEventCallback();
+        }
+    }
+
+    isEventRunning() {
+        return this._eventState !== "none";
+    }
+
+    startCommonEvent(commonEventId) {
+        // If commonEventId is undefined, do not start common event.
+        if (!commonEventId || commonEventId === 0) return;
+        const commonEventData = $dataCommonEvents[commonEventId];
+        this._interpreter.setup(commonEventData.list);
+        this._eventState = "start";
+    }
+}
+
+
 class RingCommandManager {
-    constructor() {
+    constructor(...args) {
+        this.initialize(...args);
+    }
+
+    initialize() {
         this._cursorMoveFrame = 0;
         this._maxCursorMoveFrame = 8;
         this._holdDataStatus = [];
@@ -1189,6 +1266,8 @@ class RingCommandManager {
             this.evaluateData(subjectData);
             break;
         case "normal":
+        case "script":
+        case "commonEvent":
             this.evaluateData(data);
             break;
         }
@@ -1197,7 +1276,18 @@ class RingCommandManager {
 
     evaluateData(data) {
         if (data.isEnabled()) {
-            eval(data.script);
+            switch (data.commandType) {
+            case "normal":
+            case "script":
+            case "selectActor":
+                eval(data.script);
+                break;
+            case "commonEvent":
+                $gameTemp.ringCommandCommonEventRunner().startCommonEvent(data.commonEventId);
+                break;
+            default:
+                throw new Error(`CommandType: ${data.commandType} cannot evaluate.`);
+            }
         } else {
             SoundManager.playBuzzer();
         }
@@ -1281,6 +1371,10 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
             const ringCommandManager = new RingCommandManager();
             $gameTemp.setRingCommandManager(ringCommandManager);
         }
+        if (!$gameTemp.ringCommandCommonEventRunner()) {
+            const commonEventRunner = new CommonEventRunner();
+            $gameTemp.setRingCommandCommonEventRunner(commonEventRunner);
+        }
 
         this.preloadImages();
     }
@@ -1334,6 +1428,7 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
 
     update() {
         super.update();
+        $gameTemp.ringCommandCommonEventRunner().update();
         this.updateCancelButton();
         this.updateRingCommand();
     }
@@ -1357,11 +1452,12 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
                 }
             }
         }
-        return new RingCommandData("actorData", actor.name(), 0, actorImageName, "", null, index);
+        return new RingCommandData("actorData", actor.name(), 0, actorImageName, "", null, 0, index);
     }
 
     updateRingCommand() {
         if (this._spriteset.isRingCommandControllerBusy()) return;
+        if ($gameTemp.ringCommandCommonEventRunner().isEventRunning()) return;
         this._waitCount--;
         if (this._waitCount > 0) return;
         if (this._ringCommandMenuState === "start") {
@@ -1393,7 +1489,7 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
     }
 
     processActive() {
-        $gameTemp.ringCommandManager().update();        
+        $gameTemp.ringCommandManager().update();
         if (this._needLabelUpdate) {
             const label = $gameTemp.ringCommandManager().currentData().text;
             this._spriteset.ringCommandShowLabel(label);
@@ -1416,8 +1512,8 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
     }
 
     inputOkKey() {
-        const result = $gameTemp.ringCommandManager().inputOkKey();
-        this.postExecCommand(result);
+        const execCommandType = $gameTemp.ringCommandManager().inputOkKey();
+        this.postExecCommand(execCommandType);
     }
 
     inputCancelKey() {
@@ -1475,13 +1571,13 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
         this._ringCommandMenuState = "active";
         const index = $gameTemp.ringCommandManager().getRingCommandSpriteIndex(this._holdClickRotationSprite);
         $gameTemp.ringCommandManager().changeIndex(index);
-        const result = $gameTemp.ringCommandManager().execCommand(this._holdClickRotationSprite.data);
-        this.postExecCommand(result);
+        const execCommandType = $gameTemp.ringCommandManager().execCommand(this._holdClickRotationSprite.data);
+        this.postExecCommand(execCommandType);
     }
 
-    postExecCommand(execCommandResult) {
+    postExecCommand(execCommandType) {
         let datas = null;
-        switch (execCommandResult) {
+        switch (execCommandType) {
         case "selectActor":
             datas = this.createRingCommnadActorDatas();
             break;
@@ -1736,15 +1832,16 @@ class Spriteset_RingCommandMenu extends Spriteset_Base {
 }
 
 return {
-    RingCommandData: RingCommandData,
-    Sprite_RingCommand: Sprite_RingCommand,
-    RingCommandSpriteController: RingCommandSpriteController,
-    Sprite_RingCommandLabel: Sprite_RingCommandLabel,
-    Sprite_RingCommandCursor: Sprite_RingCommandCursor,
-    RingCommandDataStatus: RingCommandDataStatus,
-    RingCommandManager: RingCommandManager,
-    Scene_RingCommandMenu: Scene_RingCommandMenu,
-    Spriteset_RingCommandMenu: Spriteset_RingCommandMenu,
-}
+    RingCommandData,
+    Sprite_RingCommand,
+    RingCommandSpriteController,
+    Sprite_RingCommandLabel,
+    Sprite_RingCommandCursor,
+    RingCommandDataStatus,
+    RingCommandManager,
+    CommonEventRunner,
+    Scene_RingCommandMenu,
+    Spriteset_RingCommandMenu,
+};
 
 })();
