@@ -50,6 +50,10 @@ RingCommandMenu.js
     2021/06/15 v1.1.1
         ・セーブの禁止設定を反映する機能を追加
 
+SawTransition.js
+    20201/08/08 v1.0.0
+        ・新規作成
+
 ShopScene_Extension.js
     20201/08/08 v1.0.4
         ・特定条件下でキャラクターの画像が表示されなくなる不具合を修正
