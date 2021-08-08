@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Shop screen expansion v1.0.3
+@plugindesc Shop screen expansion v1.0.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/ShopScene_Extension.js
 
@@ -60,7 +60,7 @@ Specifies the width of the status window on the shop screen.
 
 /*:ja
 @target MZ
-@plugindesc ショップ画面拡張 v1.0.3
+@plugindesc ショップ画面拡張 v1.0.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/ShopScene_Extension.js
 
@@ -176,33 +176,59 @@ class TriangleDrawer {
 }
 
 class Sprite_ActorCharacter extends Sprite_Clickable {
+    get actor() { return this._actor; }
+
     initialize(actor, clickHandler) {
         super.initialize();
         this._actor = actor;
         this._clickHandler = clickHandler;
+        this._opacityBitmap = null;
+        this._holdState = null;
+        this._holdPSize = { pw: 0, ph: 0 };
     }
 
-    get actor() { return this._actor; }
+    update() {
+        super.update();
+        if (this._holdState != null) {
+            const { enabled, equipState } = this._holdState;
+            const updated = this.updateBitmap(enabled, equipState);
+            if (updated) this._holdState = null;
+        }
+    }
 
     // equipState is "none" or "cannot" or "equipped" or "up" or "down"
-    createBitmap(enabled, equipState) {
+    changeEquipState(enabled, equipState) {
+        this._holdState = { enabled, equipState };
+    }
+
+    updateBitmap(enabled, equipState) {
         const opacity = enabled ? 255 : 128;
 
         const characterBitmap = ImageManager.loadCharacter(this._actor.characterName());
+        if (!characterBitmap.isReady()) return false;
         const big = ImageManager.isBigCharacter(this._actor.characterName());
         const pw = characterBitmap.width / (big ? 3 : 12);
         const ph = characterBitmap.height / (big ? 4 : 8);
+
+        let holdPSizeChanged = false;
+        if (this._holdPSize.pw != pw || this._holdPSize.ph != ph) {
+            holdPSizeChanged = true;
+            this._holdPSize.pw = pw;
+            this._holdPSize.ph = ph;
+        }
 
         const n = big ? 0: this._actor.characterIndex();
         const sx = ((n % 4) * 3 + 1) * pw;
         const sy = Math.floor(n / 4) * 4 * ph;
 
-        const opacityBitmap = new Bitmap(pw, ph);
-        opacityBitmap.paintOpacity = opacity;
-        opacityBitmap.blt(characterBitmap, sx, sy, pw, ph, 0, 0);
+        if (!this._opacityBitmap || holdPSizeChanged) this._opacityBitmap = new Bitmap(pw, ph);
+        this._opacityBitmap.clear();
+        this._opacityBitmap.paintOpacity = opacity;
+        this._opacityBitmap.blt(characterBitmap, sx, sy, pw, ph, 0, 0);
 
-        this.bitmap = new Bitmap(pw, ph);
-        this.bitmap.blt(opacityBitmap, 0, 0, pw, ph, 0, 0);
+        if (!this.bitmap || holdPSizeChanged) this.bitmap = new Bitmap(pw, ph);
+        this.bitmap.clear();
+        this.bitmap.blt(this._opacityBitmap, 0, 0, pw, ph, 0, 0);
 
         this.bitmap.fontFace = $gameSystem.mainFontFace();
         switch (equipState) {
@@ -222,6 +248,7 @@ class Sprite_ActorCharacter extends Sprite_Clickable {
             this.drawDownTriangle(32, 32, 16, 16, "#000000", "#ff6666");
             break;
         }
+        return true;
     }
 
     onClick() {
@@ -491,9 +518,9 @@ Window_ShopStatus.prototype.setupActorCharacters = function(x, y) {
         actorSprite.y = y;
         actorSprite.show();
         if (i !== this._actorIndex) {
-            actorSprite.createBitmap(false, this.getActorEquipState(actorSprite.actor));
+            actorSprite.changeEquipState(false, this.getActorEquipState(actorSprite.actor));
         } else {
-            actorSprite.createBitmap(true, this.getActorEquipState(actorSprite.actor));
+            actorSprite.changeEquipState(true, this.getActorEquipState(actorSprite.actor));
         }
         x += 48 + ActorCharacterSpace;
     }
