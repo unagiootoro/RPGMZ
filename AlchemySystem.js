@@ -1,52 +1,252 @@
 /*:
 @target MV MZ
-@plugindesc アイテム合成プラグイン v1.2.4
+@plugindesc item composition plugin v1.3.0
+@author unagi ootoro
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
+
+@param EnabledMenuAlchemy
+@text Enable composite menu
+@type boolean
+@default true
+@desc
+If set to true, add composite commands to the menu.
+
+@param EnabledAlchemySwitchId
+@text Enabled switch ID for composite menu.
+@type switch
+@default 0
+@desc
+Specifies the ID of the switch to enable/disable compositing of the menu. 0 means that the compositing command is always enabled.
+
+@param EnabledCategoryWindow
+@text Enabled to display category window.
+@type boolean
+@default true
+@desc
+If set to true, category window will be displayed.
+
+@param EnabledGoldWindow
+@text Enabled Gold Window display.
+@type boolean
+@default true
+@desc
+If set to true, the current gold and gold required for item synthesis will be displayed on the synthesis screen.
+
+@param DisplayKeyItemCategory
+@text Enable to display key item category.
+@type boolean
+@default false
+@desc
+If set to "true", display the important items column in the category selection screen when composing.
+
+@param EnableIncludeEquipItem
+@text Include equipment items in synthetic materials.
+@type boolean
+@default false
+@desc
+If set to true, equip items can be used as materials for compositing.
+
+@param MaxNumMakeItem
+@text Maximum number of items that can be created.
+@type number
+@default 999
+@desc
+Specifies the maximum number of items that can be synthesized at one time.
+
+@param MaxMaterials
+@text Maximum number of materials.
+@type number
+@default 3
+@desc
+Specifies the maximum number of material types to be used for compositing.
+
+@param MakeItemSeFileName
+@text Item synthesis SE file name.
+@type file
+@dir audio/se
+@default Heal5
+@desc
+Specify the file name of the SE to be played when the item is synthesized.
+
+@param MakeItemSeVolume
+@text Item synthesis SE volume
+@type number
+@default 90
+@desc
+Specifies the SE volume to be played when the item is synthesized.
+
+@param MakeItemSePitch
+@text Item synthesis SE pitch.
+@type number
+@default 100
+@desc
+Specifies the pitch of the SE to be played when the item is synthesized.
+
+@param MakeItemSePan
+@text Make item composite SE pan.
+@type number
+@default 0
+@desc
+Specifies the pan of the SE to be played when the item is synthesized.
+
+@param MenuAlchemyText
+@text Composite menu text.
+@type string
+@default composite
+@desc
+Specify the composite text to be displayed in the menu.
+
+@param NeedMaterialText
+@text Required material text.
+@type string
+@default NeedMaterialText
+@desc
+Specify the text to be used when displaying the required material.
+
+@param NeedPriceText
+@text Required expense text.
+@type string
+@default NeedPriceText
+@desc
+Specify the text to be used when displaying the required expense.
+
+@param TargetItemText
+@text Generated item text.
+@type string
+@default Generated Item: @desc
+@desc
+Specifies the text to display when the generated item is displayed.
+
+@param NoteParseErrorMessage
+@text Note parse error message.
+@type string
+@default Failed to parse the note field. Contents of the relevant section:(%1)
+@desc
+Error message when parsing the memo field failed. There is no need to change this parameter.
+
+
+@command StartAlchemyScene
+@text Start synthesis scene.
+@desc Start the synthesis scene.
+
+@help
+This plugin introduces a simple item synthesis function.
+
+[How to use]
+Items can be synthesized by obtaining a recipe.
+If you have a recipe as a normal item, you will be able to synthesize the item registered in the recipe.
+
+Creating a Recipe
+In the memo field of the recipe item, enter the contents of the recipe in the following format.
+<recipe>.
+"material": [material item information 1, material item information 2, ...].
+"price": Required cost for synthesis
+"target": Synthesis result item information
+</recipe>
+
+Material item information... This is the information of the material item.
+                  It can be specified in the following format. ["identifier", ID, quantity].
+                  Identifier... Identifier that indicates whether the item is a normal item, a weapon, or an armor.
+                           It can be one of "item", "weapon", or "armor".
+                  ID... Specify the ID of the item, weapon, or armor.
+                  Qty... Specify the number of items required as materials.
+
+Synthesis Cost... Specify the cost for synthesis.
+                This item can be omitted. If you omit it, the cost will be 0 gold.
+
+Synthesis result item information... Information about the item created as a result of the synthesis.
+                     Specify in the following format. ["Identifier", ID].
+                     Identifier... Identifier that indicates whether the item is a normal item, a weapon, or an armor.
+                              It can be one of "item", "weapon", or "armor".
+                     ID... Specify the ID of the item/weapon/armor.
+
+For example, if you want to create a full potion (ID: 9) by combining a high potion (ID: 8) and two magic waters (ID: 10)
+It should look like this Be careful of the comma at the end.
+<recipe>.
+"material": [["item", 8, 1], ["item", 10, 2]],
+"target": ["item", 9].
+</recipe>.
+
+In addition to the above settings, if you want to set 100G as the required cost for the synthesis, you can write the following
+<recipe>
+"material": [["item", 8, 1], ["item", 10, 2]],
+"price": 100,
+"target": ["item", 9]]
+</recipe>
+
+Start the composite scene
+Execute the plugin command "StartAlchemyScene" to start the synthesis scene.
+In the case of RPG Maker MV, enter the following command
+AlchemySystem StartAlchemyScene
+
+[License]
+This plugin is available under the terms of the MIT license.
+*/
+
+/*:ja
+@target MV MZ
+@plugindesc アイテム合成プラグイン v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
 @param EnabledMenuAlchemy
+@text 合成メニュー有効化
 @type boolean
 @default true
 @desc
 trueを設定すると、メニューに合成コマンドを追加します。
 
 @param EnabledAlchemySwitchId
+@text 合成メニュー有効化スイッチID
 @type switch
 @default 0
 @desc
 メニューの合成の有効/無効を切り替えるスイッチのIDを指定します。0を指定すると、常に合成コマンドは有効になります。
 
 @param EnabledCategoryWindow
+@text カテゴリウィンドウ表示有効化
 @type boolean
 @default true
 @desc
 trueを設定すると、カテゴリウィンドウを表示します。
 
 @param EnabledGoldWindow
+@text ゴールドウィンドウ表示有効化
 @type boolean
 @default true
 @desc
 trueを設定すると、合成画面に現在の所持ゴールドとアイテム合成に必要なゴールドを表示します。
 
 @param DisplayKeyItemCategory
+@text 大事なもの欄表示有効化
 @type boolean
 @default false
 @desc
 trueを設定すると、合成時のカテゴリ選択画面で大事なもの欄を表示します。
 
+@param EnableIncludeEquipItem
+@text 装備アイテムを合成素材に含む
+@type boolean
+@default false
+@desc
+trueを設定すると、装備アイテムを合成の素材に使えるようになります。
+
 @param MaxNumMakeItem
+@text 最大生成可能アイテム数
 @type number
 @default 999
 @desc
 一度に合成可能なアイテム数の最大値を指定します。
 
 @param MaxMaterials
+@text 素材最大数
 @type number
 @default 3
 @desc
 合成に使用する素材の種類の最大値を指定します。
 
 @param MakeItemSeFileName
+@text アイテム合成SEファイル名
 @type file
 @dir audio/se
 @default Heal5
@@ -54,46 +254,61 @@ trueを設定すると、合成時のカテゴリ選択画面で大事なもの�
 アイテムを合成したときに再生するSEのファイル名を指定します。
 
 @param MakeItemSeVolume
+@text アイテム合成SEボリューム
 @type number
 @default 90
 @desc
 アイテムを合成したときに再生するSEのvolumeを指定します。
 
 @param MakeItemSePitch
+@text アイテム合成SEピッチ
 @type number
 @default 100
 @desc
 アイテムを合成したときに再生するSEのpitchを指定します。
 
 @param MakeItemSePan
+@text アイテム合成SEパン
 @type number
 @default 0
 @desc
 アイテムを合成したときに再生するSEのpanを指定します。
 
 @param MenuAlchemyText
+@text 合成メニューテキスト
 @type string
 @default 合成
 @desc
 メニューに表示する合成の文言を指定します。
 
 @param NeedMaterialText
+@text 必要素材テキスト
 @type string
 @default 必要素材：
 @desc
 必要素材を表示する際の文言を指定します。
 
 @param NeedPriceText
+@text 必要経費テキスト
 @type string
 @default 必要経費：
 @desc
 必要経費を表示する際の文言を指定します。
 
 @param TargetItemText
+@text 生成アイテムテキスト
 @type string
 @default 生成アイテム：
 @desc
 生成アイテムを表示する際の文言を指定します。
+
+@param NoteParseErrorMessage
+@text メモ欄解析エラーメッセージ
+@type string
+@default メモ欄の解析に失敗しました。該当箇所の内容:(%1)
+@desc
+メモ欄の解析に失敗した場合のエラーメッセージです。このパラメータを変更する必要はありません。
+
 
 @command StartAlchemyScene
 @text 合成シーン開始
@@ -102,11 +317,11 @@ trueを設定すると、合成時のカテゴリ選択画面で大事なもの�
 @help
 シンプルなアイテム合成機能を導入するプラグインです。
 
-[使用方法]
+【使用方法】
 アイテムの合成はレシピを入手することによって可能となります。
 レシピは通常のアイテムとして持たせることによって、レシピに登録されたアイテムが合成できるようになります。
 
-■レシピの作成
+■ レシピの作成
 レシピアイテムのメモ欄に以下の形式でレシピの内容を記載します。
 <recipe>
 "material": [素材アイテム情報1, 素材アイテム情報2, ...]
@@ -144,12 +359,12 @@ trueを設定すると、合成時のカテゴリ選択画面で大事なもの�
 "target": ["item", 9]
 </recipe>
 
-■合成シーンの開始
+■ 合成シーンの開始
 プラグインコマンドで「StartAlchemyScene」を実行すると、合成シーンを開始します。
 ツクールMVの場合、次のコマンドを入力してください。
 AlchemySystem StartAlchemyScene
 
-[ライセンス]
+【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
@@ -160,11 +375,12 @@ const AlchemyClassAlias = (() => {
 
 const params = PluginManager.parameters(AlchemySystemPluginName);
 
-const EnabledMenuAlchemy = (params["EnabledMenuAlchemy"] === "true" ? true : false);
+const EnabledMenuAlchemy = (params["EnabledMenuAlchemy"] === "true");
 const EnabledAlchemySwitchId = parseInt(params["EnabledAlchemySwitchId"]);
-const EnabledCategoryWindow = (params["EnabledCategoryWindow"] === "true" ? true : false);
-const EnabledGoldWindow = (params["EnabledGoldWindow"] === "true" ? true : false);
-const DisplayKeyItemCategory = (params["DisplayKeyItemCategory"] === "true" ? true : false);
+const EnabledCategoryWindow = (params["EnabledCategoryWindow"] === "true");
+const EnabledGoldWindow = (params["EnabledGoldWindow"] === "true");
+const DisplayKeyItemCategory = (params["DisplayKeyItemCategory"] === "true");
+const EnableIncludeEquipItem = (params["EnableIncludeEquipItem"] === "true");
 
 const MaxNumMakeItem = parseInt(params["MaxNumMakeItem"]);
 const MaxMaterials = parseInt(params["MaxMaterials"]);
@@ -178,6 +394,7 @@ const MenuAlchemyText = params["MenuAlchemyText"];
 const NeedMaterialText = params["NeedMaterialText"];
 const NeedPriceText = params["NeedPriceText"];
 const TargetItemText = params["TargetItemText"];
+const NoteParseErrorMessage = params["NoteParseErrorMessage"];
 
 
 // MV compatible
@@ -254,6 +471,79 @@ if (Utils.RPGMAKER_NAME === "MV") {
 
 
 let $recipes = null;
+
+class PartyItemUtils {
+    static partyItemCount(itemInfo) {
+        let count = this._partyItemCountWithoutEquips(itemInfo);
+        if (EnableIncludeEquipItem) {
+            if (itemInfo.type === "weapon") {
+                count += this._allPartyEquipWeapons().filter(item => item.id === itemInfo.id).length;
+            } else if (itemInfo.type === "armor") {
+                count += this._allPartyEquipArmors().filter(item => item.id === itemInfo.id).length;
+            }
+        }
+        return count;
+    }
+
+    static _partyItemCountWithoutEquips(itemInfo) {
+        return $gameParty.numItems(itemInfo.itemData());
+    }
+
+    static _allPartyEquipWeapons() {
+        const equipSlotItems = $gameParty.members().flatMap(actor => actor._equips);
+        const weaponItems = equipSlotItems.filter(item => item.isWeapon() && item.itemId() > 0);
+        return weaponItems.map(item => item.object());
+    }
+
+    static _allPartyEquipArmors() {
+        const equipSlotItems = $gameParty.members().flatMap(actor => actor._equips);
+        const armorItems = equipSlotItems.filter(item => item.isArmor() && item.itemId() > 0);
+        return armorItems.map(item => item.object());
+    }
+
+    static gainPartyItem(itemInfo, gainCount) {
+        const itemData = itemInfo.itemData();
+        if (gainCount > 0) {
+            $gameParty.gainItem(itemData, gainCount);
+        } else if (gainCount < 0) {
+            if (EnableIncludeEquipItem && itemInfo.type !== "item") {
+                const purgeCount = -gainCount;
+                const partyItemCount = this.partyItemCount(itemInfo);
+                if (purgeCount > partyItemCount) {
+                    throw new Error(`purgeCount(${purgeCount}) is over all has item count(${partyItemCount})`);
+                }
+                const partyItemCountWithoutEquips = this._partyItemCountWithoutEquips(itemInfo);
+                if (partyItemCountWithoutEquips >= purgeCount) {
+                    $gameParty.gainItem(itemData, gainCount);
+                } else {
+                    if (partyItemCountWithoutEquips > 0) $gameParty.gainItem(itemData, -partyItemCountWithoutEquips);
+                    this._purgePartyEquipItem(itemInfo, purgeCount - partyItemCountWithoutEquips);
+                }
+            } else {
+                $gameParty.gainItem(itemData, gainCount);
+            }
+        }
+    }
+
+    static _purgePartyEquipItem(itemInfo, purgeCount) {
+        if (purgeCount <= 0) return;
+        for (const actor of $gameParty.members()) {
+            for (let i = 0; i < actor._equips.length; i++) {
+                let purgeFlag = false;
+                if (itemInfo.type === "weapon") {
+                    if (actor._equips[i].isWeapon() && itemInfo.id === actor._equips[i].itemId()) purgeFlag = true;
+                } else if (itemInfo.type === "armor") {
+                    if (actor._equips[i].isArmor() && itemInfo.id === actor._equips[i].itemId()) purgeFlag = true;
+                }
+                if (purgeFlag) {
+                    actor._equips[i].setEquip("", 0);
+                    purgeCount--;
+                    if (purgeCount <= 0) return;
+                }
+            }
+        }
+    }
+}
 
 class ItemInfo {
     constructor(type, id) {
@@ -343,12 +633,12 @@ class AlchemyRecipe {
     }
 
     hasItemCount(itemInfo) {
-        return itemInfo.partyItemCount();
+        return PartyItemUtils.partyItemCount(itemInfo);
     }
 
     maxMakeItemCount() {
         const targetItem = this.targetItemData();
-        const maxRemainingCount = $gameParty.maxItems(targetItem) - $gameParty.numItems(targetItem);
+        const maxRemainingCount = $gameParty.maxItems(targetItem) - PartyItemUtils.partyItemCount(this._targetItemInfo);
         if (maxRemainingCount <= 0) return 0;
         let makeItemCount = this.maxMakeItemCountNoLimit();
         if (makeItemCount > MaxNumMakeItem) makeItemCount = MaxNumMakeItem;
@@ -375,10 +665,10 @@ class AlchemyRecipe {
     makeItem(targetItemCount) {
         for (const tag in this._materials) {
             const material = this._materials[tag];
-            $gameParty.gainItem(material.itemInfo.itemData(), -material.count * targetItemCount);
+            PartyItemUtils.gainPartyItem(material.itemInfo, -material.count * targetItemCount);
         }
         $gameParty.gainGold(-this._price * targetItemCount);
-        $gameParty.gainItem(this.targetItemData(), targetItemCount);
+        PartyItemUtils.gainPartyItem(this._targetItemInfo, targetItemCount);
     }
 }
 
@@ -412,9 +702,8 @@ class Scene_Alchemy extends Scene_MenuBase {
     createRecipes() {
         $recipes = [];
         for (const item of $gameParty.items()) {
-            const matchData = item.note.match(/<recipe>(.+)<\/recipe>/s);
-            if (!matchData) continue;
-            const recipeData = JSON.parse("{" + matchData[1] + "}");
+            const recipeData = this.parseRecipeData(item);
+            if (!recipeData) continue;
             const materials = {};
             for (const materialData of recipeData.material) {
                 const itemInfo = new ItemInfo(materialData[0], materialData[1]);
@@ -424,6 +713,19 @@ class Scene_Alchemy extends Scene_MenuBase {
             const targetItemInfo = new ItemInfo(recipeData.target[0], recipeData.target[1]);
             const price = recipeData.price ? recipeData.price : 0;
             $recipes.push(new AlchemyRecipe(materials, price, targetItemInfo));
+        }
+    }
+
+    parseRecipeData(item) {
+        const matchData = item.note.match(/<recipe>(.+)<\/recipe>/s);
+        if (!matchData) return null;
+        const strNote = matchData[1];
+        try {
+            const recipeData = JSON.parse("{" + strNote + "}");
+            return recipeData;
+        } catch(e) {
+            console.error(e);
+            throw NoteParseErrorMessage.format(strNote);
         }
     }
 
@@ -669,12 +971,24 @@ class Window_SelectRecipes extends Window_Selectable {
 
     makeItemList() {
         if (EnabledCategoryWindow) {
-            this._recipes = $recipes.filter((recipe) => {
-                return recipe.targetItemInfo().type === this._category;
-            });
+            this._recipes = this.recipesByCategory();
         } else {
             this._recipes = $recipes;
         }
+    }
+
+    recipesByCategory() {
+        return $recipes.filter((recipe) => {
+            if (recipe.targetItemInfo().type === "item") {
+                if (this._category === "item") {
+                    return recipe.targetItemInfo().itemData().itypeId === 1;
+                } else if (this._category === "keyItem") {
+                    return recipe.targetItemInfo().itemData().itypeId === 2;
+                }
+            } else {
+                return recipe.targetItemInfo().type === this._category;
+            }
+        });
     }
 
     select(index) {
@@ -840,7 +1154,7 @@ class Window_RecipeDetail extends Window_Base {
         this.changeTextColor(this.systemColor());
         this.drawText(TextManager.possession, x, y, width - possessionWidth);
         this.resetTextColor();
-        this.drawText($gameParty.numItems(this._recipe.targetItemData()), x, y, width, "right");
+        this.drawText(PartyItemUtils.partyItemCount(this._recipe.targetItemInfo()), x, y, width, "right");
     };
 
     drawMaterials() {
@@ -980,14 +1294,15 @@ if (Utils.RPGMAKER_NAME === "MZ") {
 
 // Define class alias.
 return {
-    ItemInfo: ItemInfo,
-    Material: Material,
-    AlchemyRecipe: AlchemyRecipe,
-    Scene_Alchemy: Scene_Alchemy,
-    Window_SelectRecipes: Window_SelectRecipes,
-    Window_AlchemyCategory: Window_AlchemyCategory,
-    Window_AlchemyNumber: Window_AlchemyNumber,
-    Window_RecipeDetail: Window_RecipeDetail,
+    PartyItemUtils,
+    ItemInfo,
+    Material,
+    AlchemyRecipe,
+    Scene_Alchemy,
+    Window_SelectRecipes,
+    Window_AlchemyCategory,
+    Window_AlchemyNumber,
+    Window_RecipeDetail,
 }
 
 })();
