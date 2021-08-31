@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.7.4
+@plugindesc Dot movement system v1.7.5
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.7.4
+@plugindesc ドット移動システム v1.7.5
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -432,6 +432,19 @@ class DotMoveUtils {
             break;
         }
         return [horz, vert];
+    }
+
+    static HorzAndVert2Direction(horz, vert) {
+        if (vert === 8 && horz === 6) {
+            return 9;
+        } else if (vert === 2 && horz === 6) {
+            return 3;
+        } else if (vert === 2 && horz === 4) {
+            return 1;
+        } else if (vert === 8 && horz === 4) {
+            return 7;
+        }
+        return 0;
     }
 
     static isCollidedRect(rect1, rect2) {
@@ -1383,7 +1396,7 @@ class CharacterMover {
     update() {
         this.clearMovedFlagFromCharacterMoverUpdate();
         if (this._moverData.targetCount > 0) {
-            this.moveProcess();
+            if (!this.isMoved()) this.moveProcess();
         }
         if (this._moverData.targetCount === 0) {
             this._moverData.moving = false;
@@ -1475,27 +1488,29 @@ class CharacterMover {
         this._character.checkEventTriggerTouchFront(this._character.direction());
     }
 
-    startMassMove(fromPoint, targetPoint) {
-        const far = DotMoveUtils.calcFar(fromPoint, targetPoint);
-        this._moverData.targetCount = Math.round(far / this._character.distancePerFrame());
+    startMove(targetCount, moveDeg, moveDir) {
+        this._moverData.targetCount = targetCount;
+        this._moverData.moveDir = moveDir;
+        this._moverData.moveDeg = moveDeg;
         this.moveProcess();
+    }
+
+    calcTargetCount(fromPoint, targetPoint) {
+        const far = DotMoveUtils.calcFar(fromPoint, targetPoint);
+        return Math.round(far / this._character.distancePerFrame());
     }
 
     dotMoveByDirection(direction) {
         const deg = DotMoveUtils.direction2deg(direction);
         const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
         this.setDirection(direction4);
-        this._moverData.targetCount = 1;
-        this._moverData.moveDir = direction;
-        this.moveProcess();
+        this.startMove(1, null, direction);
     }
 
     dotMoveByDeg(deg) {
         const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
         this.setDirection(direction4);
-        this._moverData.targetCount = 1;
-        this._moverData.moveDeg = deg;
-        this.moveProcess();
+        this.startMove(1, deg, null);
     }
 
     // はしご考慮
@@ -1527,9 +1542,9 @@ class CharacterMover {
     moveStraight(d, moveUnit) {
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
         const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d, moveUnit);
-        this._moverData.moveDir = d;
         this.setDirection(d);
-        this.startMassMove(fromPoint, targetPoint);
+        const targetCount = this.calcTargetCount(fromPoint, targetPoint);
+        this.startMove(targetCount, null, d);
     }
 
     moveDiagonally(horz, vert, moveUnit) {
@@ -1539,27 +1554,20 @@ class CharacterMover {
         if (this._character.direction() === this._character.reverseDir(vert)) {
             this.setDirection(vert);
         }
-        if (vert === 8 && horz === 6) {
-            this._moverData.moveDir = 9;
-        } else if (vert === 2 && horz === 6) {
-            this._moverData.moveDir = 3;
-        } else if (vert === 2 && horz === 4) {
-            this._moverData.moveDir = 1;
-        } else if (vert === 8 && horz === 4) {
-            this._moverData.moveDir = 7;
-        }
+        const d = DotMoveUtils.HorzAndVert2Direction(horz, vert);
         const fromPoint =  { x: this._character._realX, y: this._character._realY };
-        const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._moverData.moveDir, moveUnit);
-        this.startMassMove(fromPoint, targetPoint);
+        const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d, moveUnit);
+        const targetCount = this.calcTargetCount(fromPoint, targetPoint);
+        this.startMove(targetCount, null, d);
     }
 
     moveToTarget(targetPoint) {
         const fromPoint = { x: this._character._realX, y: this._character._realY };
         const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
-        this._moverData.moveDeg = deg;
         const dir = DotMoveUtils.deg2direction4(deg, this._character.direction());
         this.setDirection(dir);
-        this.startMassMove(fromPoint, targetPoint);
+        const targetCount = this.calcTargetCount(fromPoint, targetPoint);
+        this.startMove(targetCount, deg, null);
     }
 
     // 移動が完了してからスルー状態を設定する
@@ -2777,21 +2785,21 @@ Game_Temp.prototype.setBeforeTouchMovedPoint = function(point) {
 };
 
 return {
-    EventParamParser: EventParamParser,
-    DotMoveUtils: DotMoveUtils,
-    CollisionResult: CollisionResult,
-    CharacterCollisionChecker: CharacterCollisionChecker,
-    PlayerCollisionChecker: PlayerCollisionChecker,
-    EventCollisionChecker: EventCollisionChecker,
-    FollowerCollisionChecker: FollowerCollisionChecker,
-    CharacterController: CharacterController,
-    PlayerController: PlayerController,
-    EventController: EventController,
-    FollowerController: FollowerController,
-    CharacterMover: CharacterMover,
-    PlayerMover: PlayerMover,
-    EventMover: EventMover,
-    FollowerMover: FollowerMover,
+    EventParamParser,
+    DotMoveUtils,
+    CollisionResult,
+    CharacterCollisionChecker,
+    PlayerCollisionChecker,
+    EventCollisionChecker,
+    FollowerCollisionChecker,
+    CharacterController,
+    PlayerController,
+    EventController,
+    FollowerController,
+    CharacterMover,
+    PlayerMover,
+    EventMover,
+    FollowerMover,
 };
 
 })();
