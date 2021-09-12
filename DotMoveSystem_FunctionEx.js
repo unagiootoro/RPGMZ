@@ -523,7 +523,7 @@ CharacterMover.prototype.direction8 = function() {
 };
 
 const _CharacterMover_dotMoveByDeg = CharacterMover.prototype.dotMoveByDeg;
-CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: false }) {
+CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: true }) {
     if (opt.changeDir) {
         const direction = DotMoveUtils.deg2direction(deg);
         this.changeDirectionWhenDotMove(direction);
@@ -532,7 +532,7 @@ CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: false }
 };
 
 const _CharacterMover_dotMoveByDirection = CharacterMover.prototype.dotMoveByDirection;
-CharacterMover.prototype.dotMoveByDirection = function(direction, opt = { changeDir: false }) {
+CharacterMover.prototype.dotMoveByDirection = function(direction, opt = { changeDir: true }) {
     if (opt.changeDir) {
         this.changeDirectionWhenDotMove(direction);
     }
