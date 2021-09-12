@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.7.5
+@plugindesc Dot movement system v1.8.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.7.5
+@plugindesc ドット移動システム v1.8.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -181,7 +181,7 @@ const DotMoveSystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$
 const DotMoveSystemClassAlias = (() => {
 "use strict";
 
-const DIALOG_COST = 1 / Math.sin(Math.PI / 4);
+const DIAGONAL_COST = 1 / Math.sin(Math.PI / 4);
 
 class EventParamParser {
     static getWidth(event) {
@@ -547,9 +547,9 @@ Game_Map.prototype.distance = function(x1, y1, x2, y2) {
     const xDis = Math.abs(this.deltaX(x1, x2));
     const yDis = Math.abs(this.deltaY(y1, y2));
     if (xDis > yDis) {
-        return (xDis - yDis) + yDis * DIALOG_COST;
+        return (xDis - yDis) + yDis * DIAGONAL_COST;
     } else {
-        return (yDis - xDis) + xDis * DIALOG_COST;
+        return (yDis - xDis) + xDis * DIAGONAL_COST;
     }
 };
 
@@ -619,7 +619,7 @@ class CharacterCollisionChecker {
 
     checkCollision(x, y, d) {
         let collisionResults = [];
-        collisionResults = collisionResults.concat(this.checkCollisionMass(x, y, d));
+        collisionResults = collisionResults.concat(this.checkCollisionMasses(x, y, d));
         // マップの範囲有効判定をマスの衝突確認で実施する必要があるため
         // すり抜けを行う場合このタイミングでreturnする
         if (this._character.isThrough() || this._character.isDebugThrough()) return collisionResults;
@@ -637,7 +637,7 @@ class CharacterCollisionChecker {
         return this._characterRealPosMode;
     }
 
-    checkCollisionMass(x, y, d) {
+    checkCollisionMasses(x, y, d) {
         let collisionResults = [];
         let x1, y1, x2, y2;
         const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
@@ -670,11 +670,8 @@ class CharacterCollisionChecker {
 
         for (let ix = x1; ix <= x2; ix++) {
             for (let iy = y1; iy <= y2; iy++) {
-                const massRect = { x: ix, y: iy, width: 1, height: 1 };
-                if (!this.checkPassMass(ix, iy, d) && this.isCollidedRect(targetRect, d, massRect)) {
-                    const collisionResult = new CollisionResult(targetRect, massRect);
-                    collisionResults.push(collisionResult);
-                }
+                const massCollisionResult = this.checkCollisionMass(targetRect, d, ix, iy);
+                if (massCollisionResult) collisionResults.push(massCollisionResult);
             }
         }
 
@@ -683,6 +680,14 @@ class CharacterCollisionChecker {
         collisionResults = collisionResults.concat(cliffCollisionResult);
 
         return collisionResults;
+    }
+
+    checkCollisionMass(targetRect, d, ix, iy) {
+        const massRect = this.getMassRect(ix, iy);
+        if (!this.checkPassMass(ix, iy, d) && this.isCollidedRect(targetRect, d, massRect)) {
+            return new CollisionResult(targetRect, massRect);
+        }
+        return null;
     }
 
     checkCollisionCliff(targetRect, x, y, x1, y1, x2, y2, d) {
@@ -704,9 +709,9 @@ class CharacterCollisionChecker {
         if (!this.checkPassMass(x1, y1, 4) && !this.checkPassMass(x2, y1, 6)) {
             let massRect;
             if (x - x1 > this._character.minTouchWidth()) {
-                massRect = { x: x1, y: y1, width: 1, height: 1 };
+                massRect = this.getMassRect(x1, y1);
             } else {
-                massRect = { x: x2, y: y1, width: 1, height: 1 };
+                massRect = this.getMassRect(x2, y1);
             }
             if (this.isCollidedRect(targetRect, d, massRect)) {
                 const collisionResult = new CollisionResult(targetRect, massRect);
@@ -721,9 +726,9 @@ class CharacterCollisionChecker {
         if (!this.checkPassMass(x1, y1, 8) && !this.checkPassMass(x1, y2, 2)) {
             let massRect;
             if (y - y1 > this._character.minTouchHeight()) {
-                massRect = { x: x1, y: y1, width: 1, height: 1 };
+                massRect = this.getMassRect(x1, y1);
             } else {
-                massRect = { x: x1, y: y2, width: 1, height: 1 };
+                massRect = this.getMassRect(x1, y2);
             }
             if (this.isCollidedRect(targetRect, d, massRect)) {
                 const collisionResult = new CollisionResult(targetRect, massRect);
@@ -752,6 +757,10 @@ class CharacterCollisionChecker {
             return false;
         }
         return true;
+    }
+
+    getMassRect(x, y) {
+        return { x: x, y: y, width: 1, height: 1 };
     }
 
     // キャラクターの位置が小数の場合、逆方向のマスの通行判定が正しく取得できないため、衝突判定対象外とする
@@ -973,31 +982,6 @@ class FollowerCollisionChecker extends CharacterCollisionChecker {
         collisionResults = collisionResults.concat(this.checkVehicles(x, y, d));
         return collisionResults;
     }
-
-    // フォロワーの移動を滑らかにするために衝突判定の座標を調整する
-    // 本来は迂回処理で対応したいが、迂回処理は入れると重くなるため使用しない
-    checkCollision(x, y, d) {
-        const margin = this._character.distancePerFrame() / 4;
-        const correctedPoint = this.correctMarginPoint({ x: x, y: y }, margin);
-        return super.checkCollision(correctedPoint.x, correctedPoint.y, d);
-    }
-
-    correctMarginPoint(point, margin) {
-        const correctedPoint = { x: point.x, y: point.y };
-        const xFloat = point.x - Math.floor(point.x);
-        if (xFloat <= margin) {
-            correctedPoint.x = Math.floor(point.x);
-        } else if ((1 - xFloat) <= margin) {
-            correctedPoint.x = Math.ceil(point.x);
-        }
-        const yFloat = point.y - Math.floor(point.y);
-        if (yFloat <= margin) {
-            correctedPoint.y = Math.floor(point.y);
-        } else if ((1 - yFloat) <= margin) {
-            correctedPoint.y = Math.ceil(point.y);
-        }
-        return correctedPoint;
-    }
 }
 
 
@@ -1097,71 +1081,95 @@ class CharacterController {
 
     calcUp(dis) {
         const target = this._character.collisionRect();
-        if (dis.x < 0) {
-            dis = this.correctLeftDistance(target, dis);
-        } else if (dis.x > 0) {
-            dis = this.correctRightDistance(target, dis);
+        const collisionResults = this.checkCollision(target.x, target.y + dis.y, 8);
+        if (this.canSlide(collisionResults, "x")) {
+            if (target.x < collisionResults[0].collisionRect.x) {
+                return this.calcLeftUp(dis, true, true);
+            } else {
+                return this.calcUpRight(dis, true, true);
+            }
         }
-        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 8);
-        dis = this.correctUpDistance(target, dis);
-        target.y += dis.y;
-        dis = this.slideDistance(dis, target, collisionResults, 315, 45, "x");
-        target.x += dis.x;
-        return { x: target.x, y: target.y };
+        if (dis.x < 0) {
+            return this.calcLeftUp(dis, false, false);
+        } else {
+            return this.calcUpRight(dis, false, false);
+        }
     }
 
     calcRight(dis) {
         const target = this._character.collisionRect();
-        if (dis.y < 0) {
-            dis = this.correctUpDistance(target, dis);
-        } else if (dis.y > 0) {
-            dis = this.correctDownDistance(target, dis);
+        const collisionResults = this.checkCollision(target.x + dis.x, target.y, 6);
+        if (this.canSlide(collisionResults, "y")) {
+            if (target.y < collisionResults[0].collisionRect.y) {
+                return this.calcUpRight(dis, true, true);
+            } else {
+                return this.calcRightDown(dis, true, true);
+            }
         }
-        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 6);
-        dis = this.correctRightDistance(target, dis);
-        target.x += dis.x;
-        dis = this.slideDistance(dis, target, collisionResults, 45, 135, "y");
-        target.y += dis.y;
-        return { x: target.x, y: target.y };
+        if (dis.y < 0) {
+            return this.calcUpRight(dis, false, false);
+        } else {
+            return this.calcRightDown(dis, false, false);
+        }
     }
 
     calcDown(dis) {
         const target = this._character.collisionRect();
-        if (dis.x < 0) {
-            dis = this.correctLeftDistance(target, dis);
-        } else if (dis.x > 0) {
-            dis = this.correctRightDistance(target, dis);
+        const collisionResults = this.checkCollision(target.x, target.y + dis.y, 2);
+        if (this.canSlide(collisionResults, "x")) {
+            if (target.x < collisionResults[0].collisionRect.x) {
+                return this.calcDownLeft(dis, true, true);
+            } else {
+                return this.calcRightDown(dis, true, true);
+            }
         }
-        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 2);
-        dis = this.correctDownDistance(target, dis);
-        target.y += dis.y;
-        dis = this.slideDistance(dis, target, collisionResults, 225, 135, "x");
-        target.x += dis.x;
-        return { x: target.x, y: target.y };
+        if (dis.x < 0) {
+            return this.calcDownLeft(dis, false, false);
+        } else {
+            return this.calcRightDown(dis, false, false);
+        }
     }
 
     calcLeft(dis) {
         const target = this._character.collisionRect();
-        if (dis.y < 0) {
-            dis = this.correctUpDistance(target, dis);
-        } else if (dis.y > 0) {
-            dis = this.correctDownDistance(target, dis);
+        const collisionResults = this.checkCollision(target.x + dis.x, target.y, 4);
+        if (this.canSlide(collisionResults, "y")) {
+            if (target.y < collisionResults[0].collisionRect.y) {
+                return this.calcLeftUp(dis, true, true);
+            } else {
+                return this.calcDownLeft(dis, true, true);
+            }
         }
-        const collisionResults = this.checkCollision(target.x + dis.x, target.y + dis.y, 4);
-        dis = this.correctLeftDistance(target, dis);
-        target.x += dis.x;
-        dis = this.slideDistance(dis, target, collisionResults, 315, 225, "y");
-        target.y += dis.y;
-        return { x: target.x, y: target.y };
+        if (dis.y < 0) {
+            return this.calcLeftUp(dis, false, false);
+        } else {
+            return this.calcDownLeft(dis, false, false);
+        }
     }
 
-    calcUpRight(dis) {
-        if (this._character.direction() === 8) {
-            if (this._character.height() === 1) return this.calcUp(dis);
-        } else if (this._character.direction() === 6) {
-            if (this._character.width() === 1) return this.calcRight(dis);
-        }
+    calcUpRight(dis, enableSlideX = this.needDiagonalSlideX(), enableSlideY = this.needDiagonalSlideY()) {
         const target = this._character.collisionRect();
+
+        if (enableSlideX) {
+            const collisionResults1 = this.checkCollision(target.x, target.y + dis.y, 8);
+            if (this.canSlide(collisionResults1, "x")) {
+                dis = this.slideDistance(dis, target, collisionResults1, 45, "x", 6);
+                const slidedTarget = { x: target.x + dis.x, y: target.y };
+                dis = this.correctUpDistance(slidedTarget, dis);
+                return { x: target.x + dis.x, y: target.y + dis.y };
+            }
+        }
+
+        if (enableSlideY) {
+            const collisionResults2 = this.checkCollision(target.x + dis.x, target.y, 6);
+            if (this.canSlide(collisionResults2, "y")) {
+                dis = this.slideDistance(dis, target, collisionResults2, 45, "y", 2);
+                const slidedTarget = { x: target.x, y: target.y + dis.y };
+                dis = this.correctRightDistance(slidedTarget, dis);
+                return { x: target.x + dis.x, y: target.y + dis.y };
+            }
+        }
+
         dis = this.correctUpDistance(target, dis);
         target.y += dis.y;
         dis = this.correctRightDistance(target, dis);
@@ -1169,13 +1177,29 @@ class CharacterController {
         return { x: target.x, y: target.y };
     }
 
-    calcRightDown(dis) {
-        if (this._character.direction() === 6) {
-            if (this._character.width() === 1) return this.calcRight(dis);
-        } else if (this._character.direction() === 2) {
-            if (this._character.height() === 1) return this.calcDown(dis);
-        }
+    calcRightDown(dis, enableSlideX = this.needDiagonalSlideX(), enableSlideY = this.needDiagonalSlideY()) {
         const target = this._character.collisionRect();
+
+        if (enableSlideY) {
+            const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 6);
+            if (this.canSlide(collisionResults1, "y")) {
+                dis = this.slideDistance(dis, target, collisionResults1, 135, "y", 2);
+                const slidedTarget = { x: target.x, y: target.y + dis.y };
+                dis = this.correctRightDistance(slidedTarget, dis);
+                return { x: target.x + dis.x, y: target.y + dis.y };
+            }
+        }
+
+        if (enableSlideX) {
+            const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 2);
+            if (this.canSlide(collisionResults2, "x")) {
+                dis = this.slideDistance(dis, target, collisionResults2, 135, "x", 6);
+                const slidedTarget = { x: target.x + dis.x, y: target.y };
+                dis = this.correctDownDistance(slidedTarget, dis);
+                return { x: target.x + dis.x, y: target.y + dis.y };
+            }
+        }
+
         dis = this.correctRightDistance(target, dis);
         target.x += dis.x;
         dis = this.correctDownDistance(target, dis);
@@ -1183,13 +1207,29 @@ class CharacterController {
         return { x: target.x, y: target.y };
     }
 
-    calcDownLeft(dis) {
-        if (this._character.direction() === 2) {
-            if (this._character.height() === 1) return this.calcDown(dis);
-        } else if (this._character.direction() === 4) {
-            if (this._character.width() === 1) return this.calcLeft(dis);
-        }
+    calcDownLeft(dis, enableSlideX = this.needDiagonalSlideX(), enableSlideY = this.needDiagonalSlideY()) {
         const target = this._character.collisionRect();
+
+        if (enableSlideY) {
+            const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 4);
+            if (this.canSlide(collisionResults1, "y")) {
+                dis = this.slideDistance(dis, target, collisionResults1, 225, "y", 2);
+                const slidedTarget = { x: target.x, y: target.y + dis.y };
+                dis = this.correctLeftDistance(slidedTarget, dis);
+                return { x: target.x + dis.x, y: target.y + dis.y };
+            }
+        }
+
+        if (enableSlideX) {
+            const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 2);
+            if (this.canSlide(collisionResults2, "x")) {
+                dis = this.slideDistance(dis, target, collisionResults2, 225, "x", 4);
+                const slidedTarget = { x: target.x + dis.x, y: target.y };
+                dis = this.correctDownDistance(slidedTarget, dis);
+                return { x: target.x + dis.x, y: target.y + dis.y };
+            }
+        }
+
         dis = this.correctDownDistance(target, dis);
         target.y += dis.y;
         dis = this.correctLeftDistance(target, dis);
@@ -1197,13 +1237,29 @@ class CharacterController {
         return { x: target.x, y: target.y };
     }
 
-    calcLeftUp(dis) {
-        if (this._character.direction() === 4) {
-            if (this._character.width() === 1) return this.calcLeft(dis);
-        } else if (this._character.direction() === 8) {
-            if (this._character.height() === 1) return this.calcUp(dis);
-        }
+    calcLeftUp(dis, enableSlideX = this.needDiagonalSlideX(), enableSlideY = this.needDiagonalSlideY()) {
         const target = this._character.collisionRect();
+
+        if (enableSlideY) {
+            const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 4);
+            if (this.canSlide(collisionResults1, "y")) {
+                dis = this.slideDistance(dis, target, collisionResults1, 315, "y", 8);
+                const slidedTarget = { x: target.x, y: target.y + dis.y };
+                dis = this.correctLeftDistance(slidedTarget, dis);
+                return { x: target.x + dis.x, y: target.y + dis.y };
+            }
+        }
+
+        if (enableSlideX) {
+            const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 8);
+            if (this.canSlide(collisionResults2, "x")) {
+                dis = this.slideDistance(dis, target, collisionResults2, 315, "x", 4);
+                const slidedTarget = { x: target.x + dis.x, y: target.y };
+                dis = this.correctUpDistance(slidedTarget, dis);
+                return { x: target.x + dis.x, y: target.y + dis.y };
+            }
+        }
+
         dis = this.correctLeftDistance(target, dis);
         target.x += dis.x;
         dis = this.correctUpDistance(target, dis);
@@ -1265,31 +1321,30 @@ class CharacterController {
 
     // 衝突距離がキャラの移動距離以上であれば移動距離分スライドを行う
     // 衝突距離がキャラの移動距離未満であれば衝突距離分スライドを行う
-    slideDistance(dis, target, collisionResults, deg1, deg2, axis) {
+    slideDistance(dis, target, collisionResults, deg, axis, dir4) {
         const newDis = { x: dis.x, y: dis.y };
-        if (this.canSlide(collisionResults)) {
-            const len = collisionResults[0].getCollisionLength(axis);
-            const diagDis = target[axis] < collisionResults[0].collisionRect[axis] ? this.calcDistance(deg1) : this.calcDistance(deg2);
-            if (len < Math.abs(diagDis[axis])) {
-                newDis[axis] = diagDis[axis] < 0 ? -len : len;
-            } else if (len <= this.getSlideLength(axis)) {
-                newDis[axis] = diagDis[axis];
-            } else {
-                return newDis;
-            }
-            let dir;
-            if (axis === "x") {
-                dir = diagDis[axis] < 0 ? 4 : 6;
-            } else {
-                dir = diagDis[axis] < 0 ? 8 : 2;
-            }
-            return this.correctDistance(target, newDis, dir);
+        const len = collisionResults[0].getCollisionLength(axis);
+        const diagDis = this.calcDistance(deg);
+        if (len < Math.abs(diagDis[axis])) {
+            newDis[axis] = diagDis[axis] < 0 ? -len : len;
+        } else if (len <= this.getSlideLength(axis)) {
+            newDis[axis] = diagDis[axis];
+        } else {
+            return newDis;
         }
-        return newDis;
+        return this.correctDistance(target, newDis, dir4);
+    }
+
+    canSlide(collisionResults, axis) {
+        if (this.canSlideWithoutSlideLength(collisionResults)) {
+            if (collisionResults[0].getCollisionLength(axis) <= this.getSlideLength(axis)) {
+                return true;
+            }
+        }
     }
 
     // 衝突矩形が1つだけ、または全ての衝突矩形の座標が同じである場合、キャラをスライドさせる
-    canSlide(collisionResults) {
+    canSlideWithoutSlideLength(collisionResults) {
         if (collisionResults.length === 0) {
             return false;
         } else if (collisionResults.length === 1) {
@@ -1301,6 +1356,14 @@ class CharacterController {
                 return result.collisionRect.x === collisionRectX && result.collisionRect.y === collisionRectY;
             });
         }
+    }
+
+    needDiagonalSlideX() {
+        return false;
+    }
+
+    needDiagonalSlideY() {
+        return false;
     }
 
     calcDistance(deg) {
@@ -1341,6 +1404,20 @@ class PlayerController extends CharacterController {
     initialize(character) {
         super.initialize(character, new PlayerCollisionChecker(character));
     }
+
+    needDiagonalSlideX() {
+        if (this._character.width() === 1) {
+            return true;
+        }
+        return false;
+    }
+
+    needDiagonalSlideY() {
+        if (this._character.height() === 1) {
+            return true;
+        }
+        return false;
+    }
 }
 
 
@@ -1372,6 +1449,20 @@ class FollowerController extends CharacterController {
     slideLengthY() {
         const len = super.slideLengthY();
         return len + len / 2;
+    }
+
+    needDiagonalSlideX() {
+        if (this._character.width() === 1) {
+            return true;
+        }
+        return true;
+    }
+
+    needDiagonalSlideY() {
+        if (this._character.height() === 1) {
+            return true;
+        }
+        return false;
     }
 }
 
@@ -1438,18 +1529,18 @@ class CharacterMover {
         return this._controller.checkCharacterStepDir(x, y, direction, character);
     }
 
-    isCollidedWithEvents(x, y) {
+    isCollidedWithEvents(x, y, d) {
         const margin = 0.5;
-        const collisionResults = this._controller.checkOtherEvents(x, y, this._character.direction(), false);
+        const collisionResults = this._controller.checkOtherEvents(x, y, d, false);
         for (const result of collisionResults) {
             if (result.collisionLengthX() >= margin || result.collisionLengthY() >= margin) return true;
         }
         return false;
     }
 
-    isCollidedWithVehicles(x, y) {
+    isCollidedWithVehicles(x, y, d) {
         const margin = 0.5;
-        const collisionResults = this._controller.checkVehicles(x, y, this._character.direction(), false);
+        const collisionResults = this._controller.checkVehicles(x, y, d, false);
         for (const result of collisionResults) {
             if (result.collisionLengthX() >= margin || result.collisionLengthY() >= margin) return true;
         }
@@ -1665,9 +1756,9 @@ class EventMover extends CharacterMover {
         this._controller.initMapEventCache();
     }
 
-    isCollidedWithPlayerCharacters(x, y) {
+    isCollidedWithPlayerCharacters(x, y, d) {
         const margin = 0.5;
-        const collisionResults = this._controller.checkPlayer(x, y, this._character.direction(), false);
+        const collisionResults = this._controller.checkPlayer(x, y, d, false);
         for (const result of collisionResults) {
             if (result.collisionLengthX() >= margin || result.collisionLengthY() >= margin) return true;
         }
@@ -1841,6 +1932,25 @@ Game_CharacterBase.prototype.isHigherPriority = function() {
     return undefined;
 };
 
+Game_CharacterBase.prototype.canPass = function(x, y, d) {
+    const x2 = $gameMap.roundXWithDirection(x, d);
+    const y2 = $gameMap.roundYWithDirection(y, d);
+    if (!$gameMap.isValid(x2, y2)) {
+        return false;
+    }
+    if (this.isThrough() || this.isDebugThrough()) {
+        return true;
+    }
+    if (!this.isMapPassable(x, y, d)) {
+        return false;
+    }
+    // 衝突判定に向きを考慮するように変更
+    if (this.isCollidedWithCharacters(x2, y2, d)) {
+        return false;
+    }
+    return true;
+};
+
 Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
     const x2 = $gameMap.roundXWithDirection(x, horz);
     const y2 = $gameMap.roundYWithDirection(y, vert);
@@ -1852,12 +1962,16 @@ Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
     return false;
 };
 
-Game_CharacterBase.prototype.isCollidedWithEvents = function(x, y) {
-    return this.mover().isCollidedWithEvents(x, y);
+Game_CharacterBase.prototype.isCollidedWithEvents = function(x, y, d = this.direction()) {
+    return this.mover().isCollidedWithEvents(x, y, d);
 };
 
-Game_CharacterBase.prototype.isCollidedWithVehicles = function(x, y) {
-    return this.mover().isCollidedWithVehicles(x, y);
+Game_CharacterBase.prototype.isCollidedWithVehicles = function(x, y, d = this.direction()) {
+    return this.mover().isCollidedWithVehicles(x, y, d);
+};
+
+Game_CharacterBase.prototype.isCollidedWithCharacters = function(x, y, d = this.direction()) {
+    return this.isCollidedWithEvents(x, y, d) || this.isCollidedWithVehicles(x, y, d);
 };
 
 Game_CharacterBase.prototype.calcDeg = function(targetCharacter) {
@@ -1874,7 +1988,7 @@ Game_CharacterBase.prototype.calcFar = function(targetCharacter) {
 
 
 // 8方向A*経路探索を行い最適ノードと初期ノードを返す
-Game_Character.prototype.computeRoute = function(goalX, goalY, searchLimit = this.searchLimit()) {
+Game_Character.prototype.computeRoute = function(goalX, goalY, searchLimit) {
     const mapWidth = $gameMap.width();
     const nodeList = [];
     const openList = [];
@@ -1941,7 +2055,7 @@ Game_Character.prototype.computeRoute = function(goalX, goalY, searchLimit = thi
                 }
             }
 
-            const g2 = g1 + (direction % 2 === 0 ? 1 : DIALOG_COST);
+            const g2 = g1 + (direction % 2 === 0 ? 1 : DIAGONAL_COST);
             const index2 = openList.indexOf(pos2);
 
             if (index2 < 0 || g2 < nodeList[index2].g) {
@@ -1967,8 +2081,8 @@ Game_Character.prototype.computeRoute = function(goalX, goalY, searchLimit = thi
     return [best, start];
 };
 
-Game_Character.prototype.findDirectionTo = function(goalX, goalY) {
-    const [best, start] = this.computeRoute(goalX, goalY);
+Game_Character.prototype.findDirectionTo = function(goalX, goalY, searchLimit = this.searchLimit()) {
+    const [best, start] = this.computeRoute(goalX, goalY, searchLimit);
     if (!best) return 0;
 
     let node = best;
@@ -2551,8 +2665,8 @@ Game_Event.prototype.isCollidedDisableHereEventRect = function() {
     return false;
 };
 
-Game_Event.prototype.isCollidedWithPlayerCharacters = function(x, y) {
-    return this.mover().isCollidedWithPlayerCharacters(x, y);
+Game_Event.prototype.isCollidedWithPlayerCharacters = function(x, y, d = this.direction()) {
+    return this.mover().isCollidedWithPlayerCharacters(x, y, d);
 };
 
 Game_Event.prototype.checkEventTriggerTouchFront = function(d) {
@@ -2626,19 +2740,26 @@ Game_Follower.prototype.update = function() {
 
 Game_Follower.prototype.chaseCharacter = function(character) {
     if (this.isJumping()) return;
-    const deg = this.calcDeg(character);
+    if (this.isMoving()) return;
     const far = this.calcFar(character);
     if (far >= 1) {
-        if (far >= 4) {
-            // 前のキャラとの距離が4以上離れている場合はすり抜けを行う
+        this.changeFollowerSpeed(far);
+        if (far >= 5) {
+            // 前のキャラとの距離が5以上離れている場合はすり抜けを行う
             this.setThrough(true);
+            const deg = this.calcDeg(character);
             this.dotMoveByDeg(deg);
+        } else if (far >= 3) {
+            // 前のキャラとの距離が3以上離れている場合は経路探索を行う
+            this.setThrough(false);
+            const dir = this.findDirectionTo(character.x, character.y, 4);
+            this.mover().moveByDirection(dir, 1);
         } else {
             // 前のキャラとの距離が1以上離れている場合は360度移動を行う
             this.setThrough(false);
+            const deg = this.calcDeg(character);
             this.dotMoveByDeg(deg);
         }
-        this.setMoveSpeed(this.calcFollowerSpeed(far));
     }
 };
 
@@ -2654,9 +2775,15 @@ Game_Follower.prototype.gatherCharacter = function(character) {
     }
 };
 
+Game_Follower.prototype.changeFollowerSpeed = function(precedingCharacterFar) {
+    this.setMoveSpeed(this.calcFollowerSpeed(precedingCharacterFar));
+};
+
 Game_Follower.prototype.calcFollowerSpeed = function(precedingCharacterFar) {
-    if (precedingCharacterFar >= 2) {
+    if (precedingCharacterFar >= 4) {
         return $gamePlayer.realMoveSpeed() + 1;
+    } else if (precedingCharacterFar >= 2) {
+        return $gamePlayer.realMoveSpeed() + 0.5;
     } else if (precedingCharacterFar >= 1.5) {
         return $gamePlayer.realMoveSpeed();
     } else if (precedingCharacterFar >= 1) {
@@ -2670,7 +2797,8 @@ Game_Follower.prototype.isGathered = function() {
     if (this.isMoving()) return false;
     const margin = this.distancePerFrame();
     const result = this.mover().checkCharacter(this._realX, this._realY, this.direction(), $gamePlayer);
-    return result && result.collisionLengthX() >= (1 - margin) && result.collisionLengthY() >= (1 - margin);
+    if (!result) return false;
+    return result.collisionLengthX() >= ($gamePlayer.width() - margin) && result.collisionLengthY() >= ($gamePlayer.height() - margin);
 };
 
 
