@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.0.1
+@plugindesc Dot movement system enhancement v1.0.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -153,7 +153,7 @@ Specifies the slide length of the character in the Y-axis direction.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.0.1
+@plugindesc ドット移動システム機能拡張 v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -522,23 +522,21 @@ CharacterMover.prototype.direction8 = function() {
     return this._direction8;
 };
 
-CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: true }) {
+const _CharacterMover_dotMoveByDeg = CharacterMover.prototype.dotMoveByDeg;
+CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: false }) {
     if (opt.changeDir) {
         const direction = DotMoveUtils.deg2direction(deg);
         this.changeDirectionWhenDotMove(direction);
     }
-    this._moverData.targetCount = 1;
-    this._moverData.moveDeg = deg;
-    this.moveProcess();
+    _CharacterMover_dotMoveByDeg.call(this, deg);
 };
 
-CharacterMover.prototype.dotMoveByDirection = function(direction, opt = { changeDir: true }) {
+const _CharacterMover_dotMoveByDirection = CharacterMover.prototype.dotMoveByDirection;
+CharacterMover.prototype.dotMoveByDirection = function(direction, opt = { changeDir: false }) {
     if (opt.changeDir) {
         this.changeDirectionWhenDotMove(direction);
     }
-    this._moverData.targetCount = 1;
-    this._moverData.moveDir = direction;
-    this.moveProcess();
+    _CharacterMover_dotMoveByDirection.call(this, direction);
 };
 
 CharacterMover.prototype.changeDirectionWhenDotMove = function(direction) {
@@ -619,22 +617,6 @@ Game_Player.prototype.isNeedUpdateAcceleration = function() {
     return Game_CharacterBase.prototype.isNeedUpdateAcceleration.call(this);
 };
 
-Game_Player.prototype.startMapEvent = function(x, y, triggers, normal) {
-    if ($gameMap.isEventRunning()) return;
-    for (const event of DotMoveUtils.enteringMassesEvents(x, y, this.width(), this.height())) {
-        if (event.isCollidedDisableHereEventRect()) continue;
-        const result = this.mover().checkCharacter(x, y, this._direction, event);
-        if (!result) continue;
-        if (result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea()) {
-            if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
-                $gameMap.setDisableHereEventRect(event.collisionRect());
-                event.start();
-                this.cancelAcceleration();
-            }
-        }
-    }
-};
-
 
 Game_Follower.prototype.distancePerFrame = function() {
     if ($gamePlayer.isInVehicle()) return this.originDistancePerFrame();
@@ -646,26 +628,12 @@ Game_Follower.prototype.isNeedUpdateAcceleration = function() {
     return Game_CharacterBase.prototype.isNeedUpdateAcceleration.call(this);
 };
 
-Game_Follower.prototype.chaseCharacter = function(character) {
-    if (this.isJumping()) return;
-    const deg = this.calcDeg(character);
-    const far = this.calcFar(character);
-    if (far >= 1) {
-        if (far >= 4) {
-            // 前のキャラとの距離が4以上離れている場合はすり抜けを行う
-            this.setThrough(true);
-            this.dotMoveByDeg(deg);
-        } else {
-            // 前のキャラとの距離が1以上離れている場合は360度移動を行う
-            this.setThrough(false);
-            this.dotMoveByDeg(deg);
-        }
-        if ($gamePlayer._dpf) {
-            this.setDpf(this.calcFollowerDpf(far));
-        } else {
-            this.setDpf(null);
-            this.setMoveSpeed(this.calcFollowerSpeed(far));
-        }
+Game_Follower.prototype.changeFollowerSpeed = function(precedingCharacterFar) {
+    if ($gamePlayer._dpf) {
+        this.setDpf(this.calcFollowerDpf(precedingCharacterFar));
+    } else {
+        this.setDpf(null);
+        this.setMoveSpeed(this.calcFollowerSpeed(precedingCharacterFar));
     }
 };
 
