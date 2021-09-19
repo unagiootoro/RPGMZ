@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.4.2
+@plugindesc Skill replacement system v1.4.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -302,7 +302,7 @@ Specify the actor ID.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.4.2
+@plugindesc スキル付け替えシステム v1.4.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -618,7 +618,11 @@ class PluginParamsParser {
         if (++loopCount > 255) throw new Error("endless loop error");
         const result = {};
         for (const name in typeData) {
-            result[name] = this.convertParam(params[name], typeData[name], loopCount);
+            if (params[name] === "" || params[name] === undefined) {
+                result[name] = null;
+            } else {
+                result[name] = this.convertParam(params[name], typeData[name], loopCount);
+            }
         }
         if (!this._predictEnable) return result;
         if (typeof params === "object" && !(params instanceof Array)) {
@@ -633,7 +637,6 @@ class PluginParamsParser {
     }
 
     convertParam(param, type, loopCount) {
-        if (param == null || param === "") return null;
         if (typeof type === "string") {
             return this.cast(param, type);
         } else if (typeof type === "object" && type instanceof Array) {
@@ -658,7 +661,7 @@ class PluginParamsParser {
         case "string":
             return param;
         case "number":
-            if (param.match(/\d+\.\d+/)) return parseFloat(param);
+            if (param.match(/^\-?\d+\.\d+$/)) return parseFloat(param);
             return parseInt(param);
         case "boolean":
             return param === "true";
@@ -668,7 +671,7 @@ class PluginParamsParser {
     }
 
     predict(param) {
-        if (param.match(/^\d+$/) || param.match(/^\d+\.\d+$/)) {
+        if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
             return "number";
         } else if (param === "true" || param === "false") {
             return "boolean";
@@ -701,6 +704,10 @@ const Text = params.Text;
 const BackgroundImage = params.BackgroundImage;
 
 class AbilitySystemUtils {
+    static isAbilitySkill(skillData) {
+        return skillData.meta.AbilitySkill;
+    }
+
     static getSkillCost(skillId) {
         const skill = $dataSkills[skillId];
         if (!skill) throw new Error(`Unknow skill id ${skillId}`);
@@ -1126,6 +1133,8 @@ Game_Actor.prototype.initMembers = function() {
     _Game_Actor_initMembers.call(this);
     this._hasAbilitySkills = [];
     this._equipAbilitySkills = [];
+    // This skills is added when equip change.
+    this._addedAbilitySkills = [];
     this._maxCost = null;
     // This flag is used to display all acquired ability skills as you level up.
     this._addedSkillsReturnAllFlag = false;
@@ -1135,6 +1144,34 @@ const _Game_Actor_setup = Game_Actor.prototype.setup;
 Game_Actor.prototype.setup = function(actorId) {
     _Game_Actor_setup.call(this, actorId);
     this._maxCost = AbilitySystemUtils.getMaxCost(actorId);
+};
+
+const _Game_Actor_refresh = Game_Actor.prototype.refresh;
+Game_Actor.prototype.refresh = function() {
+    _Game_Actor_refresh.call(this);
+    this.refreshAddedAbilitySkills();
+};
+
+Game_Actor.prototype.refreshAddedAbilitySkills = function() {
+    const lastAddedAbilitySkills = this._addedAbilitySkills.concat();
+    this._addedAbilitySkills = [];
+    for (const skillId of this.addedSkills()) {
+        const skill = $dataSkills[skillId];
+        if (AbilitySystemUtils.isAbilitySkill(skill)) {
+            if (!this._addedAbilitySkills.includes(skillId)) {
+                this._addedAbilitySkills.push(skillId);
+                this.addAbilitySkill(skillId);
+                if (AbilitySystemUtils.isAutoEquipSkill()) {
+                    this.bestSetEquipAbilitySkill(skillId);
+                }
+            }
+        }
+    }
+    for (const skillId of lastAddedAbilitySkills) {
+        if (!this._addedAbilitySkills.includes(skillId)) {
+            this.removeAbilitySkill(skillId);
+        }
+    }
 };
 
 const _Game_Actor_addedSkills = Game_Actor.prototype.addedSkills;
@@ -1275,7 +1312,7 @@ Game_Actor.prototype.originForgetSkill = Game_Actor.prototype.forgetSkill;
 
 Game_Actor.prototype.learnSkill = function(skillId) {
     const skill = $dataSkills[skillId];
-    if (skill.meta.AbilitySkill) {
+    if (AbilitySystemUtils.isAbilitySkill(skill)) {
         this.addAbilitySkill(skillId);
         if (AbilitySystemUtils.isAutoEquipSkill()) {
             this.bestSetEquipAbilitySkill(skillId);
@@ -1287,7 +1324,7 @@ Game_Actor.prototype.learnSkill = function(skillId) {
 
 Game_Actor.prototype.forgetSkill = function(skillId) {
     const skill = $dataSkills[skillId];
-    if (skill.meta.AbilitySkill) {
+    if (AbilitySystemUtils.isAbilitySkill(skill)) {
         this.removeAbilitySkill(skillId);
     } else {
         this.originForgetSkill(skillId);
@@ -1378,12 +1415,12 @@ PluginManager.registerCommand(AbilitySystemPluginName, "SetMaxCost", args => {
 
 
 return {
-    AbilitySystemUtils: AbilitySystemUtils,
-    Scene_Ability: Scene_Ability,
-    Window_AbilitiesBase: Window_AbilitiesBase,
-    Window_EquipAbilities: Window_EquipAbilities,
-    Window_HasAbilities: Window_HasAbilities,
-    Window_StatusAbility: Window_StatusAbility,
+    AbilitySystemUtils,
+    Scene_Ability,
+    Window_AbilitiesBase,
+    Window_EquipAbilities,
+    Window_HasAbilities,
+    Window_StatusAbility,
 };
 
 })();
