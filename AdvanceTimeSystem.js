@@ -1,8 +1,31 @@
 /*:
 @target MV MZ
-@plugindesc 時間経過システム ver1.3.2
+@plugindesc 時間経過システム ver1.3.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AdvanceTimeSystem.js
+
+@command ChangeTimezone
+@text ChangeTimezone
+@desc 時間帯を変更します。
+
+@arg Timezone
+@type number
+@default 0
+@desc 変更する時間帯の値を指定します。
+
+@arg FadeFrame
+@type number
+@default 0
+@desc 画面の色調変更のフレームを指定します。0を指定するとデフォルトのフレーム数を使用します。
+
+@command DisableTimeEffect
+@text DisableTimeEffect
+@desc 時間帯の色調変更を無効化します。
+
+@command EnableTimeEffect
+@text EnableTimeEffect
+@desc 時間帯の色調変更を有効化します。
+
 
 @param TimezoneVariableID
 @type number
@@ -81,28 +104,6 @@
 @type number
 @default 60
 @desc 画面の色調変更のフレームを指定
-
-@command ChangeTimezone
-@text ChangeTimezone
-@desc 時間帯を変更します。
-
-@arg Timezone
-@type number
-@default 0
-@desc 変更する時間帯の値を指定します。
-
-@arg FadeFrame
-@type number
-@default 0
-@desc 画面の色調変更のフレームを指定します。0を指定するとデフォルトのフレーム数を使用します。
-
-@command DisableTimeEffect
-@text DisableTimeEffect
-@desc 時間帯の色調変更を無効化します。
-
-@command EnableTimeEffect
-@text EnableTimeEffect
-@desc 時間帯の色調変更を有効化します。
 
 
 @help
@@ -327,7 +328,7 @@ Game_Map.prototype.advanceTime = function() {
 Game_Map.prototype.encounterList = function() {
     return $dataMap.encounterList.filter((encounter) => {
         const encounterTimezone = this.getEncounterTimezone(encounter);
-        if (encounterTimezone) {
+        if (encounterTimezone != null) {
             if (encounterTimezone === this.nowTimezone()) return true;
             return false;
         }
@@ -336,8 +337,9 @@ Game_Map.prototype.encounterList = function() {
 };
 
 Game_Map.prototype.getEncounterTimezone = function(encounter) {
-    const troop = $dataTroops[encounter.troopId]
-    if (troop.name.match(/^<(.+)>/)) return this.getTimezoneValue(RegExp.$1)
+    const troop = $dataTroops[encounter.troopId];
+    const matchData = troop.name.match(/^<(.+)>/);
+    if (matchData) return this.getTimezoneValue(matchData[1]);
     return null;
 };
 
