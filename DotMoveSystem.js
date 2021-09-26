@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.8.0
+@plugindesc Dot movement system v1.8.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -89,7 +89,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.8.0
+@plugindesc ドット移動システム v1.8.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -684,8 +684,8 @@ class CharacterCollisionChecker {
 
     checkCollisionMass(targetRect, d, ix, iy) {
         const massRect = this.getMassRect(ix, iy);
-        if (!this.checkPassMass(ix, iy, d) && this.isCollidedRect(targetRect, d, massRect)) {
-            return new CollisionResult(targetRect, massRect);
+        if (!this.checkPassMass(ix, iy, d)) {
+            return this.checkCollidedRect(targetRect, d, massRect);
         }
         return null;
     }
@@ -713,10 +713,8 @@ class CharacterCollisionChecker {
             } else {
                 massRect = this.getMassRect(x2, y1);
             }
-            if (this.isCollidedRect(targetRect, d, massRect)) {
-                const collisionResult = new CollisionResult(targetRect, massRect);
-                return [collisionResult];
-            }
+            const result = this.checkCollidedRect(targetRect, d, massRect);
+            if (result) return [result];
         }
         return [];
     }
@@ -730,10 +728,8 @@ class CharacterCollisionChecker {
             } else {
                 massRect = this.getMassRect(x1, y2);
             }
-            if (this.isCollidedRect(targetRect, d, massRect)) {
-                const collisionResult = new CollisionResult(targetRect, massRect);
-                return [collisionResult];
-            }
+            const result = this.checkCollidedRect(targetRect, d, massRect);
+            if (result) return [result];
         }
         return [];
     }
@@ -846,32 +842,28 @@ class CharacterCollisionChecker {
 
         let cx = this.isCharacterRealPosMode() ? character._realX : character.x;
         let cy = this.isCharacterRealPosMode() ? character._realY : character.y;
-        if ($gameMap.isLoopHorizontal() || $gameMap.isLoopVertical()) {
-            if ($gameMap.isLoopHorizontal()) {
-                if (cx < this._character.width() && x >= $gameMap.width() - this._character.width()) {
-                    cx = $gameMap.width() - cx;
-                } else if (cx >= $gameMap.width() - character.width() && x < character.width()) {
-                    cx = cx - $gameMap.width();
-                }
+
+        if ($gameMap.isLoopHorizontal()) {
+            if (cx < this._character.width() && x >= $gameMap.width() - this._character.width()) {
+                cx = cx + $gameMap.width();
+            } else if (cx >= $gameMap.width() - character.width() && x < character.width()) {
+                x = x + $gameMap.width();
             }
-            if ($gameMap.isLoopVertical()) {
-                if (cy < this._character.height() && y >= $gameMap.height() - this._character.height()) {
-                    cy = $gameMap.height() - cy;
-                } else if (cy >= $gameMap.height() - character.height() && y < character.height()) {
-                    cy = cy - $gameMap.height();
-                }
+        }
+        if ($gameMap.isLoopVertical()) {
+            if (cy < this._character.height() && y >= $gameMap.height() - this._character.height()) {
+                cy = cy + $gameMap.height();
+            } else if (cy >= $gameMap.height() - character.height() && y < character.height()) {
+                y = y + $gameMap.height();
             }
         }
 
         const targetRect = { x: x, y: y, width: this._character.width(), height: this._character.height() };
         const characterRect = { x: cx, y: cy, width: character.width(), height: character.height() };
-        if (this.isCollidedRect(targetRect, d, characterRect)) {
-            return new CollisionResult(targetRect, characterRect);
-        }
-        return null;
+        return this.checkCollidedRect(targetRect, d, characterRect);
     }
 
-    isCollidedRect(targetRect, d, collisionRect) {
+    checkCollidedRect(targetRect, d, collisionRect) {
         let x = targetRect.x;
         let y = targetRect.y;
         let w = targetRect.width;
@@ -893,7 +885,10 @@ class CharacterCollisionChecker {
             break;
         }
         const targetRect2 = { x: x, y: y, width: w, height: h };
-        return DotMoveUtils.isCollidedRect(targetRect2, collisionRect);
+        if (DotMoveUtils.isCollidedRect(targetRect2, collisionRect)) {
+            return new CollisionResult(targetRect, collisionRect);
+        }
+        return null;
     }
 }
 
@@ -1337,7 +1332,8 @@ class CharacterController {
 
     canSlide(collisionResults, axis) {
         if (this.canSlideWithoutSlideLength(collisionResults)) {
-            if (collisionResults[0].getCollisionLength(axis) <= this.getSlideLength(axis)) {
+            const collisionLength = Math.max(...collisionResults.map(result => result.getCollisionLength(axis)));
+            if (collisionLength <= this.getSlideLength(axis)) {
                 return true;
             }
         }
@@ -1932,7 +1928,7 @@ Game_CharacterBase.prototype.isHigherPriority = function() {
     return undefined;
 };
 
-Game_CharacterBase.prototype.canPass = function(x, y, d) {
+Game_CharacterBase.prototype.canPass = function(x, y, d, opt = { needCheckCharacters: true }) {
     const x2 = $gameMap.roundXWithDirection(x, d);
     const y2 = $gameMap.roundYWithDirection(y, d);
     if (!$gameMap.isValid(x2, y2)) {
@@ -1944,18 +1940,19 @@ Game_CharacterBase.prototype.canPass = function(x, y, d) {
     if (!this.isMapPassable(x, y, d)) {
         return false;
     }
-    // 衝突判定に向きを考慮するように変更
-    if (this.isCollidedWithCharacters(x2, y2, d)) {
-        return false;
+    if (opt.needCheckCharacters) {
+        if (this.isCollidedWithCharacters(x2, y2, d)) {
+            return false;
+        }
     }
     return true;
 };
 
-Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
+Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert, opt = { needCheckCharacters: true }) {
     const x2 = $gameMap.roundXWithDirection(x, horz);
     const y2 = $gameMap.roundYWithDirection(y, vert);
-    if (this.canPass(x, y, vert) && this.canPass(x, y2, horz)) {
-        if (this.canPass(x, y, horz) && this.canPass(x2, y, vert)) {
+    if (this.canPass(x, y, vert, opt) && this.canPass(x, y2, horz, opt)) {
+        if (this.canPass(x, y, horz, opt) && this.canPass(x2, y, vert, opt)) {
             return true;
         }
     }
@@ -2045,14 +2042,32 @@ Game_Character.prototype.computeRoute = function(goalX, goalY, searchLimit) {
             if (closedList.includes(pos2)) {
                 continue;
             }
+
+            let successPass = true;
             if (direction % 2 === 0) {
                 if (!this.canPass(x1, y1, direction)) {
-                    continue;
+                    successPass = false;
                 }
             } else {
                 if (!this.canPassDiagonally(x1, y1, horz, vert)) {
-                    continue;
+                    successPass = false;
                 }
+            }
+            if (!successPass) {
+                if (x2 === goalX && y2 === goalY) {
+                    if (direction % 2 === 0) {
+                        if (this.canPass(x1, y1, direction, { needCheckCharacters: false })) {
+                            return [current, start];
+                        }
+                    } else {
+                        if (this.canPass(x1, y1, horz) || this.canPass(x1, y1, vert)) {
+                            if (this.canPassDiagonally(x1, y1, horz, vert, { needCheckCharacters: false })) {
+                                return [current, start];
+                            }
+                        }
+                    }
+                }
+                continue;
             }
 
             const g2 = g1 + (direction % 2 === 0 ? 1 : DIAGONAL_COST);
@@ -2492,6 +2507,9 @@ Game_Player.prototype.getOffShipOrBoat = function() {
 };
 
 Game_Player.prototype.getOffVehicleLastPhase = function() {
+    for (const follower of this._followers.data()) {
+        follower.setDirectionFix(false);
+    }
     this._followers.synchronize(this.x, this.y, this.direction());
     this.vehicle().getOff();
     if (this.isInAirship()) {
@@ -2508,6 +2526,9 @@ Game_Player.prototype.getOffVehicleLastPhase = function() {
 Game_Player.prototype.updateTowardLandShipOrBoat = function() {
     this.vehicle().syncWithPlayer();
     if (!this.isMoving()) {
+        // 整数座標への移動完了後は確実に座標を整数に設定する
+        this.setPositionAndRoundIntXy(this.x, this.y);
+        this.vehicle().syncWithPlayer();
         this._shipOrBoatTowardingLand = false;
         this.setDirectionFix(false);
         this.getOffVehicleLastPhase();
@@ -2535,14 +2556,19 @@ Game_Player.prototype.updateVehicleGetOff = function() {
     }
     if (this._gatherStart) {
         if (!this.areFollowersGathering() && this.vehicle().isLowest()) {
-            // 飛行船着地に完了した場合、正面を向く
+            // 整数座標への移動完了後は確実に座標を整数に設定する
+            this.setPositionAndRoundIntXy(this.x, this.y);
             if (this.isInAirship()) {
+                this.vehicle().syncWithPlayer();
+                // 飛行船着地に完了した場合、正面を向く
                 this.vehicle().setDirectionFix(false);
                 this.setDirectionFix(false);
                 this.setDirection(2);
+                for (const follower of this._followers.data()) {
+                    follower.setDirectionFix(false);
+                    follower.setDirection(this.direction());
+                }
             }
-            // 整数座標への移動完了後は確実に座標を整数に設定する
-            this.setPosition(this.x, this.y);
             this._vehicleGettingOff = false;
             this._vehicleType = "walk";
             this.setTransparent(false);
@@ -2557,28 +2583,24 @@ Game_Player.prototype.updateVehicleGetOff = function() {
     }
 };
 
-Game_Player.prototype.isCollidedWithVehicles = function(x, y) {
-    if (this.isInBoat()) {
-        return $gameMap.ship().posNt(x, y);
-    } else if (this.isInShip()) {
-        return $gameMap.boat().posNt(x, y);
-    }
-    return $gameMap.boat().posNt(x, y) || $gameMap.ship().posNt(x, y);
-};
-
 Game_Player.prototype.moveForward = function() {
     this.moveStraight(this.direction());
 };
 
 Game_Player.prototype.startMapEvent = function(x, y, triggers, normal) {
     if ($gameMap.isEventRunning()) return;
+    const hasDecideTrigger = triggers.includes(0);
     for (const event of DotMoveUtils.enteringMassesEvents(x, y, this.width(), this.height())) {
-        if (event.isCollidedDisableHereEventRect()) continue;
+        if (!hasDecideTrigger) {
+            if (event.isCollidedDisableHereEventRect()) continue;
+        }
         const result = this.mover().checkCharacter(x, y, this._direction, event);
         if (!result) continue;
         if (result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea()) {
             if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
-                $gameMap.setDisableHereEventRect(event.collisionRect());
+                if (!hasDecideTrigger) {
+                    $gameMap.setDisableHereEventRect(event.collisionRect());
+                }
                 event.start();
             }
         }
@@ -2665,12 +2687,22 @@ Game_Event.prototype.isCollidedDisableHereEventRect = function() {
     return false;
 };
 
+Game_Event.prototype.isCollidedWithCharacters = function(x, y, d = this.direction()) {
+    return (
+        Game_Character.prototype.isCollidedWithCharacters.call(this, x, y, d) ||
+        this.isCollidedWithPlayerCharacters(x, y, d)
+    );
+};
+
+Game_Event.prototype.isCollidedWithEvents = function(x, y, d = this.direction()) {
+    Game_CharacterBase.prototype.isCollidedWithEvents.call(this, x, y, d);
+};
+
 Game_Event.prototype.isCollidedWithPlayerCharacters = function(x, y, d = this.direction()) {
     return this.mover().isCollidedWithPlayerCharacters(x, y, d);
 };
 
 Game_Event.prototype.checkEventTriggerTouchFront = function(d) {
-    if ($gameMap.isEventRunning()) return;
     if ($gamePlayer.isThrough()) return;
     if (this._trigger === 2) {
         const result = this.mover().checkCharacterStepDir(this._realX, this._realY, d, $gamePlayer);
@@ -2683,7 +2715,7 @@ Game_Event.prototype.checkEventTriggerTouchFront = function(d) {
         const otherAxisLen = this.distancePerFrame() * 0.75;
         if (result.getCollisionLength(axis) >= minTouchWidthOrHeight && result.getCollisionLength(otherAxis) >= otherAxisLen) {
             if (!this.isJumping() && this.isNormalPriority()) {
-                this.start();
+                if (!$gameMap.isEventRunning()) this.start();
             }
         }
     }
@@ -2741,6 +2773,7 @@ Game_Follower.prototype.update = function() {
 Game_Follower.prototype.chaseCharacter = function(character) {
     if (this.isJumping()) return;
     if (this.isMoving()) return;
+    if (this.isTransparent()) return;
     const far = this.calcFar(character);
     if (far >= 1) {
         this.changeFollowerSpeed(far);
@@ -2749,10 +2782,10 @@ Game_Follower.prototype.chaseCharacter = function(character) {
             this.setThrough(true);
             const deg = this.calcDeg(character);
             this.dotMoveByDeg(deg);
-        } else if (far >= 3) {
-            // 前のキャラとの距離が3以上離れている場合は経路探索を行う
+        } else if (far >= 3 && this.isVisible()) {
+            // 前のキャラとの距離が3以上離れている、かつフォロワーが可視状態の場合は経路探索を行う
             this.setThrough(false);
-            const dir = this.findDirectionTo(character.x, character.y, 4);
+            const dir = this.findDirectionTo(character.x, character.y, 6);
             this.mover().moveByDirection(dir, 1);
         } else {
             // 前のキャラとの距離が1以上離れている場合は360度移動を行う
