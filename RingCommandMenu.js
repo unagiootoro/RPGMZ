@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc リングコマンドメニュー v1.3.0
+@plugindesc リングコマンドメニュー v1.3.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/RingCommandMenu.js
 @help
@@ -925,6 +925,7 @@ class RingCommandSpriteController {
     }
 
     startChangeNextCommand() {
+        if (this._sprites.length <= 1) return false;
         let index = this._currentIndex + 1;
         let rotationDeg;
         if (index >= this._sprites.length) {
@@ -934,9 +935,11 @@ class RingCommandSpriteController {
             rotationDeg = this.calcRelativeIndexDeg(index);
         }
         this.startChangeCommand(index, rotationDeg);
+        return true;
     }
 
     startChangePrevCommand() {
+        if (this._sprites.length <= 1) return false;
         let index = this._currentIndex - 1;
         let rotationDeg;
         if (index < 0) {
@@ -946,6 +949,7 @@ class RingCommandSpriteController {
             rotationDeg = this.calcRelativeIndexDeg(index);
         }
         this.startChangeCommand(index, rotationDeg);
+        return true;
     }
 
     startChangeCommand(targetIndex, rotationDeg) {
@@ -1435,7 +1439,9 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
 
     updateCancelButton() {
         if (Utils.RPGMAKER_NAME === "MZ") {
-            this._cancelButton.visible = this._ringCommandMenuState === "active";
+            if (this._cancelButton) {
+                this._cancelButton.visible = this._ringCommandMenuState === "active";
+            }
         }
     }
 
@@ -1534,19 +1540,23 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
     }
 
     inputLeftKey() {
-        const changed = $gameTemp.ringCommandManager().inputLeftKey();
+        let changed = $gameTemp.ringCommandManager().inputLeftKey();
+        if (changed) {
+            changed = this._spriteset.ringCommandPrev();
+        }
         if (changed) {
             SoundManager.playCursor();
-            this._spriteset.ringCommandPrev();
             this._needLabelUpdate = true;
         }
     }
 
     inputRightKey() {
-        const changed = $gameTemp.ringCommandManager().inputRightKey();
+        let changed = $gameTemp.ringCommandManager().inputRightKey();
+        if (changed) {
+            changed = this._spriteset.ringCommandNext();
+        }
         if (changed) {
             SoundManager.playCursor();
-            this._spriteset.ringCommandNext();
             this._needLabelUpdate = true;
         }
     }
@@ -1809,11 +1819,11 @@ class Spriteset_RingCommandMenu extends Spriteset_Base {
     }
 
     ringCommandNext() {
-        this._ringCommandSpriteController.startChangeNextCommand();
+        return this._ringCommandSpriteController.startChangeNextCommand();
     }
 
     ringCommandPrev() {
-        this._ringCommandSpriteController.startChangePrevCommand();
+        return this._ringCommandSpriteController.startChangePrevCommand();
     }
 
     ringCommandChange(targetIndex) {
