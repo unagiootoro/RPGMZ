@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc item composition plugin v1.3.0
+@plugindesc item composition plugin v1.4.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -138,7 +138,7 @@ If you have a recipe as a normal item, you will be able to synthesize the item r
 
 Creating a Recipe
 In the memo field of the recipe item, enter the contents of the recipe in the following format.
-<recipe>.
+<recipe>
 "material": [material item information 1, material item information 2, ...].
 "price": Required cost for synthesis
 "target": Synthesis result item information
@@ -162,16 +162,29 @@ Synthesis result item information... Information about the item created as a res
 
 For example, if you want to create a full potion (ID: 9) by combining a high potion (ID: 8) and two magic waters (ID: 10)
 It should look like this Be careful of the comma at the end.
-<recipe>.
+<recipe>
 "material": [["item", 8, 1], ["item", 10, 2]],
 "target": ["item", 9].
-</recipe>.
+</recipe>
 
 In addition to the above settings, if you want to set 100G as the required cost for the synthesis, you can write the following
 <recipe>
 "material": [["item", 8, 1], ["item", 10, 2]],
 "price": 100,
 "target": ["item", 9]]
+</recipe>
+
+It is also possible to target multiple items with one recipe.
+Enter multiple <recipe> ～ </recipe> in the memo field as shown in the example below.
+<recipe>
+"material": [Material item information 1, Material item information 2, ...]
+"price": Required cost of synthesis
+"target": Synthesis result item information
+</recipe>
+<recipe>
+"material": [Material item information 1, Material item information 2, ...]
+"price": Required cost of synthesis
+"target": Synthesis result item information
 </recipe>
 
 Start the composite scene
@@ -185,7 +198,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc アイテム合成プラグイン v1.3.0
+@plugindesc アイテム合成プラグイン v1.4.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -357,6 +370,19 @@ trueを設定すると、装備アイテムを合成の素材に使えるよう�
 "material": [["item", 8, 1], ["item", 10, 2]],
 "price": 100,
 "target": ["item", 9]
+</recipe>
+
+1つのレシピで複数のアイテムを対象にすることも可能です。
+下記の例のようにメモ欄に複数の<recipe>～</recipe>を記載してください。
+<recipe>
+"material": [素材アイテム情報1, 素材アイテム情報2, ...]
+"price": 合成の必要経費
+"target": 合成結果アイテム情報
+</recipe>
+<recipe>
+"material": [素材アイテム情報1, 素材アイテム情報2, ...]
+"price": 合成の必要経費
+"target": 合成結果アイテム情報
 </recipe>
 
 ■ 合成シーンの開始
@@ -606,6 +632,18 @@ class Material {
 }
 
 class AlchemyRecipe {
+    static fromRecipeData(recipeData) {
+        const materials = {};
+        for (const materialData of recipeData.material) {
+            const itemInfo = new ItemInfo(materialData[0], materialData[1]);
+            const material = new Material(itemInfo, materialData[2]);
+            materials[itemInfo.tag()] = material;
+        }
+        const targetItemInfo = new ItemInfo(recipeData.target[0], recipeData.target[1]);
+        const price = recipeData.price ? recipeData.price : 0;
+        return new AlchemyRecipe(materials, price, targetItemInfo);
+    }
+
     constructor(materials, price, targetItemInfo) {
         this._materials = materials;
         this._price = price;
@@ -702,31 +740,29 @@ class Scene_Alchemy extends Scene_MenuBase {
     createRecipes() {
         $recipes = [];
         for (const item of $gameParty.items()) {
-            const recipeData = this.parseRecipeData(item);
-            if (!recipeData) continue;
-            const materials = {};
-            for (const materialData of recipeData.material) {
-                const itemInfo = new ItemInfo(materialData[0], materialData[1]);
-                const material = new Material(itemInfo, materialData[2]);
-                materials[itemInfo.tag()] = material;
+            const recipeDatas = this.parseRecipeData(item);
+            for (const recipeData of recipeDatas) {
+                $recipes.push(AlchemyRecipe.fromRecipeData(recipeData));
             }
-            const targetItemInfo = new ItemInfo(recipeData.target[0], recipeData.target[1]);
-            const price = recipeData.price ? recipeData.price : 0;
-            $recipes.push(new AlchemyRecipe(materials, price, targetItemInfo));
         }
     }
 
     parseRecipeData(item) {
-        const matchData = item.note.match(/<recipe>(.+)<\/recipe>/s);
-        if (!matchData) return null;
-        const strNote = matchData[1];
-        try {
-            const recipeData = JSON.parse("{" + strNote + "}");
-            return recipeData;
-        } catch(e) {
-            console.error(e);
-            throw NoteParseErrorMessage.format(strNote);
+        const recipeDatas = [];
+        const reg = /<recipe>(.+?)<\/recipe>/sg;
+        while (true) {
+            const matchData = reg.exec(item.note);
+            if (!matchData) break;
+            const strNote = matchData[1];
+            try {
+                const recipeData = JSON.parse("{" + strNote + "}");
+                recipeDatas.push(recipeData);
+            } catch(e) {
+                console.error(e);
+                throw NoteParseErrorMessage.format(strNote);
+            }
         }
+        return recipeDatas;
     }
 
     createCategoryWindow() {
