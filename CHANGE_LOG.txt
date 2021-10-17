@@ -54,6 +54,8 @@ DotMoveSystem.js
         ・イベントサイズによってイベント起動位置がずれる不具合を修正
 
 DotMoveSystem_FunctionEx.js
+    2021/10/17
+        ・地形の半マス当たり判定設定機能を追加
     2021/09/13 v1.0.2
         ・DotMoveSystem.js v1.8.0に対応
     2021/08/01 v1.0.1

@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.0.2
+@plugindesc Dot movement system enhancement v1.1.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -120,7 +120,7 @@ Specify the width of the character.
 @text offset X
 @type number
 @decimals 2
-@ min -1000
+@min -1000
 @default 0
 @desc
 Specifies the display offset of the character along the X axis.
@@ -129,7 +129,7 @@ Specifies the display offset of the character along the X axis.
 @text offset Y
 @type number
 @decimals 2
-@ min -1000
+@min -1000
 @default 0
 @desc
 Specifies the display offset in the Y-axis direction of the character.
@@ -153,7 +153,7 @@ Specifies the slide length of the character in the Y-axis direction.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.0.2
+@plugindesc ドット移動システム機能拡張 v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -166,6 +166,7 @@ Specifies the slide length of the character in the Y-axis direction.
 ・イベントを押す
 ・イベントめり込み時の挙動の変更
 ・当たり判定付きジャンプ
+・地形の半マス当たり判定
 
 【使用方法】
 ■ プレイヤーサイズの変更
@@ -226,6 +227,10 @@ this.smartJump(X軸方向の加算値, Y軸方向の加算値, 最大のジャ�
 (例) 左方向に2、上方向に3.5ジャンプさせる場合
 this.smartJump(2, -3.5);
 
+■ 地形の半マス当たり判定
+プラグインパラメータ「HalfCollisionMassInfo」を編集することで、
+リージョンまたは地形タグをもとに地形の半マスに当たり判定を設定します。
+
 
 @param PlayerInfo
 @text プレイヤー情報
@@ -247,6 +252,13 @@ this.smartJump(2, -3.5);
 @default true
 @desc
 trueを設定すると衝突済みのイベントをすり抜けられるようになります。
+
+@param HalfCollisionMassInfo
+@text 半マス当たり判定情報
+@type struct<HalfCollisionMassInfo>
+@default {"UpCollisionRegionId":"0","RightCollisionRegionId":"0","DownCollisionRegionId":"0","LeftCollisionRegionId":"0","UpRightCollisionRegionId":"0","RightDownCollisionRegionId":"0","DownLeftCollisionRegionId":"0","LeftUpCollisionRegionId":"0","UpRightOpenCollisionRegionId":"0","RightDownOpenCollisionRegionId":"0","DownLeftOpenCollisionRegionId":"0","LeftUpOpenCollisionRegionId":"0","UpCollisionTerrainTagId":"0","RightCollisionTerrainTagId":"0","DownCollisionTerrainTagId":"0","LeftCollisionTerrainTagId":"0","UpRightCollisionTerrainTagId":"0","RightDownCollisionTerrainTagId":"0","DownLeftCollisionTerrainTagId":"0","LeftUpCollisionTerrainTagId":"0","UpRightOpenCollisionTerrainTagId":"0","RightDownOpenCollisionTerrainTagId":"0","DownLeftOpenCollisionTerrainTagId":"0","LeftUpOpenCollisionTerrainTagId":"0"}
+@desc
+半マス当たり判定の各種情報を指定します。各種情報共通で、0が設定された場合は設定を無効化します。
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -302,6 +314,298 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 @default 0.5
 @desc
 キャラクターのY軸方向のスライド長を指定します。
+*/
+
+/*~struct~HalfCollisionMassInfo:ja
+@param UpCollisionRegionId
+@text 上方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+上方向のマス当たり判定のリージョンIDを設定します。
+
+@param RightCollisionRegionId
+@text 右方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右方向のマス当たり判定のリージョンIDを設定します。
+
+@param DownCollisionRegionId
+@text 下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+下方向のマス当たり判定のリージョンIDを設定します。
+
+@param LeftCollisionRegionId
+@text 左方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左方向のマス当たり判定のリージョンIDを設定します。
+
+@param UpRightCollisionRegionId
+@text 右上方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右上方向のマス当たり判定のリージョンIDを設定します。
+
+@param RightDownCollisionRegionId
+@text 右下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右下方向のマス当たり判定のリージョンIDを設定します。
+
+@param DownLeftCollisionRegionId
+@text 左下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左下方向のマス当たり判定のリージョンIDを設定します。
+
+@param LeftUpCollisionRegionId
+@text 左上方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左上方向のマス当たり判定のリージョンIDを設定します。
+
+@param UpRightOpenCollisionRegionId
+@text 右上方向空き当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右上方向の空きマス当たり判定のリージョンIDを設定します。
+
+@param RightDownOpenCollisionRegionId
+@text 右下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右下方向の空きマス当たり判定のリージョンIDを設定します。
+
+@param DownLeftOpenCollisionRegionId
+@text 左下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左下方向の空きマス当たり判定のリージョンIDを設定します。
+
+@param LeftUpOpenCollisionRegionId
+@text 左上方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左上方向の空きマス当たり判定のリージョンIDを設定します。
+
+@param UpCollisionRegionId
+@text 上方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+上方向のマス当たり判定のリージョンIDを設定します。
+
+@param RightCollisionRegionId
+@text 右方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右方向のマス当たり判定のリージョンIDを設定します。
+
+@param DownCollisionRegionId
+@text 下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+下方向のマス当たり判定のリージョンIDを設定します。
+
+@param LeftCollisionRegionId
+@text 左方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左方向のマス当たり判定のリージョンIDを設定します。
+
+@param UpRightCollisionRegionId
+@text 右上方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右上方向のマス当たり判定のリージョンIDを設定します。
+
+@param RightDownCollisionRegionId
+@text 右下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右下方向のマス当たり判定のリージョンIDを設定します。
+
+@param DownLeftCollisionRegionId
+@text 左下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左下方向のマス当たり判定のリージョンIDを設定します。
+
+@param LeftUpCollisionRegionId
+@text 左上方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左上方向のマス当たり判定のリージョンIDを設定します。
+
+@param UpRightOpenCollisionRegionId
+@text 右上方向空き当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右上方向の空きマス当たり判定のリージョンIDを設定します。
+
+@param RightDownOpenCollisionRegionId
+@text 右下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右下方向の空きマス当たり判定のリージョンIDを設定します。
+
+@param DownLeftOpenCollisionRegionId
+@text 左下方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左下方向の空きマス当たり判定のリージョンIDを設定します。
+
+@param LeftUpOpenCollisionRegionId
+@text 左上方向当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左上方向の空きマス当たり判定のリージョンIDを設定します。
+
+
+
+@param UpCollisionTerrainTagId
+@text 上方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+上方向のマス当たり判定の地形タグIDを設定します。
+
+@param RightCollisionTerrainTagId
+@text 右方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+右方向のマス当たり判定の地形タグIDを設定します。
+
+@param DownCollisionTerrainTagId
+@text 下方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+下方向のマス当たり判定の地形タグIDを設定します。
+
+@param LeftCollisionTerrainTagId
+@text 左方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+左方向のマス当たり判定の地形タグIDを設定します。
+
+@param UpRightCollisionTerrainTagId
+@text 右上方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+右上方向のマス当たり判定の地形タグIDを設定します。
+
+@param RightDownCollisionTerrainTagId
+@text 右下方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+右下方向のマス当たり判定の地形タグIDを設定します。
+
+@param DownLeftCollisionTerrainTagId
+@text 左下方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+左下方向のマス当たり判定の地形タグIDを設定します。
+
+@param LeftUpCollisionTerrainTagId
+@text 左上方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+左上方向のマス当たり判定の地形タグIDを設定します。
+
+@param UpRightOpenCollisionTerrainTagId
+@text 右上方向空き当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+右上方向の空きマス当たり判定の地形タグIDを設定します。
+
+@param RightDownOpenCollisionTerrainTagId
+@text 右下方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+右下方向の空きマス当たり判定の地形タグIDを設定します。
+
+@param DownLeftOpenCollisionTerrainTagId
+@text 左下方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+左下方向の空きマス当たり判定の地形タグIDを設定します。
+
+@param LeftUpOpenCollisionTerrainTagId
+@text 左上方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+左上方向の空きマス当たり判定の地形タグIDを設定します。
 */
 
 const DotMoveSystem_FunctionExPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
@@ -394,6 +698,7 @@ class PluginParamsParser {
 const typeDefine = {
     PlayerInfo: {},
     FollowerInfo: {},
+    HalfCollisionMassInfo: {},
 };
 const PP = PluginParamsParser.parse(PluginManager.parameters(DotMoveSystem_FunctionExPluginName), typeDefine);
 
@@ -760,6 +1065,155 @@ Game_CharacterBase.prototype.updateSmartJump = function() {
         this._jumpYPlus = null;
         this.setPosition(this._realX, this._realY);
     }
+};
+
+
+/*
+ * ● 半マス通行判定設定
+ */
+CharacterCollisionChecker.prototype.getMassRects = function(x, y) {
+    switch (this.getMassCollisionType(x, y)) {
+    case 1:
+        return [{ x: x, y: y, width: 1, height: 0.5 }];
+    case 2:
+        return [{ x: x + 0.5, y: y, width: 0.5, height: 1 }];
+    case 3:
+        return [{ x: x, y: y + 0.5, width: 1, height: 0.5 }];
+    case 4:
+        return [{ x: x, y: y, width: 0.5, height: 1 }];
+    case 5:
+        return [{ x: x + 0.5, y: y, width: 0.5, height: 0.5 }];
+    case 6:
+        return [{ x: x + 0.5, y: y + 0.5, width: 0.5, height: 0.5 }];
+    case 7:
+        return [{ x: x, y: y + 0.5, width: 0.5, height: 0.5 }];
+    case 8:
+        return [{ x: x, y: y, width: 0.5, height: 0.5 }];
+    case 9:
+        return [{ x: x, y: y, width: 0.5, height: 1 }, { x: x + 0.5, y: y + 0.5, width: 0.5, height: 0.5 }];
+    case 10:
+        return [{ x: x, y: y, width: 0.5, height: 1 }, { x: x + 0.5, y: y, width: 0.5, height: 0.5 }];
+    case 11:
+        return [{ x: x + 0.5, y: y, width: 0.5, height: 1 }, { x: x, y: y, width: 0.5, height: 0.5 }];
+    case 12:
+        return [{ x: x + 0.5, y: y, width: 0.5, height: 1 }, { x: x, y: y + 0.5, width: 0.5, height: 0.5 }];
+    }
+    return [{ x: x, y: y, width: 1, height: 1 }];
+};
+
+CharacterCollisionChecker.prototype.getMassCollisionType = function(x, y) {
+    const regionId = $gameMap.regionId(x, y);
+    const terrainTag = $gameMap.terrainTag(x, y);
+    if (regionId > 0) {
+        switch (regionId) {
+        case PP.HalfCollisionMassInfo.UpCollisionRegionId:
+            return 1;
+        case PP.HalfCollisionMassInfo.RightCollisionRegionId:
+            return 2;
+        case PP.HalfCollisionMassInfo.DownCollisionRegionId:
+            return 3;
+        case PP.HalfCollisionMassInfo.LeftCollisionRegionId:
+            return 4;
+        case PP.HalfCollisionMassInfo.UpRightCollisionRegionId:
+            return 5;
+        case PP.HalfCollisionMassInfo.RightDownCollisionRegionId:
+            return 6;
+        case PP.HalfCollisionMassInfo.DownLeftCollisionRegionId:
+            return 7;
+        case PP.HalfCollisionMassInfo.LeftUpCollisionRegionId:
+            return 8;
+        case PP.HalfCollisionMassInfo.UpRightOpenCollisionRegionId:
+            return 9;
+        case PP.HalfCollisionMassInfo.RightDownOpenCollisionRegionId:
+            return 10;
+        case PP.HalfCollisionMassInfo.DownLeftOpenCollisionRegionId:
+            return 11;
+        case PP.HalfCollisionMassInfo.LeftUpOpenCollisionRegionId:
+            return 12;
+        }
+    }
+    if (terrainTag > 0) {
+        switch (terrainTag) {
+        case PP.HalfCollisionMassInfo.UpCollisionTerrainTagId:
+            return 1;
+        case PP.HalfCollisionMassInfo.RightCollisionTerrainTagId:
+            return 2;
+        case PP.HalfCollisionMassInfo.DownCollisionTerrainTagId:
+            return 3;
+        case PP.HalfCollisionMassInfo.LeftCollisionTerrainTagId:
+            return 4;
+        case PP.HalfCollisionMassInfo.UpRightCollisionTerrainTagId:
+            return 5;
+        case PP.HalfCollisionMassInfo.RightDownCollisionTerrainTagId:
+            return 6;
+        case PP.HalfCollisionMassInfo.DownLeftCollisionTerrainTagId:
+            return 7;
+        case PP.HalfCollisionMassInfo.LeftUpCollisionTerrainTagId:
+            return 8;
+        case PP.HalfCollisionMassInfo.UpRightOpenCollisionTerrainTagId:
+            return 9;
+        case PP.HalfCollisionMassInfo.RightDownOpenCollisionTerrainTagId:
+            return 10;
+        case PP.HalfCollisionMassInfo.DownLeftOpenCollisionTerrainTagId:
+            return 11;
+        case PP.HalfCollisionMassInfo.LeftUpOpenCollisionTerrainTagId:
+            return 12;
+        }
+    }
+    return 0;
+};
+
+CharacterCollisionChecker.prototype.checkCollisionMass = function(targetRect, d, ix, iy) {
+    const results = [];
+    const massRects = this.getMassRects(ix, iy);
+    if (!this.checkPassMass(ix, iy, d)) {
+        for (const massRect of massRects) {
+            const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
+            if (result) results.push(result);
+        }
+    }
+    return results;
+}
+
+CharacterCollisionChecker.prototype.checkPassMass = function(x, y, d) {
+    const x2 = $gameMap.roundX(x);
+    const y2 = $gameMap.roundY(y);
+    if (!$gameMap.isValid(x2, y2)) {
+        return false;
+    }
+    if (this._character.isThrough() || this._character.isDebugThrough()) {
+        return true;
+    }
+
+    if (this.getMassCollisionType(x2, y2) >= 1 && this.getMassCollisionType(x2, y2) <= 12) {
+        return false;
+    }
+    const prevPoint = DotMoveUtils.prevPointWithDirection({ x: x2, y: y2 }, d);
+    if (this.getMassCollisionType(prevPoint.x, prevPoint.y) >= 1 && this.getMassCollisionType(prevPoint.x, prevPoint.y) <= 12) {
+        return true;
+    }
+
+    if (this.isMassCollisionNoTarget(x, y, d)) return true;
+    if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
+        return false;
+    }
+    return true;
+};
+
+const _CharacterCollisionChecker_checkCollisionXCliff = CharacterCollisionChecker.prototype.checkCollisionXCliff;
+CharacterCollisionChecker.prototype.checkCollisionXCliff = function(targetRect, x, x1, x2, y1, d) {
+    if (this.getMassCollisionType(x1, y1) >= 1 && this.getMassCollisionType(x1, y1) <= 12 && this.getMassCollisionType(x2, y1) >= 1 && this.getMassCollisionType(x2, y1) <= 12) {
+        return [];
+    }
+    return _CharacterCollisionChecker_checkCollisionXCliff.call(this, targetRect, x, x1, x2, y1, d);
+};
+
+const _CharacterCollisionChecker_checkCollisionYCliff = CharacterCollisionChecker.prototype.checkCollisionYCliff;
+CharacterCollisionChecker.prototype.checkCollisionYCliff = function(targetRect, y, y1, y2, x1, d) {
+    if (this.getMassCollisionType(x1, y1) >= 1 && this.getMassCollisionType(x1, y1) <= 12 && this.getMassCollisionType(x1, y2) >= 1 && this.getMassCollisionType(x1, y2) <= 12) {
+        return [];
+    }
+    return _CharacterCollisionChecker_checkCollisionYCliff.call(this, targetRect, y, y1, y2, x1, d);
 };
 
 })();
