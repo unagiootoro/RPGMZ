@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.1.0
+@plugindesc Dot movement system enhancement v1.2.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -77,14 +77,14 @@ this.smartJump (2, -3.5);
 @param PlayerInfo
 @text player information
 @type struct <CharacterInfo>
-@default {"Width": "1", "Height": "1", "OffsetX": "0", "OffsetY": "0", "SlideLengthX": "0.5", "SlideLengthY": "0.5" }
+@default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.5","SlideLengthY":"0.5","TransferOffsetX":"0","TransferOffsetY":"0"}
 @desc
 Specify various information of the player.
 
 @param FollowerInfo
 @text follower information
 @type struct <CharacterInfo>
-@default {"Width": "1", "Height": "1", "OffsetX": "0", "OffsetY": "0", "SlideLengthX": "0.75", "SlideLengthY": "0.75" }
+@default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.75","SlideLengthY":"0.75","TransferOffsetX":"0","TransferOffsetY":"0"}
 @desc
 Specify various information of followers.
 
@@ -149,11 +149,29 @@ Specifies the slide length of the character in the X-axis direction.
 @default 0.5
 @desc
 Specifies the slide length of the character in the Y-axis direction.
+
+@param TransferOffsetX
+@text Offset when moving location X
+@type number
+@decimals 2
+@min -1000
+@default 0
+@desc
+Specifies the X coordinate offset when moving to a location.
+
+@param TransferOffsetY
+@text Offset Y when moving to another location
+@type number
+@decimals 2
+@min -1000
+@default 0
+@desc
+Specifies the Y coordinate offset when moving to a location.
 */
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.1.0
+@plugindesc ドット移動システム機能拡張 v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -235,14 +253,14 @@ this.smartJump(2, -3.5);
 @param PlayerInfo
 @text プレイヤー情報
 @type struct<CharacterInfo>
-@default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.5","SlideLengthY":"0.5"}
+@default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.5","SlideLengthY":"0.5","TransferOffsetX":"0","TransferOffsetY":"0"}
 @desc
 プレイヤーの各種情報を指定します。
 
 @param FollowerInfo
 @text フォロワー情報
 @type struct<CharacterInfo>
-@default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.75","SlideLengthY":"0.75"}
+@default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.75","SlideLengthY":"0.75","TransferOffsetX":"0","TransferOffsetY":"0"}
 @desc
 フォロワーの各種情報を指定します。
 
@@ -314,6 +332,24 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 @default 0.5
 @desc
 キャラクターのY軸方向のスライド長を指定します。
+
+@param TransferOffsetX
+@text 場所移動時X座標オフセット
+@type number
+@decimals 2
+@min -1000
+@default 0
+@desc
+場所移動時のX座標オフセットを指定します。
+
+@param TransferOffsetY
+@text 場所移動時Y座標オフセット
+@type number
+@decimals 2
+@min -1000
+@default 0
+@desc
+場所移動時のY座標オフセットを指定します。
 */
 
 /*~struct~HalfCollisionMassInfo:ja
@@ -736,6 +772,9 @@ Game_Player.prototype.initMembers = function() {
     this._offsetY = PP.PlayerInfo.OffsetY;
     this._slideLengthX = PP.PlayerInfo.SlideLengthX;
     this._slideLengthY = PP.PlayerInfo.SlideLengthY;
+    this._transferOffsetX = PP.PlayerInfo.TransferOffsetX == null ? 0 : PP.PlayerInfo.TransferOffsetX;
+    this._transferOffsetY = PP.PlayerInfo.TransferOffsetX == null ? 0 : PP.PlayerInfo.TransferOffsetX;
+    this._enableTransferOffset = true;
 };
 
 
@@ -748,6 +787,8 @@ Game_Follower.prototype.initMembers = function() {
     this._offsetY = PP.FollowerInfo.OffsetY;
     this._slideLengthX = PP.FollowerInfo.SlideLengthX;
     this._slideLengthY = PP.FollowerInfo.SlideLengthY;
+    this._transferOffsetX = PP.FollowerInfo.TransferOffsetX == null ? 0 : PP.FollowerInfo.TransferOffsetX;
+    this._transferOffsetY = PP.FollowerInfo.TransferOffsetX == null ? 0 : PP.FollowerInfo.TransferOffsetX;
 };
 
 /*
@@ -764,6 +805,7 @@ const _Game_CharacterBase_update = Game_CharacterBase.prototype.update;
 Game_CharacterBase.prototype.update = function() {
     if (this.isJumping() && this.isSmartJumping()) this.updateSmartJump();
     if (this.isNeedUpdateAcceleration()) this.updateAcceleration();
+    this.updateCurrentDpf();
     _Game_CharacterBase_update.call(this);
 };
 
@@ -798,6 +840,17 @@ const CharacterInfo = {
 
 Object.assign(Game_Player.prototype, CharacterInfo);
 Object.assign(Game_Follower.prototype, CharacterInfo);
+
+Game_Player.prototype.setEnableTransferOffset = function(bool) {
+    this._enableTransferOffset = bool;
+};
+
+const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
+Game_Player.prototype.reserveTransfer = function(mapId, x, y, d, fadeType) {
+    _Game_Player_reserveTransfer.call(this, mapId, x, y, d, fadeType);
+    this._newX = x + this._transferOffsetX;
+    this._newY = y + this._transferOffsetY;
+};
 
 /*
  * ● 移動速度の調整
@@ -860,15 +913,18 @@ CharacterMover.prototype.changeDirectionWhenDotMove = function(direction) {
 Game_CharacterBase.prototype.originDistancePerFrame = Game_CharacterBase.prototype.distancePerFrame;
 
 Game_CharacterBase.prototype.distancePerFrame = function() {
-    const isNeedUpdateAcceleration = this.isNeedUpdateAcceleration();
     if (this._dpf == null) return this.originDistancePerFrame();
-    if (isNeedUpdateAcceleration && this._moverData.targetCount > 1) return this.originDistancePerFrame();
+    if (this.isNeedUpdateAcceleration() && this._moverData.targetCount > 1) return this.originDistancePerFrame();
+    return this._currentDpf;
+};
+
+Game_CharacterBase.prototype.updateCurrentDpf = function() {
     const dashMul = this._dashing ? 2 : 1;
-    if (isNeedUpdateAcceleration) {
+    if (this.isNeedUpdateAcceleration()) {
         const acc = 1 + this._acceleration / this._maxAcceleration * this._accelerationPlus;
-        return this._dpf * acc * dashMul;
+        this._currentDpf = this._dpf * acc * dashMul;
     } else {
-        return this._dpf * dashMul;
+        this._currentDpf = this._dpf * dashMul;
     }
 };
 
@@ -934,7 +990,7 @@ Game_Follower.prototype.isNeedUpdateAcceleration = function() {
 };
 
 Game_Follower.prototype.changeFollowerSpeed = function(precedingCharacterFar) {
-    if ($gamePlayer._dpf) {
+    if ($gamePlayer.distancePerFrame()) {
         this.setDpf(this.calcFollowerDpf(precedingCharacterFar));
     } else {
         this.setDpf(null);
