@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.9.0
+@plugindesc Dot movement system v1.9.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -92,7 +92,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.9.0
+@plugindesc ドット移動システム v1.9.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -600,7 +600,10 @@ class DotMoveUtils {
             }
 
             loopCount++;
-            if (maxLoopCount != null && loopCount >= maxLoopCount) yield;
+            if (maxLoopCount != null && loopCount >= maxLoopCount) {
+                loopCount = 0;
+                yield;
+            }
         }
 
         return [best, start];
@@ -914,7 +917,7 @@ class CharacterCollisionChecker {
 
     checkFollowers(x, y, d) {
         const collisionResults = [];
-        for (const follower of $gamePlayer._followers.data()) {
+        for (const follower of $gamePlayer.followers().data()) {
             if (!follower.isThrough()) {
                 const result = this.checkCharacter(x, y, d, follower, { overComplementMode: true });
                 if (result) collisionResults.push(result);
@@ -1045,7 +1048,7 @@ class EventCollisionChecker extends CharacterCollisionChecker {
     checkCollisionCharacters(x, y, d) {
         let collisionResults = [];
         collisionResults.push(...this.checkPlayer(x, y, d));
-        if ($gamePlayer._followers.isVisible()) collisionResults.push(...this.checkFollowers(x, y, d));
+        if ($gamePlayer.followers().isVisible()) collisionResults.push(...this.checkFollowers(x, y, d));
         collisionResults.push(...this.checkOtherEvents(x, y, d));
         collisionResults.push(...this.checkVehicles(x, y, d));
         return collisionResults;
@@ -1291,7 +1294,7 @@ class CharacterController {
         if (enableSlideY) {
             const collisionResults2 = this.checkCollision(target.x + dis.x, target.y, 6);
             if (this.canSlide(collisionResults2, "y")) {
-                dis = this.slideDistance(dis, target, collisionResults2, 45, "y", 2);
+                dis = this.slideDistance(dis, target, collisionResults2, 45, "y", 8);
                 const slidedTarget = { x: target.x, y: target.y + dis.y };
                 dis = this.correctRightDistance(slidedTarget, dis);
                 return { x: target.x + dis.x, y: target.y + dis.y };
@@ -1477,10 +1480,10 @@ class CharacterController {
         } else if (collisionResults.length === 1) {
             return true;
         } else {
-            const collisionRectX = collisionResults[0].collisionRect.x;
-            const collisionRectY = collisionResults[0].collisionRect.y;
+            const collisionRectX = collisionResults[0].targetRect.x;
+            const collisionRectY = collisionResults[0].targetRect.y;
             return collisionResults.every(result => {
-                return result.collisionRect.x === collisionRectX && result.collisionRect.y === collisionRectY;
+                return result.targetRect.x === collisionRectX && result.targetRect.y === collisionRectY;
             });
         }
     }
@@ -2391,7 +2394,7 @@ Game_Player.prototype.update = function(sceneActive) {
         this.updateNonmoving(wasMoving, sceneActive);
     }
     if (this._needCountProcess) this.updateCountProcess(sceneActive);
-    this._followers.update();
+    this.followers().update();
     this.updateTouchPoint();
 };
 
@@ -2530,10 +2533,10 @@ Game_Player.prototype.getOffShipOrBoat = function() {
 };
 
 Game_Player.prototype.getOffVehicleLastPhase = function() {
-    for (const follower of this._followers.data()) {
+    for (const follower of this.followers().data()) {
         follower.setDirectionFix(false);
     }
-    this._followers.synchronize(this.x, this.y, this.direction());
+    this.followers().synchronize(this.x, this.y, this.direction());
     this.vehicle().getOff();
     if (this.isInAirship()) {
         this.forceMoveOffAirship();
@@ -2587,7 +2590,7 @@ Game_Player.prototype.updateVehicleGetOff = function() {
                 this.vehicle().setDirectionFix(false);
                 this.setDirectionFix(false);
                 this.setDirection(2);
-                for (const follower of this._followers.data()) {
+                for (const follower of this.followers().data()) {
                     follower.setDirectionFix(false);
                     follower.setDirection(this.direction());
                 }
@@ -2671,12 +2674,19 @@ Game_Player.prototype.checkEventTriggerThere = function(triggers) {
     if (this.canStartLocalEvents()) {
         const direction = this.direction();
         this.startMapEventFront(this._realX, this._realY, this._direction, triggers, true, false);
-        const currentPoint = { x: this._realX, y: this._realY };
-        const nextPoint = DotMoveUtils.nextPointWithDirection(currentPoint, direction);
-        const x2 = Math.round(nextPoint.x);
-        const y2 = Math.round(nextPoint.y);
-        if (!$gameMap.isAnyEventStarting() && $gameMap.isCounter(x2, y2)) {
-            this.startMapEventFront(nextPoint.x, nextPoint.y, this._direction, triggers, true, false);
+        if ($gameMap.isAnyEventStarting()) return;
+        let currentPoint = { x: this._realX, y: this._realY };
+        while (true) {
+            let nextPoint = DotMoveUtils.nextPointWithDirection(currentPoint, direction);
+            let nextX = Math.round(nextPoint.x);
+            let nextY = Math.round(nextPoint.y);
+            if ($gameMap.isCounter(nextX, nextY)) {
+                this.startMapEventFront(nextPoint.x, nextPoint.y, this._direction, triggers, true, false);
+                if ($gameMap.isAnyEventStarting()) break;
+            } else {
+                break;
+            }
+            currentPoint = nextPoint;
         }
     }
 };
@@ -2766,6 +2776,13 @@ if (Utils.RPGMAKER_NAME === "MV") {
         return this._data.clone();
     };
 }
+
+
+const _Game_Follower_initialize = Game_Follower.prototype.initialize;
+Game_Follower.prototype.initialize = function(memberIndex) {
+    _Game_Follower_initialize.call(this, memberIndex);
+    this.setThrough(false);
+};
 
 Game_Follower.prototype.makeMover = function() {
     return new FollowerMover(this);
