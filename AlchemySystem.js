@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc item composition plugin v1.4.0
+@plugindesc item composition plugin v2.0.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -198,9 +198,15 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc アイテム合成プラグイン v1.4.0
+@plugindesc アイテム合成プラグイン v2.0.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
+
+@param RecipeInfos
+@text レシピ情報
+@type struct<RecipeInfo>[]
+@desc
+レシピ情報を指定します。
 
 @param EnabledMenuAlchemy
 @text 合成メニュー有効化
@@ -335,6 +341,26 @@ trueを設定すると、装備アイテムを合成の素材に使えるよう�
 レシピは通常のアイテムとして持たせることによって、レシピに登録されたアイテムが合成できるようになります。
 
 ■ レシピの作成
+レシピアイテムとレシピの情報の組み合わせをプラグインパラメータ「レシピ情報」で指定します。
+レシピアイテムにアイテムとして持たせるアイテムIDを指定し、それに紐づくレシピをレシピ一覧に登録します。
+レシピ一覧には複数のレシピを登録することができ、一つのレシピで複数の合成レシピを習得させることが可能です。
+
+■ アイテム情報について
+レシピではアイテム情報としてアイテムタイプ、アイテムID、武器ID、防具IDを指定する項目があります。
+これはアイテムタイプとそれに紐づくアイテム/武器/防具のいずれかのIDを指定する必要があります。
+それ以外のIDは指定せずに0のままにしても問題ありません。
+
+■ 合成シーンの開始
+プラグインコマンドで「StartAlchemyScene」を実行すると、合成シーンを開始します。
+ツクールMVの場合、次のコマンドを入力してください。
+AlchemySystem StartAlchemyScene
+
+■ 旧バージョンとの互換性
+旧バージョンはアイテムのメモ欄でレシピを指定していましたが、
+この方法はプラグインパラメータでのレシピの設定と併用可能です。
+
+===================== 以下の情報は旧バージョンでのレシピ指定方法です =====================
+■ レシピの作成
 レシピアイテムのメモ欄に以下の形式でレシピの内容を記載します。
 <recipe>
 "material": [素材アイテム情報1, 素材アイテム情報2, ...]
@@ -385,13 +411,101 @@ trueを設定すると、装備アイテムを合成の素材に使えるよう�
 "target": 合成結果アイテム情報
 </recipe>
 
-■ 合成シーンの開始
-プラグインコマンドで「StartAlchemyScene」を実行すると、合成シーンを開始します。
-ツクールMVの場合、次のコマンドを入力してください。
-AlchemySystem StartAlchemyScene
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
+*/
+
+/*~struct~RecipeInfo:ja
+@param RecipeItem
+@text レシピアイテム
+@type item
+@desc
+レシピとなるアイテムIDを指定します。
+
+@param Recipe
+@text レシピ一覧
+@type struct<Recipe>[]
+@desc
+レシピアイテムに登録するアイテムを指定します。
+
+@param Memo
+@text メモ
+@type multiline_string
+@desc
+汎用的なメモ欄です。プラグイン内部では使用しません。
+*/
+
+/*~struct~Recipe:ja
+@param Materials
+@text 素材一覧
+@type struct<Material>[]
+@desc
+素材となるアイテムを指定します。
+
+@param Price
+@text 必要経費
+@type number
+@default 0
+@desc
+合成の必要経費を指定します。
+
+@param TargetItemInfo
+@text 生成アイテム情報
+@type struct<ItemInfo>
+@desc
+生成されるアイテムの情報を指定します。
+*/
+
+/*~struct~Material:ja
+@param ItemInfo
+@text アイテム情報
+@type struct<ItemInfo>
+@desc
+アイテム情報を指定します。
+
+@param NeedItems
+@text 必要アイテム数
+@type number
+@default 1
+@desc
+素材として必要なアイテムの数を指定します。
+*/
+
+/*~struct~ItemInfo:ja
+@param Type
+@text アイテムタイプ
+@type select
+@option アイテム
+@value Item
+@option 武器
+@value Weapon
+@option 防具
+@value Armor
+@default Item
+@desc
+IDがアイテム/武器/防具のどれを使用するかを指定します。
+
+@param ItemId
+@text アイテムID
+@type item
+@default 0
+@desc
+アイテムのIDを指定します。Typeがアイテムでない場合は0を指定してください。
+
+@param WeaponId
+@text 武器ID
+@type weapon
+@default 0
+@desc
+武器のIDを指定します。Typeが武器でない場合は0を指定してください。
+
+@param ArmorId
+@text 防具ID
+@type armor
+@default 0
+@desc
+防具のIDを指定します。Typeが防具でない場合は0を指定してください。
 */
 
 const AlchemySystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
@@ -399,28 +513,116 @@ const AlchemySystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$
 const AlchemyClassAlias = (() => {
 "use strict";
 
-const params = PluginManager.parameters(AlchemySystemPluginName);
+class PluginParamsParser {
+    static parse(params, typeData, predictEnable = true) {
+        return new PluginParamsParser(predictEnable).parse(params, typeData);
+    }
 
-const EnabledMenuAlchemy = (params["EnabledMenuAlchemy"] === "true");
-const EnabledAlchemySwitchId = parseInt(params["EnabledAlchemySwitchId"]);
-const EnabledCategoryWindow = (params["EnabledCategoryWindow"] === "true");
-const EnabledGoldWindow = (params["EnabledGoldWindow"] === "true");
-const DisplayKeyItemCategory = (params["DisplayKeyItemCategory"] === "true");
-const EnableIncludeEquipItem = (params["EnableIncludeEquipItem"] === "true");
+    constructor(predictEnable = true) {
+        this._predictEnable = predictEnable;
+    }
 
-const MaxNumMakeItem = parseInt(params["MaxNumMakeItem"]);
-const MaxMaterials = parseInt(params["MaxMaterials"]);
+    parse(params, typeData, loopCount = 0) {
+        if (++loopCount > 255) throw new Error("endless loop error");
+        const result = {};
+        for (const name in typeData) {
+            if (params[name] === "" || params[name] === undefined) {
+                result[name] = null;
+            } else {
+                result[name] = this.convertParam(params[name], typeData[name], loopCount);
+            }
+        }
+        if (!this._predictEnable) return result;
+        if (typeof params === "object" && !(params instanceof Array)) {
+            for (const name in params) {
+                if (result[name]) continue;
+                const param = params[name];
+                const type = this.predict(param);
+                result[name] = this.convertParam(param, type, loopCount);
+            }
+        }
+        return result;
+    }
 
-const MakeItemSeFileName = params["MakeItemSeFileName"];
-const MakeItemSeVolume = parseInt(params["MakeItemSeVolume"]);
-const MakeItemSePitch = parseInt(params["MakeItemSePitch"]);
-const MakeItemSePan = parseInt(params["MakeItemSePan"]);
+    convertParam(param, type, loopCount) {
+        if (typeof type === "string") {
+            return this.cast(param, type);
+        } else if (typeof type === "object" && type instanceof Array) {
+            const aryParam = JSON.parse(param);
+            if (type[0] === "string") {
+                return aryParam.map(strParam => this.cast(strParam, type[0]));
+            } else {
+                return aryParam.map(strParam => this.parse(JSON.parse(strParam), type[0]), loopCount);
+            }
+        } else if (typeof type === "object") {
+            return this.parse(JSON.parse(param), type, loopCount);
+        } else {
+            throw new Error(`${type} is not string or object`);
+        }
+    }
 
-const MenuAlchemyText = params["MenuAlchemyText"];
-const NeedMaterialText = params["NeedMaterialText"];
-const NeedPriceText = params["NeedPriceText"];
-const TargetItemText = params["TargetItemText"];
-const NoteParseErrorMessage = params["NoteParseErrorMessage"];
+    cast(param, type) {
+        switch(type) {
+        case "any":
+            if (!this._predictEnable) throw new Error("Predict mode is disable");
+            return this.cast(param, this.predict(param));
+        case "string":
+            return param;
+        case "number":
+            if (param.match(/^\-?\d+\.\d+$/)) return parseFloat(param);
+            return parseInt(param);
+        case "boolean":
+            return param === "true";
+        default:
+            throw new Error(`Unknow type: ${type}`);
+        }
+    }
+
+    predict(param) {
+        if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
+            return "number";
+        } else if (param === "true" || param === "false") {
+            return "boolean";
+        } else {
+            return "string";
+        }
+    }
+}
+
+
+const typeDefine = {
+    RecipeInfos: [{
+        Recipe: [{
+            Materials: [{
+                ItemInfo: {}
+            }],
+            TargetItemInfo: {}
+        }]
+    }]
+};
+
+const PP = PluginParamsParser.parse(PluginManager.parameters(AlchemySystemPluginName), typeDefine);
+
+const EnabledMenuAlchemy = PP.EnabledMenuAlchemy;
+const EnabledAlchemySwitchId = PP.EnabledAlchemySwitchId;
+const EnabledCategoryWindow = PP.EnabledCategoryWindow;
+const EnabledGoldWindow = PP.EnabledGoldWindow;
+const DisplayKeyItemCategory = PP.DisplayKeyItemCategory;
+const EnableIncludeEquipItem = PP.EnableIncludeEquipItem;
+
+const MaxNumMakeItem = PP.MaxNumMakeItem;
+const MaxMaterials = PP.MaxMaterials;
+
+const MakeItemSeFileName = PP.MakeItemSeFileName;
+const MakeItemSeVolume = PP.MakeItemSeVolume;
+const MakeItemSePitch = PP.MakeItemSePitch;
+const MakeItemSePan = PP.MakeItemSePan;
+
+const MenuAlchemyText = PP.MenuAlchemyText;
+const NeedMaterialText = PP.NeedMaterialText;
+const NeedPriceText = PP.NeedPriceText;
+const TargetItemText = PP.TargetItemText;
+const NoteParseErrorMessage = PP.NoteParseErrorMessage;
 
 
 // MV compatible
@@ -503,9 +705,9 @@ class PartyItemUtils {
         let count = this._partyItemCountWithoutEquips(itemInfo);
         if (EnableIncludeEquipItem) {
             if (itemInfo.type === "weapon") {
-                count += this._allPartyEquipWeapons().filter(item => item.id === itemInfo.id).length;
+                count += this._allPartyEquipWeapons().filter(item => item && item.id === itemInfo.id).length;
             } else if (itemInfo.type === "armor") {
-                count += this._allPartyEquipArmors().filter(item => item.id === itemInfo.id).length;
+                count += this._allPartyEquipArmors().filter(item => item && item.id === itemInfo.id).length;
             }
         }
         return count;
@@ -582,6 +784,20 @@ class ItemInfo {
     get id() { return this._id; }
     set id(_id) { this._id = _id; }
 
+    static fromParams(params) {
+        let itemInfo;
+        if (params.Type === "Item") {
+            itemInfo = new ItemInfo("item", params.ItemId);
+        } else if (params.Type === "Weapon") {
+            itemInfo = new ItemInfo("weapon", params.WeaponId);
+        } else if (params.Type === "Armor") {
+            itemInfo = new ItemInfo("armor", params.ArmorId);
+        } else {
+            throw new Error(`Type ${params.Type} is unknown.`);
+        }
+        return itemInfo;
+    }
+
     // Tag to completely specify the item.
     tag() {
         return `${this._type}_${this._id}`;
@@ -641,6 +857,18 @@ class AlchemyRecipe {
         }
         const targetItemInfo = new ItemInfo(recipeData.target[0], recipeData.target[1]);
         const price = recipeData.price ? recipeData.price : 0;
+        return new AlchemyRecipe(materials, price, targetItemInfo);
+    }
+
+    static fromRecipeDataV2(recipeDataV2) {
+        const materials = {};
+        for (const materialData of recipeDataV2.Materials) {
+            const itemInfo = ItemInfo.fromParams(materialData.ItemInfo);
+            const material = new Material(itemInfo, materialData.NeedItems);
+            materials[itemInfo.tag()] = material;
+        }
+        const targetItemInfo = ItemInfo.fromParams(recipeDataV2.TargetItemInfo);
+        const price = recipeDataV2.Price;
         return new AlchemyRecipe(materials, price, targetItemInfo);
     }
 
@@ -743,6 +971,17 @@ class Scene_Alchemy extends Scene_MenuBase {
             const recipeDatas = this.parseRecipeData(item);
             for (const recipeData of recipeDatas) {
                 $recipes.push(AlchemyRecipe.fromRecipeData(recipeData));
+            }
+        }
+
+        for (const item of $gameParty.items()) {
+            for (const recipeInfo of PP.RecipeInfos) {
+                if (item.id === recipeInfo.RecipeItem) {
+                    for (const recipe of recipeInfo.Recipe) {
+                        $recipes.push(AlchemyRecipe.fromRecipeDataV2(recipe));
+                    }
+                    break;
+                }
             }
         }
     }
