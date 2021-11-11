@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Quest system v1.4.2
+@plugindesc Quest system v1.5.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -75,10 +75,39 @@ failedQuest: Show failed quests
 expiredQuest: Show expired quests
 hiddenQuest: Show hidden quests
 
-[About MV version]
-Since the plug-in command of this plug-in is created according to the MZ format,
-"CallPluginCommandMZ.js" is required separately to operate on MV.
-Please install "callPluginCommandMZ.js" before "QuestSystem.js".
+[Use plugin commands from scripts]
+The functionality of plugin commands can also be used from scripts.
+The MV version does not support the plug-in command itself, so
+If you want to use the function in the plugin command, you need to use this script.
+
+■ Start of quest scene
+QuestSystemAlias.QuestUtils.startQuestScene(questCommands, fileName1 = "", fileName2 = "", xOfs = 240, yOfs = 300)
+    questCommands: Specify quest commands in the form ["all", "questOrder"].
+    fileName1: Specify the file name of the background image. (Optional)
+    fileName2: Specify the file name of the background standing image. (Optional)
+    xOfs: Specifies the X coordinate of the background standing image. (Optional)
+    yOfs: Specifies the Y coordinate of the background standing image. (Optional)
+
+■ Reward acquisition
+QuestSystemAlias.QuestUtils.getRewards(variableId)
+    variableId: Specify the variable ID of the target quest.
+
+■ Change of detailed description of quest
+QuestSystemAlias.QuestUtils.changeDetail(variableId, detail)
+    variableId: Specify the variable ID of the target quest.
+    detail: Specify the detailed description after the change.
+
+■ Change of reward
+QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
+    variableId: Specify the variable ID of the target quest.
+    rawardDatas: Specify rewards in the following format:
+                 {type: "reward type", itemId: item ID, itemCount: number of items, gold: gold, exp: experience points}
+                 type: Specify one of "gold", "exp", "item", "weapon", "armor".
+                 itemId: Specify the corresponding ID when the type is one of "item", "weapon", "armor".
+                         For example, if you want to specify a weapon with ID5, set type to "weapon" and itemId to 5.
+                 itemCount: Specifies the number of items to get when the type is "item", "weapon", or "armor".
+                 gold: Specifies the gold to get if the type is "gold".
+                 exp: Specifies the experience value to obtain when type is "exp".
 
 【License】
 This plugin is available under the terms of the MIT license.
@@ -206,6 +235,13 @@ Sets the text used in the game.
 @desc
 Sets the color of the text used in the game.
 
+@param CommandIcon
+@text command icon
+@type struct <CommandIcon>
+@default {"AllCommandIcon": "0", "QuestOrderCommandIcon": "0", "OrderingQuestCommandIcon": "0", "QuestCancelCommandIcon": "0", "QuestReportCommandIcon": "0", "ReportedQuestCommandIcon": "0" , "FailedQuestCommandIcon": "0", "ExpiredQuestCommandIcon": "0", "HiddenQuestCommandIcon": "0"}
+@desc
+Specify the icon of the quest command.
+
 @param GoldIcon
 @text gold icon
 @type number
@@ -281,10 +317,15 @@ Specify the background image of the quest scene.
 @text variable ID
 @desc Specifies the variable ID of the quest whose details you want to change.
 
-@arg Detail
-@type multiline_string
+@arg DetailNote
+@type note
 @text details
 @desc Set the quest details to change.
+
+@arg Detail
+@type multiline_string
+@text details(compatibility)
+@desc (This is an older parameter but is left for compatibility.)Set the quest details to change.
 
 
 @command ChangeRewards
@@ -352,17 +393,29 @@ Specify the location of the quest.
 @desc
 Specify the expiration date of the quest.
 
-@param Detail
+@param DetailNote
 @text Quest information
-@type multiline_string
+@type note
 @desc
 Specify the quest information.
 
-@param HiddenDetail
+@param HiddenDetailNote
 @text Hidden information
-@type multiline_string
+@type note
 @desc
 Specifies information when the quest is hidden.
+
+@param Detail
+@text Quest information(compatibility)
+@type multiline_string
+@desc
+(This is an older parameter but is left for compatibility.) Specify the quest information.
+
+@param HiddenDetail
+@text Hidden information(compatibility)
+@type multiline_string
+@desc
+(This is an older parameter but is left for compatibility.) Specifies information when the quest is hidden.
 
 @param CommonEventId
 @text Common event ID
@@ -849,10 +902,76 @@ Specifies the color of the expired text.
 */
 
 
+/*~struct~CommandIcon:
+@param AllCommandIcon
+@text All quest display command icon
+@type number
+@default 0
+@desc
+Specify the command icon for displaying all quests.
+
+@param QuestOrderCommandIcon
+@text Quest consignment command icon
+@type number
+@default 0
+@desc
+Specify the icon of the command for accepting the quest.
+
+@param OrderingQuestCommandIcon
+@text In-progress quest command icon
+@type number
+@default 0
+@desc
+Specifies the command icon for the quest in progress.
+
+@param QuestCancelCommandIcon
+@text quest cancel command icon
+@type number
+@default 0
+@desc
+Specify the icon for the quest cancel command.
+
+@param QuestReportCommandIcon
+@text quest report command icon
+@type number
+@default 0
+@desc
+Specifies the icon for the quest report command.
+
+@param ReportedQuestCommandIcon
+@text Reported quest confirmation command icon
+@type number
+@default 0
+@desc
+Specifies the command icon for the reported quest.
+
+@param FailedQuestCommandIcon
+@text Failure quest confirmation command icon
+@type number
+@default 0
+@desc
+Specify the command icon for the failed quest.
+
+@param ExpiredQuestCommandIcon
+@text Expired quest confirmation command icon
+@type number
+@default 0
+@desc
+Specifies the command icon for expired quests.
+
+@param HiddenQuestCommandIcon
+@text Hidden quest confirmation command icon
+@type number
+@default 0
+@desc
+Specifies the icon for the hidden quest command.
+*/
+
+
 
 /*:ja
 @target MV MZ
-@plugindesc クエストシステム v1.4.2
+@plugindesc クエストシステム v1.5.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -926,10 +1045,39 @@ failedQuest: 失敗したクエストを表示する
 expiredQuest: 期限切れのクエストを表示する
 hiddenQuest: 隠しクエストを表示する
 
-【MV版について】
-このプラグインのプラグインコマンドはMZの形式に合わせて作成しているため、
-MVで動作させるには「callPluginCommandMZ.js」が別途必要となります。
-「callPluginCommandMZ.js」は「QuestSystem.js」よりも前に導入してください。
+【スクリプトからプラグインコマンドを使用する】
+プラグインコマンドの機能はスクリプトからでも使用することができます。
+なお、MV版はプラグインコマンド自体が非対応ですので、
+プラグインコマンドにある機能を使用したい場合はこちらのスクリプトを使用する方法で対応する必要があります。
+
+■ クエストシーン開始
+QuestSystemAlias.QuestUtils.startQuestScene(questCommands, fileName1 = "", fileName2 = "", xOfs = 240, yOfs = 300)
+    questCommands: クエストコマンドを["all", "questOrder"]のような形で指定します。
+    fileName1: 背景画像のファイル名を指定します。(省略可能)
+    fileName2: 背景の立ち絵画像のファイル名を指定します。(省略可能)
+    xOfs: 背景の立ち絵画像のX座標を指定します。(省略可能)
+    yOfs: 背景の立ち絵画像のY座標を指定します。(省略可能)
+
+■ 報酬の取得
+QuestSystemAlias.QuestUtils.getRewards(variableId)
+    variableId: 対象のクエストの変数IDを指定します。
+
+■ クエストの詳細説明の変更
+QuestSystemAlias.QuestUtils.changeDetail(variableId, detail)
+    variableId: 対象のクエストの変数IDを指定します。
+    detail: 変更後の詳細説明を指定します。
+
+■ 報酬の変更
+QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
+    variableId: 対象のクエストの変数IDを指定します。
+    rawardDatas: 報酬を以下の形式で指定します。
+                 { type: "報酬タイプ", itemId: アイテムID, itemCount: アイテム個数, gold: ゴールド, exp: 経験値 }
+                 type: "gold", "exp", "item", "weapon", "armor"のいずれかを指定します。
+                 itemId: typeが"item", "weapon", "armor"のいずれかである場合に該当するIDを指定します。
+                         例えばID5の武器を指定する場合、typeは"weapon"でitemIdは5に設定します。
+                 itemCount: typeが"item", "weapon", "armor"のいずれかである場合に入手するアイテムの個数を指定します。
+                 gold: typeが"gold"である場合に入手するゴールドを指定します。
+                 exp: typeが"exp"である場合に入手する経験値を指定します。
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -1057,6 +1205,13 @@ MVで動作させるには「callPluginCommandMZ.js」が別途必要となり�
 @desc
 ゲーム中で使用されるテキストのカラーを設定します。
 
+@param CommandIcon
+@text コマンドアイコン
+@type struct<CommandIcon>
+@default {"AllCommandIcon":"0","QuestOrderCommandIcon":"0","OrderingQuestCommandIcon":"0","QuestCancelCommandIcon":"0","QuestReportCommandIcon":"0","ReportedQuestCommandIcon":"0","FailedQuestCommandIcon":"0","ExpiredQuestCommandIcon":"0","HiddenQuestCommandIcon":"0"}
+@desc
+クエストコマンドのアイコンを指定します。
+
 @param GoldIcon
 @text ゴールドのアイコン
 @type number
@@ -1132,10 +1287,15 @@ MVで動作させるには「callPluginCommandMZ.js」が別途必要となり�
 @text 変数ID
 @desc 詳細を変更するクエストの変数IDを指定します。
 
-@arg Detail
-@type multiline_string
+@arg DetailNote
+@type note
 @text 詳細
 @desc 変更するクエスト詳細を設定します。
+
+@arg Detail
+@type multiline_string
+@text 詳細(互換)
+@desc (これは旧版のパラメータですが、互換性のために残しています。)変更するクエスト詳細を設定します。
 
 
 @command ChangeRewards
@@ -1203,17 +1363,29 @@ MVで動作させるには「callPluginCommandMZ.js」が別途必要となり�
 @desc
 クエストの有効期限を指定します。
 
-@param Detail
+@param DetailNote
 @text クエストの情報
-@type multiline_string
+@type note
 @desc
 クエストの情報を指定します。
 
-@param HiddenDetail
+@param HiddenDetailNote
 @text 隠された情報
-@type multiline_string
+@type note
 @desc
 クエストが隠し状態のときの情報を指定します。
+
+@param Detail
+@text クエストの情報(互換)
+@type multiline_string
+@desc
+(これは旧版のパラメータですが、互換性のために残しています。)クエストの情報を指定します。
+
+@param HiddenDetail
+@text 隠された情報(互換)
+@type multiline_string
+@desc
+(これは旧版のパラメータですが、互換性のために残しています。)クエストが隠し状態のときの情報を指定します。
 
 @param CommonEventId
 @text コモンイベントID
@@ -1699,9 +1871,76 @@ MVで動作させるには「callPluginCommandMZ.js」が別途必要となり�
 期限切れの状態のテキストのカラーを指定します。
 */
 
+
+/*~struct~CommandIcon:ja
+@param AllCommandIcon
+@text 全クエスト表示コマンドアイコン
+@type number
+@default 0
+@desc
+全クエスト表示のコマンドのアイコンを指定します。
+
+@param QuestOrderCommandIcon
+@text クエスト受託コマンドアイコン
+@type number
+@default 0
+@desc
+クエスト受託のコマンドのアイコンを指定します。
+
+@param OrderingQuestCommandIcon
+@text 進行中クエストコマンドアイコン
+@type number
+@default 0
+@desc
+進行中クエストのコマンドのアイコンを指定します。
+
+@param QuestCancelCommandIcon
+@text クエストキャンセルコマンドアイコン
+@type number
+@default 0
+@desc
+クエストキャンセルのコマンドのアイコンを指定します。
+
+@param QuestReportCommandIcon
+@text クエスト報告コマンドアイコン
+@type number
+@default 0
+@desc
+クエスト報告のコマンドのアイコンを指定します。
+
+@param ReportedQuestCommandIcon
+@text 報告済クエスト確認コマンドアイコン
+@type number
+@default 0
+@desc
+報告済クエストのコマンドのアイコンを指定します。
+
+@param FailedQuestCommandIcon
+@text 失敗クエスト確認コマンドアイコン
+@type number
+@default 0
+@desc
+失敗クエストのコマンドのアイコンを指定します。
+
+@param ExpiredQuestCommandIcon
+@text 期限切れクエスト確認コマンドアイコン
+@type number
+@default 0
+@desc
+期限切れクエストのコマンドのアイコンを指定します。
+
+@param HiddenQuestCommandIcon
+@text 隠しクエスト確認コマンドアイコン
+@type number
+@default 0
+@desc
+隠しクエストのコマンドのアイコンを指定します。
+*/
+
 const QuestSystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 let $dataQuests = null;
+let $questSaveData = null;
 
 const QuestSystemAlias = (() => {
 "use strict";
@@ -1719,7 +1958,11 @@ class PluginParamsParser {
         if (++loopCount > 255) throw new Error("endless loop error");
         const result = {};
         for (const name in typeData) {
-            result[name] = this.convertParam(params[name], typeData[name], loopCount);
+            if (params[name] === "" || params[name] === undefined) {
+                result[name] = null;
+            } else {
+                result[name] = this.convertParam(params[name], typeData[name], loopCount);
+            }
         }
         if (!this._predictEnable) return result;
         if (typeof params === "object" && !(params instanceof Array)) {
@@ -1758,7 +2001,7 @@ class PluginParamsParser {
         case "string":
             return param;
         case "number":
-            if (param.match(/\d+\.\d+/)) return parseFloat(param);
+            if (param.match(/^\-?\d+\.\d+$/)) return parseFloat(param);
             return parseInt(param);
         case "boolean":
             return param === "true";
@@ -1768,7 +2011,7 @@ class PluginParamsParser {
     }
 
     predict(param) {
-        if (param.match(/^\d+$/) || param.match(/^\d+\.\d+$/)) {
+        if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
             return "number";
         } else if (param === "true" || param === "false") {
             return "boolean";
@@ -1777,6 +2020,44 @@ class PluginParamsParser {
         }
     }
 }
+
+
+class QuestUtils {
+    static startQuestScene(questCommands, fileName1 = "", fileName2 = "", xOfs = 240, yOfs = 300) {
+        SceneManager.push(Scene_QuestSystem);
+        questCommands = questCommands.length === 0 ? null : questCommands;
+        SceneManager.prepareNextScene(questCommands, { FileName1: fileName1, FileName2: fileName2, XOfs: xOfs, YOfs: yOfs});
+    }
+
+    static getRewards(variableId) {
+        const questData = $dataQuests.find(data => data.variableId === variableId);
+        if (!questData) return;
+        questData.getRewards();
+    }
+
+    static changeDetail(variableId, detail) {
+        const questData = $dataQuests.find(data => data.variableId === variableId);
+        if (!questData) return;
+        questData.detail = detail;
+        $questSaveData.setDetail(questData.variableId, questData.detail);
+    }
+
+    // rawardData: { type, itemId, itemCount, gold, exp }
+    static changeRewards(variableId, rawardDatas) {
+        const rewards = rawardDatas.map(rawardData => {
+            return RewardData.fromObject(rawardData);
+        });
+        this.changeRewardsByRewrdObject(variableId, rewards);
+    }
+
+    static changeRewardsByRewrdObject(variableId, rewards) {
+        const questData = $dataQuests.find(data => data.variableId === variableId);
+        if (!questData) return;
+        questData.rewards = rewards;
+        $questSaveData.setRewards(questData.variableId, rewards);
+    }
+}
+
 
 class ItemInfo {
     constructor(type, id) {
@@ -1803,6 +2084,21 @@ class ItemInfo {
 }
 
 class RewardData {
+    static fromObject(rewardObject) {
+        const { type, itemId, itemCount, gold, exp } = rewardObject;
+        if (type === "gold") {
+            return new RewardData("gold", { value: gold });
+        } else if (type === "exp") {
+            return new RewardData("exp", { value: exp });
+        } else if (["item", "weapon", "armor"].includes(type)) {
+            const itemInfo = new ItemInfo(type, itemId);
+            return new RewardData("item", { item: itemInfo, count: itemCount });
+        } else if (type === "any") {
+            return new RewardData("any", { text: rewardObject.text, iconIndex: rewardObject.iconIndex });
+        }
+        throw new Error(`${type} is not found.`);
+    }
+
     static fromParam(rewardParam) {
         if (rewardParam.Type === "gold") {
             return new RewardData("gold", { value: rewardParam.GoldValue });
@@ -1814,6 +2110,7 @@ class RewardData {
         } else if (rewardParam.Type === "any") {
             return new RewardData("any", { text: rewardParam.Text, iconIndex: rewardParam.IconIndex });
         }
+        throw new Error(`${rewardParam.Type} is not found.`);
     }
 
     constructor(type, params) {
@@ -1834,6 +2131,19 @@ class RewardData {
         } else if (["item", "weapon", "armor"].includes(this.type)) {
             $gameParty.gainItem(this._params.item.itemData(), this._params.count);
         }
+    }
+
+    toObject() {
+        if (this._type === "gold") {
+            return { type: this._type, gold: this._params.value };
+        } else if (this._type === "exp") {
+            return { type: this._type, exp: this._params.value };
+        } else if (this._type === "item") {
+            return { type: this._params.item.type, itemId: this._params.item.id, itemCount: this._params.count };
+        } else if (this._type === "any") {
+            return { type: this._type, text: this._params.text, iconIndex: this._params.iconIndex };
+        }
+        throw new Error(`${this._type} is not found.`);
     }
 }
 
@@ -1933,8 +2243,18 @@ class QuestData {
         const difficulty = questDataParam.Difficulty;
         const place = questDataParam.Place;
         const timeLimit = questDataParam.TimeLimit;
-        const detail = questDataParam.Detail;
-        const hiddenDetail = questDataParam.HiddenDetail;
+        let detail;
+        if (questDataParam.DetailNote == null || questDataParam.DetailNote === "") {
+            detail = questDataParam.Detail;
+        } else {
+            detail = JSON.parse(questDataParam.DetailNote);
+        }
+        let hiddenDetail;
+        if (questDataParam.HiddenDetailNote == null || questDataParam.HiddenDetailNote === "") {
+            hiddenDetail = questDataParam.HiddenDetail;
+        } else {
+            hiddenDetail = JSON.parse(questDataParam.HiddenDetailNote);
+        }
         const commonEventId = questDataParam.CommonEventId;
         const priority = questDataParam.Priority;
         return new QuestData(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, commonEventId, priority);
@@ -2010,7 +2330,73 @@ const typeDefine = {
     WindowSize: {},
     Text: {},
     TextColor: {},
+    CommandIcon: {},
 };
+
+
+class QuestSaveData {
+    constructor() {
+        this._contents = {};
+    }
+
+    setDetail(variableId, detail) {
+        if (this._contents[variableId] == null) this._contents[variableId] = {};
+        this._contents[variableId].detail = detail;
+    }
+
+    setRewards(variableId, rewards) {
+        if (this._contents[variableId] == null) this._contents[variableId] = {};
+        this._contents[variableId].rewards = rewards.map(reward => reward.toObject());
+    }
+
+    makeSaveContents() {
+        return this._contents;
+    }
+
+    loadSaveContents(contents) {
+        this._contents = contents;
+        for (const strVariableId in contents) {
+            const variableId = parseInt(strVariableId);
+            const questData = $dataQuests.find(data => data.variableId === variableId);
+            if (!questData) return;
+            const content = contents[variableId];
+            if (content.detail != null) questData.detail = content.detail;
+            if (content.rewards != null) {
+                const rewards = content.rewards.map(rewardObject => RewardData.fromObject(rewardObject));
+                questData.rewards = rewards;
+            }
+        }
+    }
+}
+
+
+class QuestState {
+    get state() { return this._state; }
+    get value() { return this._value; }
+    get text() { return this._text; }
+    get color() { return this._color; }
+
+    constructor(state, value, text, color = null) {
+        this._state = state;
+        this._value = value;
+        this._text = text;
+        this._color = color;
+    }
+}
+
+
+class QuestCommand {
+    get state() { return this._state; }
+    get text() { return this._text; }
+    get iconIndex() { return this._iconIndex; }
+
+    constructor(state, text, iconIndex) {
+        this._state = state;
+        this._text = text;
+        this._iconIndex = iconIndex;
+    }
+}
+
 
 const params = PluginParamsParser.parse(PluginManager.parameters(QuestSystemPluginName), typeDefine);
 
@@ -2037,28 +2423,29 @@ const MenuBackgroundImage = params.MenuBackgroundImage;
 const WindowSize = params.WindowSize;
 const Text = params.Text;
 const TextColor = params.TextColor;
+const CommandIcon = params.CommandIcon;
 
 const STATE_LIST = [
-    { state: "none", value: 0, text: "" },
-    { state: "notOrdered", value: 1, text: Text.NotOrderedStateText, color: TextColor.NotOrderedStateColor },
-    { state: "ordering", value: 2, text: Text.OrderingStateText, color: TextColor.OrderingStateColor },
-    { state: "reportable", value: 3, text: Text.ReportableStateText, color: TextColor.ReportableStateColor },
-    { state: "reported", value: 4, text: Text.ReportedStateText, color: TextColor.ReportedStateColor },
-    { state: "failed", value: 5, text: Text.FailedStateText, color: TextColor.FailedStateColor },
-    { state: "expired", value: 6, text: Text.ExpiredStateText, color: TextColor.ExpiredStateColor },
-    { state: "hidden", value: 7, text: "", color: "#ffffff" },
+    new QuestState("none", 0, ""),
+    new QuestState("notOrdered", 1, Text.NotOrderedStateText, TextColor.NotOrderedStateColor),
+    new QuestState("ordering", 2, Text.OrderingStateText, TextColor.OrderingStateColor),
+    new QuestState("reportable", 3, Text.ReportableStateText, TextColor.ReportableStateColor),
+    new QuestState("reported", 4, Text.ReportedStateText, TextColor.ReportedStateColor),
+    new QuestState("failed", 5, Text.FailedStateText, TextColor.FailedStateColor),
+    new QuestState("expired", 6, Text.ExpiredStateText, TextColor.ExpiredStateColor),
+    new QuestState("hidden", 7, "", "ffffff"),
 ];
 
 const COMMAND_TABLE = {
-    "all": { state: null, text: Text.AllCommandText },
-    "questOrder": { state: ["notOrdered"], text: Text.QuestOrderCommandText },
-    "orderingQuest": { state: ["ordering", "reportable"], text: Text.OrderingQuestCommandText },
-    "questCancel": { state: ["ordering"], text: Text.QuestCancelCommandText },
-    "questReport": { state: ["reportable"], text: Text.QuestReportCommandText },
-    "reportedQuest": { state: ["reported"], text: Text.ReportedQuestCommandText },
-    "failedQuest": { state: ["failed"], text: Text.FailedQuestCommandText },
-    "expiredQuest": { state: ["expired"], text: Text.ExpiredQuestCommandText },
-    "hiddenQuest": { state: ["hidden"], text: Text.HiddenQuestCommandText },
+    "all": new QuestCommand(null, Text.AllCommandText, CommandIcon.AllCommandIcon),
+    "questOrder": new QuestCommand(["notOrdered"], Text.QuestOrderCommandText, CommandIcon.AllCommandIcon),
+    "orderingQuest": new QuestCommand(["ordering", "reportable"], Text.OrderingQuestCommandText, CommandIcon.OrderingQuestCommandIcon),
+    "questCancel": new QuestCommand(["ordering"], Text.QuestCancelCommandText, CommandIcon.QuestCancelCommandIcon),
+    "questReport": new QuestCommand(["reportable"], Text.QuestReportCommandText, CommandIcon.QuestReportCommandIcon),
+    "reportedQuest": new QuestCommand(["reported"], Text.ReportedQuestCommandText, CommandIcon.ReportedQuestCommandIcon),
+    "failedQuest": new QuestCommand(["failed"], Text.FailedQuestCommandText, CommandIcon.FailedQuestCommandIcon),
+    "expiredQuest": new QuestCommand(["expired"], Text.ExpiredQuestCommandText, CommandIcon.ExpiredQuestCommandIcon),
+    "hiddenQuest": new QuestCommand(["hidden"], Text.HiddenQuestCommandText, CommandIcon.HiddenQuestCommandIcon),
 };
 
 
@@ -2675,7 +3062,7 @@ class Window_QuestCommand extends Window_Command_MZMV {
         for (const command of this._commandList) {
             const commandData = COMMAND_TABLE[command];
             if (commandData) {
-                this.addCommand(commandData.text, command);
+                this.addCommand(commandData.text, command, true, null, commandData.iconIndex);
             } else {
                 throw new Error(`Unknow quest command ${command}`);
             }
@@ -2686,6 +3073,29 @@ class Window_QuestCommand extends Window_Command_MZMV {
         if (this.currentSymbol() === "all") return $dataQuests.filter(data => data.state() !== "none");
         const commandData = COMMAND_TABLE[this.currentSymbol()];
         return $dataQuests.filter(quest => commandData.state.includes(quest.state()));
+    }
+
+    addCommand(name, symbol, enabled = true, ext = null, iconIndex = 0) {
+        this._list.push({ name, symbol, enabled, ext, iconIndex });
+    }
+
+    commandIconIndex(index) {
+        return this._list[index].iconIndex;
+    }
+
+    drawItem(index) {
+        const rect = this.itemLineRect(index);
+        const align = this.itemTextAlign();
+        this.resetTextColor();
+        this.changePaintOpacity(this.isCommandEnabled(index));
+        const iconIndex = this.commandIconIndex(index);
+        if (iconIndex != null && iconIndex > 0) {
+            const textMargin = ImageManager.iconWidth + 4;
+            this.drawIcon(iconIndex, rect.x, rect.y);
+            this.drawText(this.commandName(index), rect.x + textMargin, rect.y, rect.width - textMargin, "left");
+        } else {
+            this.drawText(this.commandName(index), rect.x, rect.y, rect.width, align);
+        }
     }
 }
 
@@ -2886,7 +3296,8 @@ class Window_QuestDetail extends Window_Selectable_MZMV {
     }
 
     drawDetail(startLine) {
-        this.drawTextExWrap(this._questData.detail, this.padding, this.startY(startLine), this.width - this.padding * 2);
+        // 自動改行を考慮して横幅を-24する。
+        this.drawTextExWrap(this._questData.detail, this.padding, this.startY(startLine), this.width - this.padding * 2 - 24);
     }
 
     drawHiddenDetail(startLine) {
@@ -3103,37 +3514,63 @@ class Window_QuestGetReward extends Window_Selectable_MZMV {
 }
 
 
+// セーブデータ対応
+const _DataManager_createGameObjects = DataManager.createGameObjects;
+DataManager.createGameObjects = function() {
+    _DataManager_createGameObjects.call(this);
+    $questSaveData = new QuestSaveData();
+};
+
+const _DataManager_makeSaveContents = DataManager.makeSaveContents;
+DataManager.makeSaveContents = function() {
+    const contents = _DataManager_makeSaveContents.call(this);
+    contents.questSaveData = $questSaveData.makeSaveContents();
+    return contents;
+};
+
+const _DataManager_extractSaveContents = DataManager.extractSaveContents;
+DataManager.extractSaveContents = function(contents) {
+    _DataManager_extractSaveContents.call(this, contents);
+    if (contents.questSaveData) $questSaveData.loadSaveContents(contents.questSaveData);
+};
+
+
 // Register plugin command.
-PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", args => {
-    SceneManager.push(Scene_QuestSystem);
-    const params = PluginParamsParser.parse(args, { QuestCommands: ["string"], BackgroundImage: {} });
-    const commands = (params.QuestCommands.length === 0 ? null : params.QuestCommands);
-    SceneManager.prepareNextScene(commands, params.BackgroundImage);
-});
-
-PluginManager.registerCommand(QuestSystemPluginName, "GetRewards", args => {
-    const params = PluginParamsParser.parse(args, { VariableId: "number" });
-    const questData = $dataQuests.find(data => data.variableId === params.VariableId);
-    if (!questData) return;
-    questData.getRewards();
-});
-
-PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", args => {
-    const params = PluginParamsParser.parse(args, { VariableId: "number", Detail: "string" });
-    const questData = $dataQuests.find(data => data.variableId === params.VariableId);
-    if (!questData) return;
-    questData.detail = params.Detail;
-});
-
-PluginManager.registerCommand(QuestSystemPluginName, "ChangeRewards", args => {
-    const params = PluginParamsParser.parse(args, { Rewards: [{}] });
-    const questData = $dataQuests.find(data => data.variableId === params.VariableId);
-    if (!questData) return;
-    const rewards = params.Rewards.map(rewardParam => {
-        return RewardData.fromParam(rewardParam);
+if (Utils.RPGMAKER_NAME === "MZ") {
+    PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", args => {
+        SceneManager.push(Scene_QuestSystem);
+        const params = PluginParamsParser.parse(args, { QuestCommands: ["string"], BackgroundImage: {} });
+        const fileName1 = params.BackgroundImage.FileName1;
+        const fileName2 = params.BackgroundImage.FileName2;
+        const xOfs = params.BackgroundImage.XOfs;
+        const yOfs = params.BackgroundImage.YOfs;
+        QuestUtils.startQuestScene(params.QuestCommands, fileName1, fileName2, xOfs, yOfs);
     });
-    questData.rewards = rewards;
-});
+
+    PluginManager.registerCommand(QuestSystemPluginName, "GetRewards", args => {
+        const params = PluginParamsParser.parse(args, { VariableId: "number" });
+        QuestUtils.getRewards(params.VariableId);
+    });
+
+    PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", args => {
+        const params = PluginParamsParser.parse(args, { VariableId: "number", Detail: "string", DetailNote: "string" });
+        let detail;
+        if (params.DetailNote == null || params.DetailNote === "") {
+            detail = params.Detail;
+        } else {
+            detail = JSON.parse(params.DetailNote);
+        }
+        QuestUtils.changeDetail(params.VariableId, detail);
+    });
+
+    PluginManager.registerCommand(QuestSystemPluginName, "ChangeRewards", args => {
+        const params = PluginParamsParser.parse(args, { Rewards: [{}] });
+        const rewards = params.Rewards.map(rewardParam => {
+            return RewardData.fromParam(rewardParam);
+        });
+        QuestUtils.changeRewardsByRewrdObject(params.VariableId, rewards);
+    });
+}
 
 
 // Add QuestSystem to menu command.
@@ -3162,18 +3599,19 @@ Scene_Menu.prototype.quest = function() {
 
 // Define class alias.
 return {
-    ItemInfo: ItemInfo,
-    RewardData: RewardData,
-    RewardWindowDrawer: RewardWindowDrawer,
-    QuestData: QuestData,
-    Scene_QuestSystem: Scene_QuestSystem,
-    Window_QuestCommand: Window_QuestCommand,
-    Window_QuestList: Window_QuestList,
-    Window_QuestDetail: Window_QuestDetail,
-    Window_QuestOrder: Window_QuestOrder,
-    Window_QuestCancel: Window_QuestCancel,
-    Window_QuestReport: Window_QuestReport,
-    Window_QuestGetReward: Window_QuestGetReward,
+    QuestUtils,
+    ItemInfo,
+    RewardData,
+    RewardWindowDrawer,
+    QuestData,
+    Scene_QuestSystem,
+    Window_QuestCommand,
+    Window_QuestList,
+    Window_QuestDetail,
+    Window_QuestOrder,
+    Window_QuestCancel,
+    Window_QuestReport,
+    Window_QuestGetReward,
 };
 
 })();
