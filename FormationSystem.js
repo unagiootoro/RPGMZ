@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.1.4
+@plugindesc formation system v1.1.5
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -333,7 +333,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.1.4
+@plugindesc 陣形システム v1.1.5
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -1460,7 +1460,7 @@ class FormationController {
     }
 
     createActorPositions() {
-        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+        for (let i = 0; i < $gameParty.battleMembers().length; i++) {
             const actor = $gameParty.members()[i];
             const actorId = actor.actorId();
             if (!(actorId in this._actorPositions)) {
@@ -1472,7 +1472,7 @@ class FormationController {
 
     update() {
         if (!this._lastFormation) return;
-        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+        for (let i = 0; i < $gameParty.battleMembers().length; i++) {
             const actor = $gameParty.members()[i];
             const position = this._actorPositions[actor.actorId()];
             // If an actor has just been added, it will not be updated because there is no position.
@@ -1484,7 +1484,7 @@ class FormationController {
     changeFormation(newFormation, fast = false) {
         if (!newFormation) newFormation = this.defaultFormation();
         this._lastFormation = newFormation;
-        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+        for (let i = 0; i < $gameParty.battleMembers().length; i++) {
             const actor = $gameParty.members()[i];
             const actorId = actor.actorId();
             const position = this._actorPositions[actorId];
@@ -1513,7 +1513,7 @@ class Window_FormationDetail extends Window_Selectable {
     }
 
     createActorSprites() {
-        for (let i = 0; i < $gameParty.maxBattleMembers(); i++) {
+        for (let i = 0; i < $gameParty.battleMembers().length; i++) {
             const actor = $gameParty.members()[i];
             const sprite = new Sprite_MenuFormationActor(actor);
             sprite.startMotion("walk");
