@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Quest system v1.5.0
+@plugindesc Quest system v1.5.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -971,7 +971,7 @@ Specifies the icon for the hidden quest command.
 
 /*:ja
 @target MV MZ
-@plugindesc クエストシステム v1.5.0
+@plugindesc クエストシステム v1.5.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -1940,7 +1940,7 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 const QuestSystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 let $dataQuests = null;
-let $questSaveData = null;
+let $questSaveDatas = null;
 
 const QuestSystemAlias = (() => {
 "use strict";
@@ -2030,16 +2030,15 @@ class QuestUtils {
     }
 
     static getRewards(variableId) {
-        const questData = $dataQuests.find(data => data.variableId === variableId);
-        if (!questData) return;
-        questData.getRewards();
+        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === variableId);
+        if (!questSaveData) return;
+        questSaveData.getRewards();
     }
 
     static changeDetail(variableId, detail) {
-        const questData = $dataQuests.find(data => data.variableId === variableId);
-        if (!questData) return;
-        questData.detail = detail;
-        $questSaveData.setDetail(questData.variableId, questData.detail);
+        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === variableId);
+        if (!questSaveData) return;
+        questSaveData.setDetail(detail);
     }
 
     // rawardData: { type, itemId, itemCount, gold, exp }
@@ -2047,14 +2046,13 @@ class QuestUtils {
         const rewards = rawardDatas.map(rawardData => {
             return RewardData.fromObject(rawardData);
         });
-        this.changeRewardsByRewrdObject(variableId, rewards);
+        this.changeRewardsByRewardObject(variableId, rewards);
     }
 
-    static changeRewardsByRewrdObject(variableId, rewards) {
-        const questData = $dataQuests.find(data => data.variableId === variableId);
-        if (!questData) return;
-        questData.rewards = rewards;
-        $questSaveData.setRewards(questData.variableId, rewards);
+    static changeRewardsByRewardObject(variableId, rewards) {
+        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === variableId);
+        if (!questSaveData) return;
+        questSaveData.setRewards(rewards);
     }
 }
 
@@ -2131,19 +2129,6 @@ class RewardData {
         } else if (["item", "weapon", "armor"].includes(this.type)) {
             $gameParty.gainItem(this._params.item.itemData(), this._params.count);
         }
-    }
-
-    toObject() {
-        if (this._type === "gold") {
-            return { type: this._type, gold: this._params.value };
-        } else if (this._type === "exp") {
-            return { type: this._type, exp: this._params.value };
-        } else if (this._type === "item") {
-            return { type: this._params.item.type, itemId: this._params.item.id, itemCount: this._params.count };
-        } else if (this._type === "any") {
-            return { type: this._type, text: this._params.text, iconIndex: this._params.iconIndex };
-        }
-        throw new Error(`${this._type} is not found.`);
     }
 }
 
@@ -2301,12 +2286,6 @@ class QuestData {
         if (data) $gameVariables.setValue(this._variableId, data.value);
     }
 
-    getRewards() {
-        for (const reward of this.rewards) {
-            reward.getReward();
-        }
-    }
-
     stateText() {
         const data = STATE_LIST.find(data => data.state === this.state());
         return data.text;
@@ -2335,36 +2314,80 @@ const typeDefine = {
 
 
 class QuestSaveData {
-    constructor() {
-        this._contents = {};
+    constructor(variableId) {
+        this._variableId = variableId;
+        this._detail = null;
+        this._rewards = null;
     }
 
-    setDetail(variableId, detail) {
-        if (this._contents[variableId] == null) this._contents[variableId] = {};
-        this._contents[variableId].detail = detail;
+    variableId() {
+        return this._variableId;
     }
 
-    setRewards(variableId, rewards) {
-        if (this._contents[variableId] == null) this._contents[variableId] = {};
-        this._contents[variableId].rewards = rewards.map(reward => reward.toObject());
+    title() {
+        return this.questData().title;
     }
 
-    makeSaveContents() {
-        return this._contents;
+    iconIndex() {
+        return this.questData().iconIndex;
     }
 
-    loadSaveContents(contents) {
-        this._contents = contents;
-        for (const strVariableId in contents) {
-            const variableId = parseInt(strVariableId);
-            const questData = $dataQuests.find(data => data.variableId === variableId);
-            if (!questData) return;
-            const content = contents[variableId];
-            if (content.detail != null) questData.detail = content.detail;
-            if (content.rewards != null) {
-                const rewards = content.rewards.map(rewardObject => RewardData.fromObject(rewardObject));
-                questData.rewards = rewards;
-            }
+    requester() {
+        return this.questData().requester;
+    }
+
+    rewards() {
+        if (this._rewards == null) return this.questData().rewards;
+        return this._rewards;
+    }
+
+    difficulty() {
+        return this.questData().difficulty;
+    }
+
+    place() {
+        return this.questData().place;
+    }
+
+    timeLimit() {
+        return this.questData().timeLimit;
+    }
+
+    detail() {
+        if (this._detail == null) return this.questData().detail;
+        return this._detail;
+    }
+
+    hiddenDetail() {
+        return this.questData().hiddenDetail;
+    }
+
+    commonEventId() {
+        return this.questData().commonEventId;
+    }
+
+    priority() {
+        return this.questData().priority;
+    }
+
+    setDetail(detail) {
+        this._detail = detail;
+    }
+
+    setRewards(rewards) {
+        this._rewards = rewards;
+    }
+
+    questData() {
+        const questData = $dataQuests.find(data => data.variableId === this._variableId);
+        if (questData == null) throw new Error(`variableId: ${this._variableId} is invalid.`);
+        return questData;
+    }
+
+    getRewards() {
+        console.log("getRewards");
+        for (const reward of this.rewards()) {
+            reward.getReward();
         }
     }
 }
@@ -2913,10 +2936,11 @@ class Scene_QuestSystem extends superScene_Message {
 
     onQuestGetRewardOk() {
         const questData = this._questListWindow.questData();
-        questData.getRewards();
+        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === questData.variableId);
+        questSaveData.getRewards();
         this.change_QuestGetRewardWindow_To_QuestListWindow();
         this._eventState = "start";
-        this.startCommonEvent(questData.commonEventId);
+        this.startCommonEvent(questSaveData.commonEventId());
     }
 
     onQuestCancelOk() {
@@ -3264,7 +3288,8 @@ class Window_QuestDetail extends Window_Selectable_MZMV {
         this.changeTextColor(this.systemColor());
         this.drawText(Text.RewardText, this.padding, this.startY(startLine), this.infoTextWidth());
         this.resetTextColor();
-        for (const reward of this._questData.rewards) {
+        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === this._questData.variableId);
+        for (const reward of questSaveData.rewards()) {
             this.drawReward(reward, this.startY(startLine))
             startLine++;
         }
@@ -3297,7 +3322,8 @@ class Window_QuestDetail extends Window_Selectable_MZMV {
 
     drawDetail(startLine) {
         // 自動改行を考慮して横幅を-24する。
-        this.drawTextExWrap(this._questData.detail, this.padding, this.startY(startLine), this.width - this.padding * 2 - 24);
+        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === this._questData.variableId);
+        this.drawTextExWrap(questSaveData.detail(), this.padding, this.startY(startLine), this.width - this.padding * 2 - 24);
     }
 
     drawHiddenDetail(startLine) {
@@ -3501,7 +3527,8 @@ class Window_QuestGetReward extends Window_Selectable_MZMV {
 
     drawRewards() {
         let i = 1;
-        for (const reward of this._questData.rewards) {
+        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === this._questData.variableId);
+        for (const reward of questSaveData.rewards()) {
             const rect = this.itemLineRect(i);
             this.drawReward(reward, rect);
             i++;
@@ -3518,20 +3545,20 @@ class Window_QuestGetReward extends Window_Selectable_MZMV {
 const _DataManager_createGameObjects = DataManager.createGameObjects;
 DataManager.createGameObjects = function() {
     _DataManager_createGameObjects.call(this);
-    $questSaveData = new QuestSaveData();
+    $questSaveDatas = $dataQuests.map(questData => new QuestSaveData(questData.variableId));
 };
 
 const _DataManager_makeSaveContents = DataManager.makeSaveContents;
 DataManager.makeSaveContents = function() {
     const contents = _DataManager_makeSaveContents.call(this);
-    contents.questSaveData = $questSaveData.makeSaveContents();
+    contents.questSaveDatas = $questSaveDatas;
     return contents;
 };
 
 const _DataManager_extractSaveContents = DataManager.extractSaveContents;
 DataManager.extractSaveContents = function(contents) {
     _DataManager_extractSaveContents.call(this, contents);
-    if (contents.questSaveData) $questSaveData.loadSaveContents(contents.questSaveData);
+    if (contents.questSaveDatas) $questSaveDatas = contents.questSaveDatas;
 };
 
 
@@ -3568,7 +3595,7 @@ if (Utils.RPGMAKER_NAME === "MZ") {
         const rewards = params.Rewards.map(rewardParam => {
             return RewardData.fromParam(rewardParam);
         });
-        QuestUtils.changeRewardsByRewrdObject(params.VariableId, rewards);
+        QuestUtils.changeRewardsByRewardObject(params.VariableId, rewards);
     });
 }
 
@@ -3597,12 +3624,19 @@ Scene_Menu.prototype.quest = function() {
 };
 
 
+// セーブデータに含めるクラスをwindowオブジェクトに登録する。
+window.RewardData = RewardData;
+window.ItemInfo = ItemInfo;
+window.QuestSaveData = QuestSaveData;
+
+
 // Define class alias.
 return {
     QuestUtils,
     ItemInfo,
     RewardData,
     RewardWindowDrawer,
+    QuestSaveData,
     QuestData,
     Scene_QuestSystem,
     Window_QuestCommand,
