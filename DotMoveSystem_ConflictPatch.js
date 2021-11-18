@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc ドット移動システム 競合回避用パッチ v1.0.1
+@plugindesc ドット移動システム 競合回避用パッチ v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_ConflictPatch.js
 @help
@@ -9,6 +9,7 @@
 【使用方法】
 下記の順にプラグインを導入してください。
 ・DotMoveSystem.js
+・OverpassTile.js
 ・RegionBase.js
 ・DotMoveSystem_ConflictPatch.js
 
@@ -25,6 +26,17 @@ for (const className in DotMoveSystemClassAlias) {
 
 Game_Follower.prototype.findCollisionData = function(x, y) {
     return $gameMap.findArrayDataRegionAndTerrain(x, y, 'collisionForPlayer');
+};
+
+// OverpassTile.jsで再定義される
+Game_CharacterBase.prototype.isHigherPriority = function() {
+    return undefined;
+};
+
+const _CharacterCollisionChecker_checkCharacter = CharacterCollisionChecker.prototype.checkCharacter;
+CharacterCollisionChecker.prototype.checkCharacter = function(x, y, d, character, opt = { origX: null, origY: null, overComplementMode: false }) {
+    if (this._character.isHigherPriority() !== character.isHigherPriority()) return null;
+    _CharacterCollisionChecker_checkCharacter.call(x, y, d, character, opt);
 };
 
 })();
