@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.9.2
+@plugindesc Dot movement system v1.9.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -92,7 +92,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.9.2
+@plugindesc ドット移動システム v1.9.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -1018,9 +1018,6 @@ class CharacterCollisionChecker {
         let origX = opt.origX == null ? realPoint.x : opt.origX;
         let origY = opt.origY == null ? realPoint.y : opt.origY;
         const overComplementMode = opt.overComplementMode == null ? false : opt.overComplementMode;
-
-        // Over pass考慮
-        if (this._character.isHigherPriority() !== character.isHigherPriority()) return null;
 
         const characterRealPoint = character.positionPoint();
         let cx = this.isCharacterRealPosMode() ? characterRealPoint.x : character.x;
@@ -2162,11 +2159,6 @@ Game_CharacterBase.prototype.collisionRect = function() {
     return new Rectangle(this._realX, this._realY, this.width(), this.height());
 };
 
-// OverpassTile.jsで再定義される
-Game_CharacterBase.prototype.isHigherPriority = function() {
-    return undefined;
-};
-
 Game_CharacterBase.prototype.canPass = function(x, y, d, opt = { needCheckCharacters: true }) {
     const x2 = $gameMap.roundXWithDirection(x, d);
     const y2 = $gameMap.roundYWithDirection(y, d);
@@ -2389,9 +2381,10 @@ Game_Player.prototype.initMembers = function() {
     _Game_Player_initMembers.call(this);
     this._needCountProcess = false;
     this._gatherStart = false;
-    // 船から陸地に移動しているか否かを管理するフラグ
-    this._shipOrBoatTowardingLand = false;
+    this._shipOrBoatTowardingLand = false; // 船から陸地に移動しているか否かを管理するフラグ
+    this._getOffVehicleIntPos = false; // 乗り物から降りる際に整数座標に着地するか否かを管理するフラグ
     this._collideTriggerEventIds = [];
+    this._moveSpeedBeforeGetOnVehicle = this._moveSpeed;
 };
 
 Game_Player.prototype.makeMover = function() {
@@ -2403,6 +2396,12 @@ Game_Player.prototype.isMapPassable = function(x, y, d) {
     if (vehicle) {
         return vehicle.isMapPassable(x, y, d);
     } else {
+        if (this._shipOrBoatTowardingLand) {
+            // 船から着陸中の場合は、陸から海の方向への当たり判定のみを行うようにする
+            const d2 = this.reverseDir(d);
+            const nextPoint = DotMoveUtils.nextPointWithDirection(new Point(x, y), d);
+            return $gameMap.isPassable(nextPoint.x, nextPoint.y, d2);
+        }
         return Game_Character.prototype.isMapPassable.call(this, x, y, d);
     }
 };
@@ -2454,23 +2453,30 @@ Game_Player.prototype.forceMoveOnVehicle = function() {
 
 Game_Player.prototype.forceMoveOffAirship = function() {
     this.setMoveSpeed(4);
-    // 乗り物から降りた時にハマらないように整数座標に着陸する
-    const targetPoint = new Point(this.x, this.y);
     // リセットした乗り物の向きにプレイヤーを合わせる
     this.setDirection(this.vehicle().direction());
     // 整数座標への着地中は飛行船とプレイヤーの向きを固定化
     // 固定化OFFはupdateVehicleGetOffで実施する
     this.vehicle().setDirectionFix(true);
     this.setDirectionFix(true);
-    this.mover().moveToTarget(targetPoint);
+    if (this._getOffVehicleIntPos) {
+        // 乗り物から降りた時にハマらないように整数座標に着陸する
+        const targetPoint = new Point(this.x, this.y);
+        this.mover().moveToTarget(targetPoint);
+    }
 };
 
 Game_Player.prototype.forceMoveOffShipOrBoat = function() {
     this.setMoveSpeed(4);
     this.setThrough(true);
-    // 乗り物から降りた時にハマらないように整数座標に着陸する
-    const fromPoint = new Point(this.x, this.y);
-    const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this._direction);
+    let fromPoint;
+    if (this._getOffVehicleIntPos) {
+        // 乗り物から降りた時にハマらないように整数座標に着陸する
+        fromPoint = new Point(this.x, this.y);
+    } else {
+        fromPoint = this.positionPoint();
+    }
+    const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, this.direction());
     this.mover().moveToTarget(targetPoint);
     this.setThrough(false);
 };
@@ -2563,6 +2569,7 @@ Game_Player.prototype.getOnVehicle = function() {
     if (vehicleType) {
         this._vehicleType = vehicleType;
         this._vehicleGettingOn = true;
+        this._moveSpeedBeforeGetOnVehicle = this.moveSpeed();
         this.forceMoveOnVehicle();
         const point = this.vehicle().positionPoint();
         this.initCollideTriggerEventIds(point.x, point.y);
@@ -2613,29 +2620,68 @@ Game_Player.prototype.getOffVehicle = function() {
 
 Game_Player.prototype.getOffAirship = function() {
     if (this.vehicle().isLandOk(this.x, this.y, this.direction())) {
+        if (this.isGetOffCollided(this.positionPoint())) {
+            if (this.isGetOffCollided(new Point(this.x, this.y))) return this._vehicleGettingOff;
+            this._getOffVehicleIntPos = true;
+        }
+
         this.getOffVehicleLastPhase();
     }
     return this._vehicleGettingOff;
 };
 
 Game_Player.prototype.getOffShipOrBoat = function() {
-    if (this.vehicle().isLandOk(this.x, this.y, this.direction())) {
+    const d = this.direction();
+    if (this.vehicle().isLandOk(this.x, this.y, d)) {
+        this._shipOrBoatTowardingLand = true;
+
+        const x = (d === 8 || d === 2) ? this._realX : this.x;
+        const y = (d === 6 || d === 4) ? this._realY : this.y;
+        let point = new Point(x, y);
+
+        const nextPoint = DotMoveUtils.nextPointWithDirection(point, d);
+        if (this.isGetOffCollided(nextPoint)) {
+            // 着陸座標で衝突が発生する場合は整数座標に着陸する
+            const intPoint = new Point(this.x, this.y);
+            const nextIntPoint = DotMoveUtils.nextPointWithDirection(new Point(this.x, this.y), d)
+            if (this.isGetOffCollided(nextIntPoint)) {
+                this._shipOrBoatTowardingLand = false;
+                return false;
+            }
+            this._getOffVehicleIntPos = true;
+            point = intPoint;
+        }
+
         this.setDirectionFix(true);
         this.setMoveSpeed(4);
-        this._shipOrBoatTowardingLand = true;
         this.setThrough(true);
-        const point = new Point(this.x, this.y);
         this.mover().moveToTarget(point);
         this.setThrough(false);
     }
     return false;
 };
 
+Game_Player.prototype.isGetOffCollided = function(point) {
+    const tmpVehicleType = this._vehicleType;
+    const tmpThrough = this._through;
+    this._vehicleType = "walk";
+    this._through = false;
+    const results = this.mover()._controller.checkCollision(point.x, point.y, this.direction());
+    this._vehicleType = tmpVehicleType;
+    this._through = tmpThrough;
+    return results.length > 0;
+};
+
 Game_Player.prototype.getOffVehicleLastPhase = function() {
     for (const follower of this.followers().data()) {
         follower.setDirectionFix(false);
     }
-    this.followers().synchronize(this.x, this.y, this.direction());
+    if (this._getOffVehicleIntPos) {
+        this.followers().synchronize(this.x, this.y, this.direction());
+    } else {
+        this.followers().synchronize(this._realX, this._realY, this.direction());
+    }
+
     this.vehicle().getOff();
     if (this.isInAirship()) {
         this.forceMoveOffAirship();
@@ -2651,9 +2697,17 @@ Game_Player.prototype.getOffVehicleLastPhase = function() {
 Game_Player.prototype.updateTowardLandShipOrBoat = function() {
     this.vehicle().syncWithPlayer();
     if (!this.isMoving()) {
-        // 整数座標への移動完了後は確実に座標を整数に設定する
-        this.setPositionPoint(new Point(this.x, this.y));
-        this.vehicle().syncWithPlayer();
+        if (this._getOffVehicleIntPos) {
+            // 整数座標への移動完了後は確実に座標を整数に設定する
+            this.setPositionPoint(new Point(this.x, this.y));
+            this.vehicle().syncWithPlayer();
+        } else {
+            // 船で実数座標に着陸した場合の座標調整を実施する
+            const d = this.direction();
+            const x = (d === 8 || d === 2) ? this._realX : this.x;
+            const y = (d === 6 || d === 4) ? this._realY : this.y;
+            this.setPositionPoint(new Point(x, y));
+        }
         this._shipOrBoatTowardingLand = false;
         this.setDirectionFix(false);
         this.getOffVehicleLastPhase();
@@ -2681,8 +2735,10 @@ Game_Player.prototype.updateVehicleGetOff = function() {
     }
     if (this._gatherStart) {
         if (!this.areFollowersGathering() && this.vehicle().isLowest()) {
-            // 整数座標への移動完了後は確実に座標を整数に設定する
-            this.setPositionPoint(new Point(this.x, this.y));
+            if (this._getOffVehicleIntPos) {
+                // 整数座標への移動完了後は確実に座標を整数に設定する
+                this.setPositionPoint(new Point(this.x, this.y));
+            }
             if (this.isInAirship()) {
                 this.vehicle().syncWithPlayer();
                 // 飛行船着地に完了した場合、正面を向く
@@ -2696,14 +2752,16 @@ Game_Player.prototype.updateVehicleGetOff = function() {
             }
             this._vehicleGettingOff = false;
             this._vehicleType = "walk";
+            this.setMoveSpeed(this._moveSpeedBeforeGetOnVehicle);
             this.setTransparent(false);
             this._gatherStart = false;
+            this._getOffVehicleIntPos = false;
         }
     } else {
         if (!this.isMoving()) {
             this.gatherFollowers();
             this._gatherStart = true;
-            this.initCollideTriggerEventIds(this.x, this.y);
+            this.initCollideTriggerEventIds(this._realX, this._realY);
         }
     }
 };
