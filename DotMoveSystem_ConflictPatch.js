@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc ドット移動システム 競合回避用パッチ v1.1.0
+@plugindesc ドット移動システム 競合回避用パッチ v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_ConflictPatch.js
 @help
@@ -36,7 +36,7 @@ Game_CharacterBase.prototype.isHigherPriority = function() {
 const _CharacterCollisionChecker_checkCharacter = CharacterCollisionChecker.prototype.checkCharacter;
 CharacterCollisionChecker.prototype.checkCharacter = function(x, y, d, character, opt = { origX: null, origY: null, overComplementMode: false }) {
     if (this._character.isHigherPriority() !== character.isHigherPriority()) return null;
-    _CharacterCollisionChecker_checkCharacter.call(x, y, d, character, opt);
+    return _CharacterCollisionChecker_checkCharacter.call(this, x, y, d, character, opt);
 };
 
 })();
