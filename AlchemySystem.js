@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc item composition plugin v2.0.0
+@plugindesc item composition plugin v2.1.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -31,6 +31,27 @@ If set to true, category window will be displayed.
 @default true
 @desc
 If set to true, the current gold and gold required for item synthesis will be displayed on the synthesis screen.
+
+@param DisplayItemCategory
+@text Item field display enabled
+@type boolean
+@default false
+@desc
+If true is set, the item field will be displayed on the category selection screen during compositing.
+
+@param DisplayWeaponCategory
+@text Weapon column display enabled
+@type boolean
+@default false
+@desc
+If set to true, the weapon column will be displayed on the category selection screen during composition.
+
+@param DisplayArmorCategory
+@text Armor column display enabled
+@type boolean
+@default false
+@desc
+If set to true, the armor column will be displayed on the category selection screen during compositing.
 
 @param DisplayKeyItemCategory
 @text Enable to display key item category.
@@ -198,7 +219,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc アイテム合成プラグイン v2.0.0
+@plugindesc アイテム合成プラグイン v2.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
@@ -235,6 +256,27 @@ trueを設定すると、カテゴリウィンドウを表示します。
 @default true
 @desc
 trueを設定すると、合成画面に現在の所持ゴールドとアイテム合成に必要なゴールドを表示します。
+
+@param DisplayItemCategory
+@text アイテム欄表示有効化
+@type boolean
+@default true
+@desc
+trueを設定すると、合成時のカテゴリ選択画面でアイテム欄を表示します。
+
+@param DisplayWeaponCategory
+@text 武器欄表示有効化
+@type boolean
+@default true
+@desc
+trueを設定すると、合成時のカテゴリ選択画面で武器欄を表示します。
+
+@param DisplayArmorCategory
+@text 防具欄表示有効化
+@type boolean
+@default true
+@desc
+trueを設定すると、合成時のカテゴリ選択画面で防具欄を表示します。
 
 @param DisplayKeyItemCategory
 @text 大事なもの欄表示有効化
@@ -607,6 +649,9 @@ const EnabledMenuAlchemy = PP.EnabledMenuAlchemy;
 const EnabledAlchemySwitchId = PP.EnabledAlchemySwitchId;
 const EnabledCategoryWindow = PP.EnabledCategoryWindow;
 const EnabledGoldWindow = PP.EnabledGoldWindow;
+const DisplayItemCategory = PP.DisplayItemCategory == null ? true : PP.DisplayItemCategory;
+const DisplayWeaponCategory = PP.DisplayWeaponCategory == null ? true : PP.DisplayWeaponCategory;
+const DisplayArmorCategory = PP.DisplayArmorCategory == null ? true : PP.DisplayArmorCategory;
 const DisplayKeyItemCategory = PP.DisplayKeyItemCategory;
 const EnableIncludeEquipItem = PP.EnableIncludeEquipItem;
 
@@ -1311,21 +1356,28 @@ class Window_AlchemyCategory extends Window_ItemCategory {
         if (Utils.RPGMAKER_NAME === "MZ") {
             super.makeCommandList();
         } else {
-            this.addCommand(TextManager.item,    "item");
-            this.addCommand(TextManager.weapon,  "weapon");
-            this.addCommand(TextManager.armor,   "armor");
+            if (DisplayItemCategory) this.addCommand(TextManager.item, "item");
+            if (DisplayWeaponCategory) this.addCommand(TextManager.weapon, "weapon");
+            if (DisplayArmorCategory) this.addCommand(TextManager.armor, "armor");
             if (DisplayKeyItemCategory) this.addCommand(TextManager.keyItem, "keyItem");
         }
     };
 
     needsCommand(name) {
+        if (!DisplayItemCategory && name === "item") return false;
+        if (!DisplayWeaponCategory && name === "weapon") return false;
+        if (!DisplayArmorCategory && name === "armor") return false;
         if (!DisplayKeyItemCategory && name === "keyItem") return false;
         return super.needsCommand(name);
     }
 
     maxCols() {
-        if (!DisplayKeyItemCategory) return 3;
-        return super.maxCols();
+        let cols = 4;
+        if (!DisplayItemCategory) cols--;
+        if (!DisplayWeaponCategory) cols--;
+        if (!DisplayArmorCategory) cols--;
+        if (!DisplayKeyItemCategory) cols--;
+        return cols;
     }
 }
 
