@@ -9,9 +9,9 @@
 【使用方法】
 下記の順にプラグインを導入してください。
 ・DotMoveSystem.js
-・OverpassTile.js
 ・RegionBase.js
 ・DotMoveSystem_ConflictPatch.js
+・OverpassTile.js
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
