@@ -1724,8 +1724,9 @@ class CharacterMover {
         return this._offsetY;
     }
 
-    stopMove() {
+    stopMove(isCancelMove) {
         this._moverData.stopping = true;
+        if (isCancelMove) this._moverData.targetCount = 0;
     }
 
     resumeMove() {
@@ -2944,7 +2945,7 @@ Game_Event.prototype.heightArea = function() {
 
 const _Game_Event_lock = Game_Event.prototype.lock;
 Game_Event.prototype.lock = function() {
-    if (!this._locked) this.mover().stopMove();
+    if (!this._locked) this.mover().stopMove(this._trigger === 2); // トリガーがイベントから接触の場合は移動をキャンセルする
     _Game_Event_lock.call(this);
 };
 
