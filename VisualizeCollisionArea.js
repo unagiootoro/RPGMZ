@@ -11,6 +11,9 @@
 また、プラグインパラメータ「イベントを当たり判定に含める」を設定することで、
 当たり判定可視化のチェックにイベントが含まれるのを許可したり禁止したりすることができます。
 
+【ライセンス】
+このプラグインは、MITライセンスの条件の下で利用可能です。
+
 @param IncludeEventsInCollisionArea
 @text イベントを当たり判定に含める
 @type boolean
@@ -31,9 +34,6 @@ trueを設定すると、当たり判定可視化の際にイベントを当た�
 @default 114
 @desc
 可視化の有無を切り替えるキーコードを指定します。
-
-【ライセンス】
-このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
 const VisualizeCollisionArea = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
