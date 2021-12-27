@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.9.4
+@plugindesc Dot movement system v1.9.5
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -92,7 +92,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.9.4
+@plugindesc ドット移動システム v1.9.5
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -288,6 +288,109 @@ class AStarNode {
 }
 
 
+class AStarUtils {
+    // 8方向A*経路探索を行い最適ノードと初期ノードを返す
+    static computeRoute(character, startX, startY, goalX, goalY, searchLimit) {
+        if (startX === goalX && startY === goalY) {
+            return [null, null];
+        }
+
+        const openList = [];
+        const nodes = {};
+
+        const start = new AStarNode(null, startX, startY, $gameMap.distance(startX, startY, goalX, goalY), 0);
+        const posStart = startY * $gameMap.width() + startX;
+        openList.push(posStart);
+        nodes[posStart] = start;
+        let best = start;
+
+        while (openList.length > 0) {
+            let openListIdx1 = 0;
+            if (openList.length > 1) {
+                for (let i = 1; i < openList.length; i++) {
+                    const nodeA = nodes[openList[i]];
+                    const nodeB = nodes[openList[openListIdx1]];
+                    if (nodeA.f < nodeB.f) openListIdx1 = i;
+                }
+            }
+
+            const pos1 = openList[openListIdx1];
+            const node1 = nodes[pos1];
+            const x1 = node1.x;
+            const y1 = node1.y;
+            const g1 = node1.g;
+
+            if (x1 === goalX && y1 === goalY) return [node1, start];
+
+            if (node1.g >= searchLimit) return [best, start];
+
+            node1.closed = true;
+            openList.splice(openListIdx1, 1);
+
+            for (let direction = 1; direction <= 9; direction++) {
+                if (direction === 5) continue;
+
+                const [horz, vert] = DotMoveUtils.direction2HorzAndVert(direction);
+                const x2 = $gameMap.roundXWithDirection(x1, horz);
+                const y2 = $gameMap.roundYWithDirection(y1, vert);
+                const pos2 = y2 * $gameMap.width() + x2;
+                let node2 = nodes[pos2];
+
+                if (node2 && node2.closed) continue;
+
+                let successPass = true;
+                if (direction % 2 === 0) {
+                    if (!character.canPass(x1, y1, direction)) {
+                        successPass = false;
+                    }
+                } else {
+                    if (!character.canPassDiagonally(x1, y1, horz, vert)) {
+                        successPass = false;
+                    }
+                }
+                if (!successPass) {
+                    if (x2 === goalX && y2 === goalY) {
+                        if (direction % 2 === 0) {
+                            if (character.canPass(x1, y1, direction, { needCheckCharacters: false })) {
+                                return [node1, start];
+                            }
+                        } else {
+                            if (character.canPass(x1, y1, horz) || character.canPass(x1, y1, vert)) {
+                                if (character.canPassDiagonally(x1, y1, horz, vert, { needCheckCharacters: false })) {
+                                    return [node1, start];
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                const cost = direction % 2 === 0 ? 1 : DIAGONAL_COST;
+                const g2 = g1 + cost;
+                const f2 = g2 + $gameMap.distance(x2, y2, goalX, goalY);
+
+                const openListIdx2 = openList.indexOf(pos2);
+                if (openListIdx2 < 0) {
+                    node2 = new AStarNode(node1, x2, y2, f2, g2);
+                    nodes[pos2] = node2;
+                    openList.push(pos2);
+                } else if (f2 < node2.f) {
+                    node2.f = f2;
+                    node2.g = g2;
+                    node2.parent = node1;
+                    openList.splice(openListIdx2, 1);
+                    openList.push(pos2);
+                }
+
+                if (node2.f - node2.g < best.f - best.g) best = node2;
+            }
+        }
+
+        return [best, start];
+    }
+}
+
+
 class DotMoveUtils {
     static direction2deg(direction) {
         switch (direction) {
@@ -468,7 +571,7 @@ class DotMoveUtils {
         return [horz, vert];
     }
 
-    static HorzAndVert2Direction(horz, vert) {
+    static horzAndVert2Direction(horz, vert) {
         if (vert === 8 && horz === 6) {
             return 9;
         } else if (vert === 2 && horz === 6) {
@@ -543,106 +646,6 @@ class DotMoveUtils {
 
     static checkCorrectY2ToLoopedPos(y1, h1, y2) {
         return y2 < h1 && y1 >= $gameMap.height() - h1;
-    }
-
-    // 8方向A*経路探索を行い最適ノードと初期ノードを返す
-    static computeRoute(character, startX, startY, goalX, goalY, searchLimit) {
-        if (startX === goalX && startY === goalY) {
-            return [null, null];
-        }
-
-        const openList = [];
-        const nodes = {};
-
-        const start = new AStarNode(null, startX, startY, $gameMap.distance(startX, startY, goalX, goalY), 0);
-        const posStart = startY * $gameMap.width() + startX;
-        openList.push(posStart);
-        nodes[posStart] = start;
-        let best = start;
-
-        while (openList.length > 0) {
-            let openListIdx1 = 0;
-            if (openList.length > 1) {
-                for (let i = 1; i < openList.length; i++) {
-                    const nodeA = nodes[openList[i]];
-                    const nodeB = nodes[openList[openListIdx1]];
-                    if (nodeA.f < nodeB.f) openListIdx1 = i;
-                }
-            }
-
-            const pos1 = openList[openListIdx1];
-            const node1 = nodes[pos1];
-            const x1 = node1.x;
-            const y1 = node1.y;
-            const g1 = node1.g;
-
-            if (x1 === goalX && y1 === goalY) return [node1, start];
-
-            if (node1.g >= searchLimit) return [best, start];
-
-            node1.closed = true;
-            openList.splice(openListIdx1, 1);
-
-            for (let direction = 1; direction <= 9; direction++) {
-                if (direction === 5) continue;
-
-                const [horz, vert] = DotMoveUtils.direction2HorzAndVert(direction);
-                const x2 = $gameMap.roundXWithDirection(x1, horz);
-                const y2 = $gameMap.roundYWithDirection(y1, vert);
-                const pos2 = y2 * $gameMap.width() + x2;
-                let node2 = nodes[pos2];
-
-                if (node2 && node2.closed) continue;
-
-                let successPass = true;
-                if (direction % 2 === 0) {
-                    if (!character.canPass(x1, y1, direction)) {
-                        successPass = false;
-                    }
-                } else {
-                    if (!character.canPassDiagonally(x1, y1, horz, vert)) {
-                        successPass = false;
-                    }
-                }
-                if (!successPass) {
-                    if (x2 === goalX && y2 === goalY) {
-                        if (direction % 2 === 0) {
-                            if (character.canPass(x1, y1, direction, { needCheckCharacters: false })) {
-                                return [node1, start];
-                            }
-                        } else {
-                            if (character.canPass(x1, y1, horz) || character.canPass(x1, y1, vert)) {
-                                if (character.canPassDiagonally(x1, y1, horz, vert, { needCheckCharacters: false })) {
-                                    return [node1, start];
-                                }
-                            }
-                        }
-                    }
-                    continue;
-                }
-
-                const cost = direction % 2 === 0 ? 1 : DIAGONAL_COST;
-                const g2 = g1 + cost;
-                const f2 = g2 + $gameMap.distance(x2, y2, goalX, goalY);
-
-                const openListIdx2 = openList.indexOf(pos2);
-                if (openListIdx2 < 0) {
-                    node2 = new AStarNode(node1, x2, y2, f2, g2);
-                    nodes[pos2] = node2;
-                    openList.push(pos2);
-                } else if (f2 < node2.f) {
-                    node2.f = f2;
-                    node2.g = g2;
-                    node2.parent = node1;
-                    openList.splice(openListIdx2, 1);
-                    openList.push(pos2);
-                }
-
-                if (node2.f - node2.g < best.f - best.g) best = node2;
-            }
-        }
-
-        return [best, start];
     }
 }
 
@@ -1865,7 +1868,7 @@ class CharacterMover {
         if (this._character.direction() === this._character.reverseDir(vert)) {
             this.setDirection(vert);
         }
-        const d = DotMoveUtils.HorzAndVert2Direction(horz, vert);
+        const d = DotMoveUtils.horzAndVert2Direction(horz, vert);
         const fromPoint = this._character.positionPoint();
         const targetPoint = DotMoveUtils.nextPointWithDirection(fromPoint, d, moveUnit);
         const targetCount = this.calcTargetCount(fromPoint, targetPoint);
@@ -1897,44 +1900,10 @@ class PlayerMover extends CharacterMover {
     initialize(character) {
         super.initialize(character);
         this._controller = new PlayerController(character);
-        this._continuousMove = false;
     }
 
     // CharacterMover#updateで移動済みフラグがクリアされないようにする
     clearMovedFlagFromCharacterMoverUpdate() {
-    }
-
-    moveProcess() {
-        super.moveProcess();
-        if (this._moverData.targetCount === 0 && this._continuousMove) {
-            this._character.initCollideTriggerEventIds();
-            this._continuousMove = false;
-        }
-    }
-
-    dotMoveByDirection(direction) {
-        this._continuousMove = false;
-        super.dotMoveByDirection(direction);
-    }
-
-    dotMoveByDeg(deg) {
-        this._continuousMove = false;
-        super.dotMoveByDeg(deg);
-    }
-
-    moveStraight(d, moveUnit) {
-        this._continuousMove = true;
-        super.moveStraight(d, moveUnit);
-    }
-
-    moveDiagonally(horz, vert, moveUnit) {
-        this._continuousMove = true;
-        super.moveDiagonally(horz, vert, moveUnit);
-    }
-
-    moveToTarget(targetPoint) {
-        this._continuousMove = true;
-        super.moveToTarget(targetPoint);
     }
 }
 
@@ -2121,12 +2090,6 @@ Game_CharacterBase.prototype.moveDiagonally = function(horz, vert) {
     this.mover().moveDiagonally(horz, vert, this._moveUnit);
 };
 
-Game_CharacterBase.prototype.isMapPassable = function(x, y, d) {
-    const d2 = this.reverseDir(d);
-    const nextPoint = DotMoveUtils.nextPointWithDirection(new Point(x, y), d);
-    return $gameMap.isPassable(x, y, d) && $gameMap.isPassable(nextPoint.x, nextPoint.y, d2);
-};
-
 Game_CharacterBase.prototype.positionPoint = function() {
     return new Point(this._realX, this._realY)
 };
@@ -2269,7 +2232,7 @@ Game_CharacterBase.prototype.calcFar = function(targetCharacter) {
 
 
 Game_Character.prototype.findDirectionTo = function(goalX, goalY, searchLimit = this.searchLimit()) {
-    const [best, start] = DotMoveUtils.computeRoute(this, this.x, this.y, goalX, goalY, searchLimit);
+    const [best, start] = AStarUtils.computeRoute(this, this.x, this.y, goalX, goalY, searchLimit);
     if (!best) return 0;
 
     let node = best;
@@ -2611,19 +2574,22 @@ Game_Player.prototype.updateCountProcess = function(sceneActive) {
 };
 
 Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
-    if ($gameMap.isEventRunning()) return;
-    if (wasMoving) {
-        this.checkEventTriggerHere([1, 2]);
-        if ($gameMap.setupStartingEvent()) {
+    if ($gameMap.isEventRunning()) {
+        this.initCollideTriggerEventIds();
+    } else {
+        if (wasMoving) {
+            this.checkEventTriggerHere([1, 2]);
+            if ($gameMap.setupStartingEvent()) {
+                return;
+            }
+        }
+        if (sceneActive && this.triggerAction()) {
             return;
         }
-    }
-    if (sceneActive && this.triggerAction()) {
-        return;
-    }
-    if (!wasMoving) {
-        $gameTemp.clearDestination();
-        $gameTemp.setBeforeTouchMovedPoint(null);
+        if (!wasMoving) {
+            $gameTemp.clearDestination();
+            $gameTemp.setBeforeTouchMovedPoint(null);
+        }
     }
 };
 
@@ -3006,12 +2972,6 @@ Game_Event.prototype.checkEventTriggerTouch = function(x, y) {
 };
 
 
-if (Utils.RPGMAKER_NAME === "MV") {
-    Game_Followers.prototype.data = function() {
-        return this._data.clone();
-    };
-}
-
 
 const _Game_Follower_initialize = Game_Follower.prototype.initialize;
 Game_Follower.prototype.initialize = function(memberIndex) {
@@ -3116,6 +3076,12 @@ Game_Followers.prototype.initialize = function() {
     this._gatherCount = 0; // gatherタイムアウト監視用
 };
 
+if (Utils.RPGMAKER_NAME === "MV") {
+    Game_Followers.prototype.data = function() {
+        return this._data.clone();
+    };
+}
+
 Game_Followers.prototype.update = function() {
     if (this.areGathering()) {
         this.updateGather();
@@ -3218,6 +3184,8 @@ window.MoverData = MoverData;
 
 return {
     EventParamParser,
+    AStarNode,
+    AStarUtils,
     DotMoveUtils,
     CollisionResult,
     MapCharactersCache,
