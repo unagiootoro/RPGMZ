@@ -2,7 +2,7 @@
 @target MZ
 @plugindesc キャラクターシルエット v1.0.0
 @author うなぎおおとろ
-@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SawTransition.js
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SilletCharacter.js
 @help
 キャラクターのシルエットを表示するプラグインです。
 プラグインコマンドでシルエットの表示/非表示を切り替えるだけでなく、
