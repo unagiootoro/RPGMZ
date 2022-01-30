@@ -56,6 +56,13 @@ Specifies the display mode of the equipped item. (0: Do not show 1: Show only cu
 @default 352
 @desc
 Specifies the width of the status window on the shop screen.
+
+@param NoneItemText
+@text No equiped item text
+@type string
+@default None
+@desc
+Specifies the text to display when there are no currently equipped items on the shop screen.
 */
 
 /*:ja
