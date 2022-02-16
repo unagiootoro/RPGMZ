@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.9.5
+@plugindesc Dot movement system v1.9.6
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -92,7 +92,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.9.5
+@plugindesc ドット移動システム v1.9.6
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -2462,7 +2462,11 @@ Game_Player.prototype.startTouchMove = function() {
         const currentPoint = new Point(this.x, this.y);
         const nextPoint = DotMoveUtils.nextPointWithDirection(currentPoint, direction);
         if (!beforeTouchMovedPoint || !(beforeTouchMovedPoint.x === nextPoint.x && beforeTouchMovedPoint.y === nextPoint.y)) {
-            this.mover().moveByDirection(direction, 1);
+            if (x === nextPoint.x && y === nextPoint.y) {
+                this.mover().moveToTarget(nextPoint);
+            } else {
+                this.mover().moveByDirection(direction, 1);
+            }
             $gameTemp.setBeforeTouchMovedPoint(currentPoint);
         }
     }
@@ -2526,29 +2530,19 @@ Game_Player.prototype.update = function(sceneActive) {
     }
     if (this._needCountProcess) this.updateCountProcess(sceneActive);
     this.followers().update();
-    this.updateTouchPoint();
 };
 
 Game_Player.prototype.updateRemoveCollideTriggerEventIds = function() {
     if (this.isMoving() || this.isJumping()) return; // 船から降りた場合やジャンプ先のイベントを起動対象外にする
     for (const eventId of this._collideTriggerEventIds) {
         const event = $gameMap.event(eventId);
-        const result = this.mover().checkCharacter(this._realX, this._realY, this._direction, event);
-        if (!(result && result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea())) {
-            this._collideTriggerEventIds = this._collideTriggerEventIds.filter(id => id !== eventId);
+        if (event) {
+            const result = this.mover().checkCharacter(this._realX, this._realY, this._direction, event);
+            if (result && result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea()) {
+                continue;
+            }
         }
-    }
-};
-
-Game_Player.prototype.updateTouchPoint = function() {
-    const x = $gameTemp.destinationX();
-    const y = $gameTemp.destinationY();
-    if (x != null && y != null) {
-        if (x === this.x && y === this.y) {
-            this.moveToTarget(this.x, this.y);
-            $gameTemp.clearDestination();
-            $gameTemp.setBeforeTouchMovedPoint(null);
-        }
+        this._collideTriggerEventIds = this._collideTriggerEventIds.filter(id => id !== eventId);
     }
 };
 
