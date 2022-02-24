@@ -6,13 +6,6 @@
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
   var __markAsModule = (target) => __defProp(target, "__esModule", { value: true });
-  var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-    get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-  }) : x)(function(x) {
-    if (typeof require !== "undefined")
-      return require.apply(this, arguments);
-    throw new Error('Dynamic require of "' + x + '" is not supported');
-  });
   var __require = x => THREE;
   var __reExport = (target, module, desc) => {
     if (module && typeof module === "object" || typeof module === "function") {
@@ -24,7 +17,7 @@
   };
   var __toModule = (module) => {
     return __reExport(__markAsModule(__defProp(module != null ? __create(__getProtoOf(module)) : {}, "default", module && module.__esModule && "default" in module ? { get: () => module.default, enumerable: true } : { value: module, enumerable: true })), module);
-  };
+  };  
 
   // src/Game_Temp.ts
   Game_Temp.prototype.setLastMapId = function(lastMapId) {
@@ -122,7 +115,6 @@
     DefaultParameter: {}
   };
   var PP = PluginParamsParser.parse(PluginManager.parameters(pluginName), typeData);
-  console.log(PP);
 
   // src/SuperMode7Utils.ts
   var NoteParseErrorMessage = "\u30E1\u30E2\u6B04\u306E\u89E3\u6790\u306B\u5931\u6557\u3057\u307E\u3057\u305F\u3002\u8A72\u5F53\u7B87\u6240\u306E\u5185\u5BB9:(%1)";
@@ -145,6 +137,8 @@
             result.FarFromCenter = PP.DefaultParameter.FarFromCenter;
           if (result.FadeEffectRate == null)
             result.FadeEffectRate = PP.DefaultParameter.FadeEffectRate;
+          if (result.AreaSize == null)
+            result.FadeEffectRate = PP.DefaultParameter.AreaSize;
         }
         return result;
       } catch (e) {
@@ -205,7 +199,7 @@
   };
 
   // src/MapScene3D.ts
-  var import_three14 = __toModule(__require("three"));
+  var import_three16 = __toModule(__require("three"));
 
   // src/Scene3D.ts
   var import_three = __toModule(__require("three"));
@@ -252,6 +246,7 @@
     constructor() {
       this._time = 0;
       this._stop = true;
+      this._timeoutFlag = false;
     }
     static start(time) {
       const timer = new this();
@@ -259,8 +254,13 @@
       return timer;
     }
     update() {
-      if (!this._stop && this._time > 0)
+      if (!this._stop && this._time > 0) {
         this._time--;
+        if (this._time === 0) {
+          this._stop = true;
+          this._timeoutFlag = true;
+        }
+      }
     }
     start(time) {
       this._time = time;
@@ -275,21 +275,30 @@
     isStopping() {
       return this._stop;
     }
+    checkTimeout() {
+      if (this._timeoutFlag) {
+        this._timeoutFlag = false;
+        return true;
+      }
+      return false;
+    }
     isTimeout() {
-      return !this._stop && this._time === 0;
+      return this._time === 0;
     }
     isBusy() {
-      return !this._stop && this._time > 0;
+      return !this._stop;
     }
   };
 
   // src/Mode7Camera.ts
   var Mode7Camera = class extends import_three2.PerspectiveCamera {
-    constructor() {
-      super(45, Graphics.width / Graphics.height, 1, 1500);
-      this._cameraHeight = 48 * 15.5;
-      this._farFromCenter = 0;
+    constructor(opt = {}) {
+      const near = opt.near == null ? 1 : opt.near;
+      const far = opt.far == null ? 1500 : opt.far;
+      super(45, Graphics.width / Graphics.height, near, far);
       this._angle = 0;
+      this._cameraHeight = opt.cameraHeight == null ? 48 * 15.5 : opt.cameraHeight;
+      this._farFromCenter = opt.farFromCenter == null ? 0 : opt.farFromCenter;
       this._cameraController = new CameraController(this);
     }
     get cameraHeight() {
@@ -335,7 +344,7 @@
       const focus = this.cameraFocusPoint();
       const cameraBaseX = focus.x * 48 + 24;
       const cameraBaseZ = focus.y * 48 + 24;
-      const dis = SuperMode7Utils.calcDistance(this._angle, this._farFromCenter);
+      const dis = SuperMode7Utils.calcDistance(this._angle, this._farFromCenter / 48);
       this.position.x = cameraBaseX - dis.x * 48;
       this.position.z = cameraBaseZ - dis.y * 48;
       const vec3 = new import_three2.Vector3(cameraBaseX, 0, cameraBaseZ);
@@ -395,19 +404,19 @@
       this._changeCameraHeightTimer.update();
       this._changeFarFromCenterTimer.update();
       this._changeAngleTimer.update();
-      if (this._changeCameraHeightTimer.isTimeout()) {
+      if (this._changeCameraHeightTimer.checkTimeout()) {
         this._camera.cameraHeight = this._targetCameraHeight;
-      } else {
+      } else if (this._changeCameraHeightTimer.isBusy()) {
         this._camera.cameraHeight -= this._cameraHeightUnit;
       }
-      if (this._changeFarFromCenterTimer.isTimeout()) {
+      if (this._changeFarFromCenterTimer.checkTimeout()) {
         this._camera.farFromCenter = this._targetFarFromCenter;
-      } else {
+      } else if (this._changeFarFromCenterTimer.isBusy()) {
         this._camera.farFromCenter -= this._farFromCenterUnit;
       }
-      if (this._changeAngleTimer.isTimeout()) {
+      if (this._changeAngleTimer.checkTimeout()) {
         this._camera.angle = this._targetAngle;
-      } else {
+      } else if (this._changeAngleTimer.isBusy()) {
         this._camera.angle -= this._angleUnit;
       }
     }
@@ -488,8 +497,8 @@
   };
 
   // src/TilemapContainer.ts
-  var import_three11 = __toModule(__require("three"));
-  var import_three12 = __toModule(__require("three"));
+  var import_three13 = __toModule(__require("three"));
+  var import_three14 = __toModule(__require("three"));
 
   // src/TilemapElement.ts
   var TilemapElement = class {
@@ -1103,6 +1112,7 @@
   var TilemapPlaneGeometry = class extends RectsPlaneGeometry {
     constructor(width = 1, height = 1, widthSegments = 1, heightSegments = 1, zSegments = 1) {
       super(width, height, widthSegments, heightSegments, zSegments);
+      this._tileSpace = 0.5;
       this._textureWidth = 0;
       this._textureHeight = 0;
       this._elements = null;
@@ -1130,11 +1140,11 @@
         if (setNumber < 0)
           continue;
         if (setNumber <= 3) {
-          this.setUv(uvs, setNumber, sx, sy, dx, dy, 23, 23, 0, 0);
+          this.setUv(uvs, setNumber, sx, sy, dx, dy, 24 - this._tileSpace, 24 - this._tileSpace, 0, 0);
         } else {
           for (let iy = 0; iy < 2; iy++) {
             for (let ix = 0; ix < 2; ix++) {
-              this.setUv(uvs, setNumber, sx, sy, dx, dy, 23, 23, ix * 24, iy * 24);
+              this.setUv(uvs, setNumber, sx, sy, dx, dy, 24 - this._tileSpace, 24 - this._tileSpace, ix * 24, iy * 24);
             }
           }
         }
@@ -1149,13 +1159,13 @@
       const uvSyOfs = setNumber % 2 * 768;
       const isx = sx / 24;
       const isy = sy / 24;
-      const uvSx = (isx * 24 + 0.5 + ox + uvSxOfs) / this._textureWidth;
-      const uvSy = 1 - (isy * 24 + 0.5 + oy + uvSyOfs) / this._textureHeight;
+      const uvSx = (isx * 24 + this._tileSpace + ox + uvSxOfs) / this._textureWidth;
+      const uvSy = 1 - (isy * 24 + this._tileSpace + oy + uvSyOfs) / this._textureHeight;
       const dix = Math.floor((dx + ox) / 24);
       const diy = Math.floor((dy + oy) / 24);
       const dindex = (diy * widthSegments + dix) * 8;
-      const uvSx2 = (isx * 24 + 0.5 + ox + sw + uvSxOfs) / this._textureWidth;
-      const uvSy2 = 1 - (isy * 24 + 0.5 + oy + sh + uvSyOfs) / this._textureHeight;
+      const uvSx2 = (isx * 24 + this._tileSpace + ox + sw + uvSxOfs) / this._textureWidth;
+      const uvSy2 = 1 - (isy * 24 + this._tileSpace + oy + sh + uvSyOfs) / this._textureHeight;
       const rectUvs = this.createRectUvs(uvSx, uvSy, uvSx2, uvSy2);
       for (let i = 0; i < 8; i++) {
         if (uvs[dindex + i] === 0) {
@@ -1171,12 +1181,137 @@
     }
   };
 
-  // src/Sprite3D_WrapPixi.ts
+  // src/TilemapTextureGenerator.ts
+  var import_three6 = __toModule(__require("three"));
+  var TilemapTextureGenerator = class {
+    generate() {
+      const spriteset = SceneManager._scene._spriteset;
+      const tilemap = spriteset._tilemap;
+      const tilemapBitmap = new Bitmap(4092, 4092);
+      tilemap._bitmaps.forEach((bitmap, i) => {
+        this._convertBitmap(tilemapBitmap, bitmap, i);
+      });
+      return new import_three6.Texture(tilemapBitmap.canvas, import_three6.Texture.DEFAULT_MAPPING, import_three6.ClampToEdgeWrapping, import_three6.ClampToEdgeWrapping, import_three6.NearestFilter, import_three6.NearestMipMapLinearFilter, import_three6.RGBAFormat, import_three6.UnsignedByteType, 1, import_three6.LinearEncoding);
+    }
+    _convertBitmap(dstBitmap, srcBitmap, index) {
+      const unit = 768 / 24;
+      for (let y = 0; y < unit; y++) {
+        for (let x = 0; x < unit; x++) {
+          const sx = x * 24;
+          const sy = y * 24;
+          const dxOfs = Math.floor(index / 2) * 768;
+          const dyOfs = index % 2 * 768;
+          const dx = x * 24 + dxOfs;
+          const dy = y * 24 + dyOfs;
+          dstBitmap.blt(srcBitmap, sx, sy, 24, 24, dx, dy);
+        }
+      }
+    }
+  };
+
+  // src/TilemapVertShader.ts
+  var TilemapVertShader = `
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);    
+        gl_Position = projectionMatrix * mvPosition;
+    }
+`;
+
+  // src/TilemapFragShader.ts
+  var TilemapFragShader = `
+    uniform sampler2D sampler;
+    uniform float fadeEffectRate;
+    varying vec2 vUv;
+
+    void main() {
+        vec4 color = texture2D(sampler, vUv);
+        float a = color.a;
+        vec3 rgb = vec3(color.r, color.g, color.b);
+        float n = gl_FragCoord.y / 624.0;
+        n += 0.1;
+        if (n > 1.0) {
+            n = 1.0;
+        }
+        n = pow(n, 4.0);
+        n *= fadeEffectRate;
+        vec3 white = vec3(n, n, n);
+        rgb += white;
+
+        gl_FragColor = vec4(rgb.r, rgb.g, rgb.b, a);
+    }
+`;
+
+  // src/Plane_Destination.ts
   var import_three7 = __toModule(__require("three"));
+  var Plane_Destination = class extends import_three7.Mesh {
+    constructor() {
+      super();
+      this._frameCount = 0;
+      this.geometry = new import_three7.PlaneGeometry($gameMap.tileWidth(), $gameMap.tileHeight());
+      this.material = new import_three7.MeshBasicMaterial({ transparent: true, depthTest: false });
+      this.createTexture();
+      this.position.y = 2;
+      this.rotation.x = SuperMode7Utils.deg2rad(0);
+    }
+    dispose() {
+      this.geometry.dispose();
+      if (this.material instanceof import_three7.Material) {
+        this.material.dispose();
+      } else if (this.material instanceof Array) {
+        for (const mat of this.material) {
+          mat.dispose();
+        }
+      }
+    }
+    update() {
+      this.createTexture();
+      if ($gameTemp.isDestinationValid()) {
+        this.updatePosition();
+        this.updateAnimation();
+        this.visible = true;
+      } else {
+        this._frameCount = 0;
+        this.visible = false;
+      }
+    }
+    createTexture() {
+      const tileWidth = $gameMap.tileWidth();
+      const tileHeight = $gameMap.tileHeight();
+      const bitmap = new Bitmap(tileWidth, tileHeight);
+      bitmap.fillAll("white");
+      const texture = new import_three7.Texture(bitmap.canvas);
+      const material = this.material;
+      material.map = texture;
+      material.map.needsUpdate = true;
+    }
+    updatePosition() {
+      const tileWidth = $gameMap.tileWidth();
+      const tileHeight = $gameMap.tileHeight();
+      const x = $gameTemp.destinationX();
+      const y = $gameTemp.destinationY();
+      this.position.x = x * tileWidth + 24;
+      this.position.z = y * tileHeight + 24;
+    }
+    updateAnimation() {
+      this._frameCount++;
+      this._frameCount %= 20;
+      if (this.material instanceof import_three7.Material) {
+        this.material.opacity = (20 - this._frameCount) * 6 / 255;
+        ;
+      }
+      this.scale.x = 1 + this._frameCount / 20;
+      this.scale.y = this.scale.x;
+    }
+  };
+
+  // src/Sprite3D_WrapPixi.ts
+  var import_three9 = __toModule(__require("three"));
 
   // src/Sprite3D_Mesh.ts
-  var import_three6 = __toModule(__require("three"));
-  var Sprite3D_Mesh = class extends import_three6.Mesh {
+  var import_three8 = __toModule(__require("three"));
+  var Sprite3D_Mesh = class extends import_three8.Mesh {
     constructor(camera, width, height, material) {
       super(new RectsPlaneGeometry(width, height), material);
       this._spriteMode = true;
@@ -1186,7 +1321,7 @@
     }
     dispose() {
       this.geometry.dispose();
-      if (this.material instanceof import_three6.Material) {
+      if (this.material instanceof import_three8.Material) {
         this.material.dispose();
       } else if (this.material instanceof Array) {
         for (const mat of this.material) {
@@ -1222,7 +1357,7 @@
       uvs[5] = vBegin;
       uvs[6] = uBegin + width;
       uvs[7] = vBegin;
-      this.geometry.setAttribute("uv", new import_three6.Float32BufferAttribute(uvs, 2));
+      this.geometry.setAttribute("uv", new import_three8.Float32BufferAttribute(uvs, 2));
     }
   };
 
@@ -1355,10 +1490,10 @@
       if (this._useShaderMaterial) {
         this.material = this.createShaderMaterial();
       } else {
-        const material = new import_three7.MeshBasicMaterial({ transparent: true, depthTest: false });
+        const material = new import_three9.MeshBasicMaterial({ transparent: true, depthTest: false });
         this.material = material;
         const bitmap = new Bitmap(1, 1);
-        const texture = new import_three7.Texture(bitmap.canvas);
+        const texture = new import_three9.Texture(bitmap.canvas);
         material.map = texture;
       }
       this._pixiSprite = pixiSprite;
@@ -1367,6 +1502,7 @@
       this.createTexture();
       this._texture = null;
       this._priority = priority;
+      this.updatePosition();
     }
     dispose() {
       super.dispose();
@@ -1400,7 +1536,7 @@
       const projection = $scene3d.mode7Camera().getProjection(this);
       const x = Graphics.width - (projection.x + 1) * Graphics.width / 2 - this.width / 2;
       const y = Graphics.height - (projection.y + 1) * Graphics.height / 2 - this.height / 2;
-      return new import_three7.Vector2(x, y);
+      return new import_three9.Vector2(x, y);
     }
     updatePosition() {
       this.position.set(this._pixiSprite.x + this._baseX, 0, this._pixiSprite.y + this._baseZ);
@@ -1423,7 +1559,7 @@
         return;
       if (!this._pixiSprite.bitmap.isReady())
         return;
-      this._texture = new import_three7.Texture(this._pixiSprite.bitmap.canvas);
+      this._texture = new import_three9.Texture(this._pixiSprite.bitmap.canvas);
       if (this._useShaderMaterial) {
         const material = this.material;
         this._texture.needsUpdate = true;
@@ -1453,7 +1589,7 @@
         blendColor: { value: this.array2Vec4(this._blendColor) },
         brightness: { value: 255 }
       };
-      return new import_three7.ShaderMaterial({ transparent: true, depthTest: false, vertexShader, fragmentShader, uniforms });
+      return new import_three9.ShaderMaterial({ transparent: true, depthTest: false, vertexShader, fragmentShader, uniforms });
     }
     updateShaderUniforms() {
       const material = this.material;
@@ -1462,7 +1598,7 @@
       material.uniforms.colorTone.value = this.array2Vec4(this._colorTone);
     }
     array2Vec4(array) {
-      return new import_three7.Vector4(array[0], array[1], array[2], array[3]);
+      return new import_three9.Vector4(array[0], array[1], array[2], array[3]);
     }
   };
 
@@ -1505,9 +1641,6 @@
 
   // src/Sprite3D_Character.ts
   var Sprite3D_Character = class extends Sprite3D_WrapPixi {
-    static get SPRITE_SIZE() {
-      return 48;
-    }
     constructor(pixiSprite, baseX, baseZ, priority) {
       super(pixiSprite, baseX, baseZ);
       this._character = pixiSprite._character;
@@ -1515,7 +1648,8 @@
       if (this._character instanceof Game_Event) {
         const spriteMode = EventParamParser.getSpriteMode(this._character);
         this.setSpriteMode(spriteMode);
-        this.rotation.x = SuperMode7Utils.deg2rad(0);
+        if (!spriteMode)
+          this.rotation.x = SuperMode7Utils.deg2rad(0);
       }
     }
     updateShaderUniforms() {
@@ -1535,16 +1669,16 @@
       } else {
         this.position.y = this.baseY() + this._priority;
       }
-      this.position.x = this._character._realX * 48 + this._baseX + 24;
-      this.position.z = this._character._realY * 48 + this._baseZ + 24 - this._character.shiftY();
+      this.position.x = this._character._realX * 48 + 24 + this._baseX;
+      this.position.z = this._character._realY * 48 - this._character.shiftY() - this.height / 2 + 24 + this._baseZ;
     }
     baseY() {
       return 0;
     }
     updateUVs() {
       const frame = this._pixiSprite._frame.clone();
-      frame.width = 48;
-      frame.height = 48;
+      frame.width = this._pixiSprite.width;
+      frame.height = this._pixiSprite.height;
       frame.x += 0.5;
       frame.y += 0.5;
       frame.width -= 0.5;
@@ -1553,8 +1687,77 @@
     }
   };
 
+  // src/WrapPixiContainer.ts
+  var import_three10 = __toModule(__require("three"));
+  var WrapPixiContainer = class extends import_three10.Object3D {
+    constructor(pixiSprite, priority = 0) {
+      super();
+      this._sprites = [];
+      this._pixiSprite = pixiSprite;
+      let baseXIndexBegin = 1;
+      let baseXIndexEnd = 1;
+      let baseYIndexBegin = 1;
+      let baseYIndexEnd = 1;
+      if ($gameMap.isLoopHorizontal()) {
+        baseXIndexBegin = 0;
+        baseXIndexEnd = 2;
+      }
+      if ($gameMap.isLoopVertical()) {
+        baseYIndexBegin = 0;
+        baseYIndexEnd = 2;
+      }
+      for (let baseYIndex = baseYIndexBegin; baseYIndex <= baseYIndexEnd; baseYIndex++) {
+        for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
+          const baseX = (baseXIndex - 1) * $gameMap.width() * 48;
+          const baseZ = (baseYIndex - 1) * $gameMap.height() * 48;
+          const sprite = this.createSprite(pixiSprite, baseX, baseZ, priority);
+          this._sprites.push(sprite);
+          this.add(sprite);
+        }
+      }
+    }
+    get pixiSprite() {
+      return this._pixiSprite;
+    }
+    dispose() {
+      for (const sprite of this._sprites) {
+        sprite.dispose();
+        this.remove(sprite);
+      }
+      this._sprites = [];
+    }
+    update() {
+      for (const sprite of this._sprites) {
+        sprite.update();
+      }
+    }
+    resetPixiSprite(pixiSprite) {
+      for (const sprite of this._sprites) {
+        sprite.resetPixiSprite(pixiSprite);
+      }
+    }
+    setBlendColor(color) {
+      for (const sprite of this._sprites) {
+        sprite.setBlendColor(color);
+      }
+    }
+    createSprite(pixiSprite, baseX, baseZ, priority) {
+      return new Sprite3D_WrapPixi(pixiSprite, baseX, baseZ, priority);
+    }
+  };
+
+  // src/CharacterContainer.ts
+  var CharacterContainer = class extends WrapPixiContainer {
+    createSprite(pixiSprite, baseX, baseZ, priority) {
+      return new Sprite3D_Character(pixiSprite, baseX, baseZ, priority);
+    }
+  };
+
+  // src/ShadowContainer.ts
+  var import_three12 = __toModule(__require("three"));
+
   // src/Sprite3D_Shadow.ts
-  var import_three8 = __toModule(__require("three"));
+  var import_three11 = __toModule(__require("three"));
   var Sprite3D_Shadow = class extends Sprite3D_Mesh {
     static get SPRITE_SIZE() {
       return 48;
@@ -1563,7 +1766,7 @@
       super(camera, Sprite3D_Shadow.SPRITE_SIZE, Sprite3D_Shadow.SPRITE_SIZE);
       this._baseX = baseX;
       this._baseZ = baseZ;
-      this.material = new import_three8.MeshBasicMaterial({ transparent: true, depthTest: false });
+      this.material = new import_three11.MeshBasicMaterial({ transparent: true, depthTest: false });
     }
     setupCharacter(character) {
       this._character = character;
@@ -1604,160 +1807,107 @@
       frame.height = 48;
       const bitmap = new Bitmap(frame.width, frame.height);
       bitmap.blt(pixiSprite.bitmap, frame.x, frame.y, frame.width, frame.height, 0, 0);
-      const texture = new import_three8.Texture(bitmap.canvas);
+      const texture = new import_three11.Texture(bitmap.canvas);
       const material = this.material;
       material.map = texture;
       material.map.needsUpdate = true;
     }
   };
 
-  // src/TilemapTextureGenerator.ts
-  var import_three9 = __toModule(__require("three"));
-  var TilemapTextureGenerator = class {
-    generate() {
-      const spriteset = SceneManager._scene._spriteset;
-      const tilemap = spriteset._tilemap;
-      const tilemapBitmap = new Bitmap(4092, 4092);
-      tilemap._bitmaps.forEach((bitmap, i) => {
-        this._convertBitmap(tilemapBitmap, bitmap, i);
-      });
-      return new import_three9.Texture(tilemapBitmap.canvas, import_three9.Texture.DEFAULT_MAPPING, import_three9.ClampToEdgeWrapping, import_three9.ClampToEdgeWrapping, import_three9.NearestFilter, import_three9.NearestMipMapLinearFilter, import_three9.RGBAFormat, import_three9.UnsignedByteType, 1, import_three9.LinearEncoding);
-    }
-    _convertBitmap(dstBitmap, srcBitmap, index) {
-      const unit = 768 / 24;
-      for (let y = 0; y < unit; y++) {
-        for (let x = 0; x < unit; x++) {
-          const sx = x * 24;
-          const sy = y * 24;
-          const dxOfs = Math.floor(index / 2) * 768;
-          const dyOfs = index % 2 * 768;
-          const dx = x * 24 + dxOfs;
-          const dy = y * 24 + dyOfs;
-          dstBitmap.blt(srcBitmap, sx, sy, 24, 24, dx, dy);
+  // src/ShadowContainer.ts
+  var ShadowContainer = class extends import_three12.Object3D {
+    constructor(camera) {
+      super();
+      this._sprites = [];
+      let baseXIndexBegin = 1;
+      let baseXIndexEnd = 1;
+      let baseYIndexBegin = 1;
+      let baseYIndexEnd = 1;
+      if ($gameMap.isLoopHorizontal()) {
+        baseXIndexBegin = 0;
+        baseXIndexEnd = 2;
+      }
+      if ($gameMap.isLoopVertical()) {
+        baseYIndexBegin = 0;
+        baseYIndexEnd = 2;
+      }
+      for (let baseYIndex = baseYIndexBegin; baseYIndex <= baseYIndexEnd; baseYIndex++) {
+        for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
+          const baseX = (baseXIndex - 1) * $gameMap.width() * 48;
+          const baseZ = (baseYIndex - 1) * $gameMap.height() * 48;
+          const sprite = this.createSprite(camera, baseX, baseZ);
+          this._sprites.push(sprite);
+          this.add(sprite);
         }
       }
-    }
-  };
-
-  // src/TilemapVertShader.ts
-  var TilemapVertShader = `
-    varying vec2 vUv;
-    void main() {
-        vUv = uv;
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);    
-        gl_Position = projectionMatrix * mvPosition;
-    }
-`;
-
-  // src/TilemapFragShader.ts
-  var TilemapFragShader = `
-    uniform sampler2D sampler;
-    uniform float fadeEffectRate;
-    varying vec2 vUv;
-
-    void main() {
-        vec4 color = texture2D(sampler, vUv);
-        float a = color.a;
-        vec3 rgb = vec3(color.r, color.g, color.b);
-        float n = gl_FragCoord.y / 624.0;
-        n += 0.1;
-        if (n > 1.0) {
-            n = 1.0;
-        }
-        n = pow(n, 4.0);
-        n *= fadeEffectRate;
-        vec3 white = vec3(n, n, n);
-        rgb += white;
-
-        gl_FragColor = vec4(rgb.r, rgb.g, rgb.b, a);
-    }
-`;
-
-  // src/Plane_Destination.ts
-  var import_three10 = __toModule(__require("three"));
-  var Plane_Destination = class extends import_three10.Mesh {
-    constructor() {
-      super();
-      this._frameCount = 0;
-      this.geometry = new import_three10.PlaneGeometry($gameMap.tileWidth(), $gameMap.tileHeight());
-      this.material = new import_three10.MeshBasicMaterial({ transparent: true, depthTest: false });
-      this.createTexture();
-      this.position.y = 2;
-      this.rotation.x = SuperMode7Utils.deg2rad(0);
     }
     dispose() {
-      this.geometry.dispose();
-      if (this.material instanceof import_three10.Material) {
-        this.material.dispose();
-      } else if (this.material instanceof Array) {
-        for (const mat of this.material) {
-          mat.dispose();
-        }
+      for (const sprite of this._sprites) {
+        sprite.dispose();
+        this.remove(sprite);
       }
+      this._sprites = [];
     }
     update() {
-      this.createTexture();
-      if ($gameTemp.isDestinationValid()) {
-        this.updatePosition();
-        this.updateAnimation();
-        this.visible = true;
-      } else {
-        this._frameCount = 0;
-        this.visible = false;
+      for (const sprite of this._sprites) {
+        sprite.update();
       }
     }
-    createTexture() {
-      const tileWidth = $gameMap.tileWidth();
-      const tileHeight = $gameMap.tileHeight();
-      const bitmap = new Bitmap(tileWidth, tileHeight);
-      bitmap.fillAll("white");
-      const texture = new import_three10.Texture(bitmap.canvas);
-      const material = this.material;
-      material.map = texture;
-      material.map.needsUpdate = true;
+    setupCharacter(character) {
+      for (const sprite of this._sprites) {
+        sprite.setupCharacter(character);
+      }
+    }
+    createSprite(camera, baseX, baseZ) {
+      return new Sprite3D_Shadow(camera, baseX, baseZ);
+    }
+  };
+
+  // src/Sprite3D_Balloon.ts
+  var Sprite3D_Balloon = class extends Sprite3D_WrapPixi {
+    constructor(pixiSprite, baseX, baseZ, priority) {
+      super(pixiSprite, baseX, baseZ);
+      this._priority = priority;
     }
     updatePosition() {
-      const tileWidth = $gameMap.tileWidth();
-      const tileHeight = $gameMap.tileHeight();
-      const x = $gameTemp.destinationX();
-      const y = $gameTemp.destinationY();
-      this.position.x = x * tileWidth + 24;
-      this.position.z = y * tileHeight + 24;
-    }
-    updateAnimation() {
-      this._frameCount++;
-      this._frameCount %= 20;
-      if (this.material instanceof import_three10.Material) {
-        this.material.opacity = (20 - this._frameCount) * 6 / 255;
-        ;
+      const character = this._pixiSprite._target._character;
+      if (character) {
+        this.position.x = character._realX * 48 + this._baseX + 24;
+        this.position.y = this._pixiSprite._target.height;
+        this.position.z = character._realY * 48 + this._baseZ;
       }
-      this.scale.x = 1 + this._frameCount / 20;
-      this.scale.y = this.scale.x;
+    }
+    updateUVs() {
+      const frame = this._pixiSprite._frame.clone();
+      frame.x += 0.5;
+      frame.y += 0.5;
+      frame.width -= 0.5;
+      frame.height -= 0.5;
+      this.resetUVMs(frame, this._pixiSprite.bitmap.width, this._pixiSprite.bitmap.height);
+    }
+  };
+
+  // src/BalloonContainer.ts
+  var BalloonContainer = class extends WrapPixiContainer {
+    createSprite(pixiSprite, baseX, baseZ, priority) {
+      return new Sprite3D_Balloon(pixiSprite, baseX, baseZ, priority);
     }
   };
 
   // src/TilemapContainer.ts
-  var TilemapContainer = class extends import_three12.Object3D {
-    constructor(map, camera) {
+  var TilemapContainer = class extends import_three14.Object3D {
+    constructor(map, camera, areaSize) {
       super();
-      this._raycaster = new import_three12.Raycaster();
-      this._map = map;
+      this._raycaster = new import_three14.Raycaster();
       this._camera = camera;
-      this._floorPlanesContainer = new TilemapFloorPlanesContainer(map, camera);
+      this._floorPlanesContainer = new TilemapFloorPlanesContainer(map, camera, areaSize);
       this._playerSprites = [];
       this._followerSprites = [];
       this._vehicleSprites = [];
       this._eventSprites = [];
-      this._wrapSprites = [];
       this._shadowSprites = [];
-      for (let i = 0; i < 9; i++) {
-        this._playerSprites.push([]);
-        this._followerSprites.push([]);
-        this._vehicleSprites.push([]);
-        this._eventSprites.push([]);
-        this._wrapSprites.push([]);
-        this._shadowSprites.push([]);
-      }
+      this._balloonSprites = [];
+      this._balloonSprites2 = [];
       this._planeDestination = null;
     }
     get fadeEffectRate() {
@@ -1767,48 +1917,27 @@
       this._floorPlanesContainer.fadeEffectRate = _fadeEffectRate;
     }
     dispose() {
-      let baseXIndexBegin = 1;
-      let baseXIndexEnd = 1;
-      let baseYIndexBegin = 1;
-      let baseYIndexEnd = 1;
-      if ($gameMap.isLoopHorizontal()) {
-        baseXIndexBegin = 0;
-        baseXIndexEnd = 2;
+      for (const sprite of this._playerSprites) {
+        this.remove(sprite);
+        sprite.dispose();
       }
-      if ($gameMap.isLoopVertical()) {
-        baseYIndexBegin = 0;
-        baseYIndexEnd = 2;
+      for (const sprite of this._followerSprites) {
+        this.remove(sprite);
+        sprite.dispose();
       }
-      for (let baseYIndex = baseYIndexBegin; baseYIndex <= baseYIndexEnd; baseYIndex++) {
-        for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
-          const baseIdx = baseYIndex * 3 + baseXIndex;
-          for (const sprite of this._playerSprites[baseIdx]) {
-            this.remove(sprite);
-            sprite.dispose();
-          }
-          for (const sprite of this._followerSprites[baseIdx]) {
-            this.remove(sprite);
-            sprite.dispose();
-          }
-          for (const sprite of this._vehicleSprites[baseIdx]) {
-            this.remove(sprite);
-            sprite.dispose();
-          }
-          for (const sprite of this._eventSprites[baseIdx]) {
-            if (!sprite)
-              continue;
-            this.remove(sprite);
-            sprite.dispose();
-          }
-          for (const sprite of this._wrapSprites[baseIdx]) {
-            this.remove(sprite);
-            sprite.dispose();
-          }
-          for (const sprite of this._shadowSprites[baseIdx]) {
-            this.remove(sprite);
-            sprite.dispose();
-          }
-        }
+      for (const sprite of this._vehicleSprites) {
+        this.remove(sprite);
+        sprite.dispose();
+      }
+      for (const sprite of this._eventSprites) {
+        if (!sprite)
+          continue;
+        this.remove(sprite);
+        sprite.dispose();
+      }
+      for (const sprite of this._shadowSprites) {
+        this.remove(sprite);
+        sprite.dispose();
       }
       if (this._planeDestination) {
         this.remove(this._planeDestination);
@@ -1818,35 +1947,26 @@
       this._floorPlanesContainer.dispose();
     }
     start() {
-      let baseXIndexBegin = 1;
-      let baseXIndexEnd = 1;
-      let baseYIndexBegin = 1;
-      let baseYIndexEnd = 1;
-      if ($gameMap.isLoopHorizontal()) {
-        baseXIndexBegin = 0;
-        baseXIndexEnd = 2;
+      for (const event of $gameMap.events()) {
+        this.addCharacterSprite(event);
       }
-      if ($gameMap.isLoopVertical()) {
-        baseYIndexBegin = 0;
-        baseYIndexEnd = 2;
+      this.addCharacterSprite($gamePlayer, 5);
+      let i = 4;
+      for (const follower of $gamePlayer.followers().data()) {
+        this.addCharacterSprite(follower, i);
+        i--;
       }
-      for (let baseYIndex = baseYIndexBegin; baseYIndex <= baseYIndexEnd; baseYIndex++) {
-        for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
-          for (const event of $gameMap.events()) {
-            this.addCharacterSprite(event, baseXIndex, baseYIndex);
-          }
-          this.addCharacterSprite($gamePlayer, baseXIndex, baseYIndex, 5);
-          let i = 4;
-          for (const follower of $gamePlayer.followers().data()) {
-            this.addCharacterSprite(follower, baseXIndex, baseYIndex, i);
-            i--;
-          }
-          for (const vehicle of $gameMap.vehicles()) {
-            this.addCharacterSprite(vehicle, baseXIndex, baseYIndex);
-          }
-          this.addShadowSprite(baseXIndex, baseYIndex);
-        }
+      for (const vehicle of $gameMap.vehicles()) {
+        this.addCharacterSprite(vehicle);
       }
+      const airship = $gameMap.vehicles().find((vehicle) => vehicle.isAirship());
+      if (!airship) {
+        throw new Error("Airship is not found");
+      }
+      const sprite = new ShadowContainer(this._camera);
+      sprite.setupCharacter(airship);
+      this.add(sprite);
+      this._shadowSprites.push(sprite);
       this._planeDestination = new Plane_Destination();
       this.add(this._planeDestination);
       this.add(this._floorPlanesContainer);
@@ -1863,6 +1983,7 @@
         this.updateCharacterSprite(vehicle);
       }
       this.updateShadowSprite();
+      this.updateBalloonSprites();
       this._planeDestination?.update();
       this._floorPlanesContainer.update();
     }
@@ -1887,16 +2008,16 @@
       }
       return null;
     }
-    findCharacterSprite(character, baseIdx) {
+    findCharacterSprite(character) {
       if (character instanceof Game_Event) {
-        return this._eventSprites[baseIdx][character.eventId()];
+        return this._eventSprites[character.eventId()];
       } else if (character instanceof Game_Player) {
-        return this._playerSprites[baseIdx][0];
+        return this._playerSprites[0];
       } else if (character instanceof Game_Follower) {
         const followers = $gamePlayer.followers().data();
         const follower = followers.find((follower2) => follower2 === character);
         const followerIdx = followers.indexOf(follower);
-        return this._followerSprites[baseIdx][followerIdx];
+        return this._followerSprites[followerIdx];
       } else if (character instanceof Game_Vehicle) {
         let vehicleIdx = 0;
         if (character._type === "boat") {
@@ -1906,24 +2027,21 @@
         } else if (character._type === "airship") {
           vehicleIdx = 2;
         }
-        return this._vehicleSprites[baseIdx][vehicleIdx];
+        return this._vehicleSprites[vehicleIdx];
       }
       return null;
     }
-    addCharacterSprite(character, baseXIndex, baseYIndex, pri = 0) {
-      const baseIdx = baseYIndex * 3 + baseXIndex;
-      const baseX = (baseXIndex - 1) * this._map.width() * 48;
-      const baseZ = (baseYIndex - 1) * this._map.height() * 48;
+    addCharacterSprite(character, pri = 0) {
       const spriteset = SceneManager._scene._spriteset;
       const pixiSprite = spriteset.findTargetSprite(character);
-      const sprite = new Sprite3D_Character(pixiSprite, baseX, baseZ, pri);
+      const sprite = new CharacterContainer(pixiSprite, pri);
       this.add(sprite);
       if (character instanceof Game_Event) {
-        this._eventSprites[baseIdx][character.eventId()] = sprite;
+        this._eventSprites[character.eventId()] = sprite;
       } else if (character instanceof Game_Player) {
-        this._playerSprites[baseIdx][0] = sprite;
+        this._playerSprites[0] = sprite;
       } else if (character instanceof Game_Follower) {
-        this._followerSprites[baseIdx].push(sprite);
+        this._followerSprites.push(sprite);
       } else if (character instanceof Game_Vehicle) {
         let vehicleIdx = 0;
         if (character._type === "boat") {
@@ -1933,57 +2051,70 @@
         } else if (character._type === "airship") {
           vehicleIdx = 2;
         }
-        this._vehicleSprites[baseIdx][vehicleIdx] = sprite;
+        this._vehicleSprites[vehicleIdx] = sprite;
       }
     }
     updateCharacterSprite(character) {
-      for (let baseIdx = 0; baseIdx < 9; baseIdx++) {
-        const sprite = this.findCharacterSprite(character, baseIdx);
-        if (sprite)
-          sprite.update();
-      }
+      const sprite = this.findCharacterSprite(character);
+      if (sprite)
+        sprite.update();
     }
     resetCharacterSprite(character) {
       const spriteset = SceneManager._scene._spriteset;
-      for (let baseIdx = 0; baseIdx < 9; baseIdx++) {
-        const sprite = this.findCharacterSprite(character, baseIdx);
-        if (sprite) {
-          const pixiSprite = spriteset.findTargetSprite(character);
-          sprite.resetPixiSprite(pixiSprite);
-        }
+      const sprite = this.findCharacterSprite(character);
+      if (sprite) {
+        const pixiSprite = spriteset.findTargetSprite(character);
+        sprite.resetPixiSprite(pixiSprite);
       }
-    }
-    addShadowSprite(baseX, baseY) {
-      const baseIdx = baseY * 3 + baseX;
-      const airship = $gameMap.vehicles().find((vehicle) => vehicle.isAirship());
-      if (!airship) {
-        throw new Error("Airship is not found");
-      }
-      const xOfs = (baseX - 1) * this._map.width() * 48;
-      const yOfs = (baseY - 1) * this._map.height() * 48;
-      const sprite = new Sprite3D_Shadow(this._camera, xOfs, yOfs);
-      sprite.setupCharacter(airship);
-      this.add(sprite);
-      this._shadowSprites[baseIdx].push(sprite);
     }
     updateShadowSprite() {
-      for (let baseIdx = 0; baseIdx < 9; baseIdx++) {
-        for (const sprite of this._shadowSprites[baseIdx]) {
-          sprite.update();
+      for (const sprite of this._shadowSprites) {
+        sprite.update();
+      }
+    }
+    updateBalloonSprites() {
+      const spriteset = SceneManager._scene._spriteset;
+      for (const sprite of this._balloonSprites) {
+        if (!spriteset._balloonSprites.includes(sprite.pixiSprite)) {
+          this._balloonSprites = this._balloonSprites.filter((spr) => spr !== sprite);
+          sprite.dispose();
+        }
+      }
+      for (const sprite of this._balloonSprites2) {
+        if (!spriteset._balloonSprites.includes(sprite.pixiSprite)) {
+          this._balloonSprites2 = this._balloonSprites2.filter((spr) => spr !== sprite);
+          sprite.dispose();
+          this.remove(sprite);
+        }
+      }
+      for (const sprite of this._balloonSprites2) {
+        sprite.update();
+      }
+      for (const pixiSprite of spriteset._balloonSprites) {
+        if (!this._balloonSprites2.map((sprite) => sprite.pixiSprite).includes(pixiSprite) && this._balloonSprites.map((sprite) => sprite.pixiSprite).includes(pixiSprite)) {
+          const sprite2 = new BalloonContainer(pixiSprite, 7);
+          this.add(sprite2);
+          this._balloonSprites2.push(sprite2);
+        }
+      }
+      for (const pixiSprite of spriteset._balloonSprites) {
+        if (!this._balloonSprites.map((sprite) => sprite.pixiSprite).includes(pixiSprite)) {
+          const sprite = new BalloonContainer(pixiSprite, 7);
+          sprite.visible = false;
+          this._balloonSprites.push(sprite);
         }
       }
     }
   };
-  var TilemapFloorPlanesContainer = class extends import_three12.Object3D {
-    constructor(map, camera) {
+  var TilemapFloorPlanesContainer = class extends import_three14.Object3D {
+    constructor(map, camera, areaSize) {
       super();
-      this._areaSize = 38;
-      this._lowerPlanes = [];
-      this._upperPlanes = [];
+      this._planes = [];
       this._useShaderMaterial = true;
       this._fadeEffectRate = 0;
       this._map = map;
       this._camera = camera;
+      this._areaSize = areaSize;
       this.createPlanes();
       this._tilemapElementsGenerator = new TilemapElementsGenerator();
       this._tilemapElementsGenerator.setData(map.width(), map.height(), map.data());
@@ -1995,8 +2126,7 @@
       this._fadeEffectRate = _fadeEffectRate;
     }
     dispose() {
-      this._lowerPlaneGeometry.dispose();
-      this._upperPlaneGeometry.dispose();
+      this._planeGeometry.dispose();
       this._material.dispose();
       this._tilemapTexture.dispose();
     }
@@ -2014,7 +2144,7 @@
         return;
       if (!this._tilemapTexture) {
         this.createTexture();
-        if (this._material instanceof import_three11.MeshBasicMaterial) {
+        if (this._material instanceof import_three13.MeshBasicMaterial) {
           this._material.map = this._tilemapTexture;
           this._material.map.needsUpdate = true;
         } else {
@@ -2041,33 +2171,24 @@
           const zOfs = (baseYIndex - 1) * this._map.height() * 48;
           const xPos = xOfs + Math.round(focus.x) * 48;
           const zPos = zOfs + Math.round(focus.y) * 48;
-          const lowerPlane = this._lowerPlanes[index];
-          lowerPlane.position.x = xPos;
-          lowerPlane.position.z = zPos;
-          const upperPlane = this._upperPlanes[index];
-          upperPlane.position.x = xPos;
-          upperPlane.position.z = zPos;
+          const plane = this._planes[index];
+          plane.position.x = xPos;
+          plane.position.z = zPos;
           index++;
         }
       }
       let elements = this._tilemapElementsGenerator.lowerLayerElements();
       if (elements) {
-        this._lowerPlaneGeometry.setElements(elements);
+        this._planeGeometry.setElements(elements);
       }
-      elements = this._tilemapElementsGenerator.upperLayerElements();
-      if (elements) {
-        this._upperPlaneGeometry.setElements(elements);
-      }
-      this._lowerPlaneGeometry.update();
-      this._upperPlaneGeometry.update();
+      this._planeGeometry.update();
     }
     createPlanes() {
-      this._lowerPlaneGeometry = new TilemapPlaneGeometry(this._areaSize * 48, this._areaSize * 48, this._areaSize * 2, this._areaSize * 2, 4);
-      this._upperPlaneGeometry = new TilemapPlaneGeometry(this._areaSize * 48, this._areaSize * 48, this._areaSize * 2, this._areaSize * 2, 1);
+      this._planeGeometry = new TilemapPlaneGeometry(this._areaSize * 48, this._areaSize * 48, this._areaSize * 2, this._areaSize * 2, 4);
       if (this._useShaderMaterial) {
         this._material = this.createShaderMaterial();
       } else {
-        this._material = new import_three11.MeshBasicMaterial({ transparent: true, depthTest: false });
+        this._material = new import_three13.MeshBasicMaterial({ transparent: true, depthTest: false });
       }
       let baseXIndexBegin = 1;
       let baseXIndexEnd = 1;
@@ -2085,26 +2206,19 @@
         for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
           const xOfs = (baseXIndex - 1) * this._map.width() * 48;
           const zOfs = (baseYIndex - 1) * this._map.height() * 48;
-          const lowerPlane = new import_three11.Mesh(this._lowerPlaneGeometry, this._material);
-          lowerPlane.position.set(xOfs, 0, zOfs);
-          lowerPlane.rotation.x = SuperMode7Utils.deg2rad(0);
-          lowerPlane.renderOrder = -1;
-          this._lowerPlanes.push(lowerPlane);
-          this.add(lowerPlane);
-          const upperPlane = new import_three11.Mesh(this._upperPlaneGeometry, this._material);
-          upperPlane.position.set(xOfs, 1, zOfs);
-          upperPlane.rotation.x = SuperMode7Utils.deg2rad(0);
-          upperPlane.renderOrder = -1;
-          this._upperPlanes.push(upperPlane);
-          this.add(upperPlane);
+          const plane = new import_three13.Mesh(this._planeGeometry, this._material);
+          plane.position.set(xOfs, 0, zOfs);
+          plane.rotation.x = SuperMode7Utils.deg2rad(0);
+          plane.renderOrder = -1;
+          this._planes.push(plane);
+          this.add(plane);
         }
       }
     }
     createTexture() {
       const textureGenerator = new TilemapTextureGenerator();
       this._tilemapTexture = textureGenerator.generate();
-      this._lowerPlaneGeometry.setTextureSize(this._tilemapTexture.image.width, this._tilemapTexture.image.height);
-      this._upperPlaneGeometry.setTextureSize(this._tilemapTexture.image.width, this._tilemapTexture.image.height);
+      this._planeGeometry.setTextureSize(this._tilemapTexture.image.width, this._tilemapTexture.image.height);
     }
     createShaderMaterial() {
       const vertexShader = TilemapVertShader;
@@ -2113,13 +2227,13 @@
         sampler: { type: "t", value: null },
         fadeEffectRate: { value: 0 }
       };
-      return new import_three11.ShaderMaterial({ transparent: true, depthTest: false, vertexShader, fragmentShader, uniforms });
+      return new import_three13.ShaderMaterial({ transparent: true, depthTest: false, vertexShader, fragmentShader, uniforms });
     }
   };
 
   // src/EffectContainer.ts
-  var import_three13 = __toModule(__require("three"));
-  var EffectContainer = class extends import_three13.Object3D {
+  var import_three15 = __toModule(__require("three"));
+  var EffectContainer = class extends import_three15.Object3D {
     constructor(animationId, targets) {
       super();
       this._targets = targets;
@@ -2141,7 +2255,7 @@
     }
     play() {
       this._effect = EffectManager.load(this._animation.effectName);
-      const location = new import_three13.Vector3(this._targets[0].position.x, 24, this._targets[0].position.z);
+      const location = new import_three15.Vector3(this._targets[0].position.x, 24, this._targets[0].position.z);
       this._playing = true;
       const speed = this._animation.speed / 200;
       $scene3d._effekseerController.play(this._effect, location, { speed });
@@ -2209,7 +2323,8 @@
     constructor() {
       super();
       this._effekseerController = new EffekseerController(this._renderer, this._camera);
-      this._tilemapContainer = new TilemapContainer($gameMap, this.mode7Camera());
+      const areaSize = this._params.AreaSize == null ? 38 : this._params.AreaSize;
+      this._tilemapContainer = new TilemapContainer($gameMap, this.mode7Camera(), areaSize);
       this._fadeEffectController = new FadeEffectController(this._tilemapContainer);
       this._scene.add(this._tilemapContainer);
       if (this._params.FadeEffectRate != null && this._params.FadeEffectRate > 0)
@@ -2217,15 +2332,20 @@
     }
     createScene() {
       this._params = SuperMode7Utils.superMode7MapParams();
-      const scene = new import_three14.Scene();
+      const scene = new import_three16.Scene();
       return scene;
     }
     createCamera() {
-      const camera = new Mode7Camera();
+      const opt = {};
       if (this._params.CameraHeight != null)
-        camera.cameraHeight = this._params.CameraHeight;
+        opt.cameraHeight = this._params.CameraHeight;
       if (this._params.FarFromCenter != null)
-        camera.farFromCenter = this._params.FarFromCenter;
+        opt.farFromCenter = this._params.FarFromCenter;
+      if (this._params.CameraClipNear != null)
+        opt.near = this._params.CameraClipNear;
+      if (this._params.CameraClipFar != null)
+        opt.far = this._params.CameraClipFar;
+      const camera = new Mode7Camera(opt);
       return camera;
     }
     resetScene() {
@@ -2311,7 +2431,7 @@
   };
 
   // src/Scene_Map.ts
-  var import_three15 = __toModule(__require("three"));
+  var import_three17 = __toModule(__require("three"));
   var _Scene_Map_onMapLoaded = Scene_Map.prototype.onMapLoaded;
   Scene_Map.prototype.onMapLoaded = function() {
     _Scene_Map_onMapLoaded.call(this);
@@ -2345,7 +2465,7 @@
   Scene_Map.prototype.onMapTouch = function() {
     const mouseX = TouchInput.x / (Graphics.width / 2) - 1;
     const mouseY = -(TouchInput.y / (Graphics.height / 2)) + 1;
-    const pos = new import_three15.Vector2(mouseX, mouseY);
+    const pos = new import_three17.Vector2(mouseX, mouseY);
     const point = $scene3d.raycastToTilemap(pos);
     if (point) {
       const x = Math.round((point.x - 24) / 48);
@@ -2369,12 +2489,23 @@
   var _Spriteset_Map_createAnimation = Spriteset_Map.prototype.createAnimation;
   Spriteset_Map.prototype.createAnimation = function(request) {
     if (SuperMode7Utils.isEnabledSuperMode7()) {
-      for (const target of request.targets) {
-        const sprite3d = $scene3d._tilemapContainer.findCharacterSprite(target, 4);
-        const container = new EffectContainer(request.animationId, [sprite3d]);
-        $scene3d._scene.add(container);
-        container.play();
-        this._effectContainers.push(container);
+      const animation = $dataAnimations[request.animationId];
+      if (this.isMVAnimation(animation)) {
+      } else {
+        for (const target of request.targets) {
+          const sprite3d = $scene3d._tilemapContainer.findCharacterSprite(target, 4);
+          let container;
+          if (sprite3d.children.length === 1) {
+            container = new EffectContainer(request.animationId, [sprite3d.children[0]]);
+          } else {
+            container = new EffectContainer(request.animationId, [sprite3d.children[8]]);
+          }
+          if (!container)
+            throw new Error("container is null.");
+          $scene3d._scene.add(container);
+          container.play();
+          this._effectContainers.push(container);
+        }
       }
     } else {
       _Spriteset_Map_createAnimation.call(this, request);
@@ -2469,6 +2600,13 @@
   };
   Sprite_Destination.prototype.update = function() {
     Sprite.prototype.update.call(this);
+  };
+
+  // src/Sprite_Balloon.ts
+  var _Sprite_Balloon_initialize = Sprite_Balloon.prototype.initialize;
+  Sprite_Balloon.prototype.initialize = function() {
+    _Sprite_Balloon_initialize.call(this);
+    this.setDummyMode(true);
   };
 
   // src/Tilemap.ts
@@ -2665,11 +2803,11 @@
 })();
 /*!/*:
 @target MZ
-@plugindesc SuperMode7 v0.1.0
+@plugindesc SuperMode7 v0.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SuperMode7.js
 @help
-3D表現が可能になるプラグインです。
+タイルマップの3Dレンダリングを可能にするプラグインです。
 ※注意
 本プラグインはまだ開発途中版です。
 そのため、色々と機能が不足していたりバグがあったりします。ご了承ください。
@@ -2688,11 +2826,13 @@
 CameraHeight: カメラの高さを指定します。
 FarFromCenter: カメラの中央からの距離を指定します。
 FadeEffectRate: マップに適用するフェードエフェクトの適用率を0~1の範囲で指定します。
+AreaSize: 表示可能なエリア範囲を指定します。
 [設定例]
 <SuperMode7>
 CameraHeight: 528
-FarFromCenter: 10
+FarFromCenter: 480
 FadeEffectRate: 0.5
+AreaSize: 48
 </SuperMode7>
 
 ■ タイルに沿ったキャラクターの設定
@@ -2710,15 +2850,15 @@ SMode7_ChangeFarFromCenter(中心からの距離, 時間間隔)
 SMode7_ChangeAngle(角度, 時間間隔)
 カメラの中心からの距離を変更します。
 
-SMode7_ChangeFadeEffect(フェードエフェクト適応率, 時間間隔)
-マップのフェードエフェクト適応率を変更します。
+SMode7_ChangeFadeEffect(フェードエフェクト適用率, 時間間隔)
+マップのフェードエフェクト適用率を変更します。
 
 【未実装機能】
 次の内容は現時点で未実装になっています。
 ・MVアニメーション表示
 ・MZアニメーション左右反転
-・フキダシアイコンの表示
 ・マップの端まで移動した場合でも画面中心にスクロールさせる機能
+・カメラスクロール固定機能
 ・360度移動機能
 
 【ライセンス】
@@ -2823,14 +2963,14 @@ SMode7_ChangeFadeEffect(フェードエフェクト適応率, 時間間隔)
 フェードエフェクトの適用を開始します。
 
 @arg Rate
-@text フェードエフェクト適応率
+@text フェードエフェクト適用率
 @type number
 @default 1
 @min 0
 @max 1
 @decimals 4
 @desc
-フェードエフェクトの適応率を0～1の範囲で指定します。
+フェードエフェクトの適用率を0～1の範囲で指定します。
 
 @arg Duration
 @text 時間間隔
@@ -2855,7 +2995,7 @@ SMode7_ChangeFadeEffect(フェードエフェクト適応率, 時間間隔)
 中心からの距離を指定します。
 
 @param FadeEffectRate
-@text フェードエフェクト適応率
+@text フェードエフェクト適用率
 @type number
 @default 1
 @min 0
@@ -2863,5 +3003,28 @@ SMode7_ChangeFadeEffect(フェードエフェクト適応率, 時間間隔)
 @decimals 4
 @default 0
 @desc
-フィードエフェクトの適応率を指定します。
+フィードエフェクトの適用率を指定します。
+
+@param AreaSize
+@text エリアサイズ
+@type number
+@default 38
+@desc
+表示可能なエリアサイズを指定します。
+
+@param CameraClipNear
+@text カメラクリップ最短位置
+@type number
+@default 1
+@decimals 4
+@desc
+カメラの描画可能最短位置を指定します。
+
+@param CameraClipFar
+@text カメラクリップ最長位置
+@type number
+@default 1500
+@decimals 4
+@desc
+カメラの描画可能最長位置を指定します。
 */
