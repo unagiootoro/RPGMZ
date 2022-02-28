@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc キャラクターシルエット v1.0.0
+@plugindesc キャラクターシルエット v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SilletCharacter.js
 @help
@@ -33,6 +33,20 @@
 @type number
 @default 0
 @desc シルエット表示を行うリージョンIDを指定します。0を表示するとこの機能は無効化されます。
+
+@param SilletColor
+@text シルエットカラー
+@type string
+@default #000000
+@desc シルエットのカラーを指定します。
+
+@param SilletOpacity
+@text シルエット透明度
+@type number
+@min 0
+@max 255
+@default 128
+@desc シルエットの透明度を指定します。
 
 
 @command StartSillet
@@ -158,6 +172,17 @@ function searchCharacterById(eventIdOrName, interpreter) {
     }
 }
 
+function cssColorToFloatRgb(cssColor) {
+    const matchData = cssColor.match(/#([0-9a-fA-F][0-9a-fA-F])([0-9a-fA-F][0-9a-fA-F])([0-9a-fA-F][0-9a-fA-F])/);
+    if (matchData) {
+        const r = parseInt(`0x${matchData[1]}`);
+        const g = parseInt(`0x${matchData[2]}`);
+        const b = parseInt(`0x${matchData[3]}`);
+        return [r, g, b];
+    }
+    return [0, 0, 0];
+}
+
 PluginManager.registerCommand(SilletCharacterPluguinName, "StartSillet", function(args) {
     const params = PluginParamsParser.parse(args, { EventId: "string" });
     const event = searchCharacterById(params.EventId, this);
@@ -175,6 +200,8 @@ class SilletFilter extends PIXI.Filter {
     constructor(...args) {
         super(null, SilletFilter._fragmentSrc());
         this.initialize(...args);
+        this.setAlpha(0.5);
+        this.setColor([0, 0, 0]);
     }
 
     static _fragmentSrc() {
@@ -182,12 +209,14 @@ class SilletFilter extends PIXI.Filter {
             varying vec2 vTextureCoord;
             uniform sampler2D uSampler;
             uniform bool isSillet;
+            uniform float alpha;
+            uniform vec3 color;
 
             void main() {
                 vec4 sample = texture2D(uSampler, vTextureCoord);
                 float a = sample.a;
                 if (isSillet) {
-                    gl_FragColor = vec4(0.0, 0.0, 0.0, a * 0.5);
+                    gl_FragColor = vec4(color.r * a, color.g * a, color.b * a, a * alpha);
                 } else {
                     gl_FragColor = sample;
                 }
@@ -203,6 +232,14 @@ class SilletFilter extends PIXI.Filter {
     setSillet(isSillet) {
         this.uniforms.isSillet = isSillet;
     }
+
+    setAlpha(alpha) {
+        this.uniforms.alpha = alpha;
+    }
+
+    setColor(color) {
+        this.uniforms.color = color;
+    }
 }
 
 
@@ -215,7 +252,7 @@ Sprite_Character.prototype.initialize = function(character) {
 const _Sprite_Character_update = Sprite_Character.prototype.update;
 Sprite_Character.prototype.update = function() {
     _Sprite_Character_update.call(this);
-    this._silletFilter.setSillet(this._character.isSilletMode());
+    this.updateSilletFilter();
 };
 
 Sprite_Character.prototype.createSilletFilter = function() {
@@ -226,6 +263,14 @@ Sprite_Character.prototype.createSilletFilter = function() {
 
 Sprite_Character.prototype.isNeedSilletFilter = function() {
     return this._character.isNeedSilletMode();
+};
+
+Sprite_Character.prototype.updateSilletFilter = function() {
+    this._silletFilter.setSillet(this._character.isSilletMode());
+    const alpha = PP.SilletOpacity == null ? 0.5 : PP.SilletOpacity / 255.0;
+    const color = PP.SilletColor == null ? [0, 0, 0] : cssColorToFloatRgb(PP.SilletColor);
+    this._silletFilter.setAlpha(alpha);
+    this._silletFilter.setColor(color);
 };
 
 
