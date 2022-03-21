@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.2.0
+@plugindesc Dot movement system enhancement v1.3.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -13,6 +13,8 @@ Add the following features.
 ・ Press an event
 ・ Change of behavior when immersing in an event
 ・ Jump with collision detection
+・ Half-square collision detection of terrain
+・ Triangular mass collision detection of terrain
 
 【How to use】
 ■ Change player size
@@ -73,6 +75,17 @@ this.smartJump (addition value in the X-axis direction, addition value in the Y-
 (Example) When jumping 2 to the left and 3.5 to the top
 this.smartJump (2, -3.5);
 
+■ Half-square collision detection of terrain
+By editing the plug-in parameter "HalfCollisionMassInfo"
+Set the hit judgment for half a square of the terrain based on the region or terrain tag.
+
+■ Judgment of hitting the triangular squares of the terrain
+By editing the plug-in parameter "TriangleCollisionMassInfo"
+Set the hit judgment to the triangular square of the terrain based on the region or terrain tag.
+
+【License】
+This plugin is available under the terms of the MIT license.
+
 
 @param PlayerInfo
 @text player information
@@ -95,8 +108,19 @@ Specify various information of followers.
 @desc
 Setting true allows you to bypass conflicted events.
 
-【License】
-This plugin is available under the terms of the MIT license.
+@param HalfCollisionMassInfo
+@text Collision detection information per half square
+@type struct <HalfCollisionMassInfo>
+@default {"UpCollisionRegionId": "0", "RightCollisionRegionId": "0", "DownCollisionRegionId": "0", "LeftCollisionRegionId": "0", "UpRightCollisionRegionId": "0", "RightDownCollisionRegionId": "0" , "DownLeftCollisionRegionId": "0", "LeftUpCollisionRegionId": "0", "UpRightOpenCollisionRegionId": "0", "RightDownOpenCollisionRegionId": "0", "DownLeftOpenCollisionRegionId": "0", "LeftUpOpenCol" UpCollisionTerrainTagId ":" 0 "," RightCollisionTerrainTagId ":" 0 "," DownCollisionTerrainTagId ":" 0 "," LeftCollisionTerrainTagId ":" 0 "," UpRightCollisionTerrainTagId ":" 0 "," RightDownCollisionTerrainTagId ":" 0 "," RightDownCollisionTerrainTagId ":" 0 " : "0", "LeftUpCollisionTerrainTagId": "0", "UpRightOpenCollisionTerrainTagId": "0", "RightDownOpenCollisionTerrainTagId": "0", "DownLeftOpenCollisionTerrainTagId": "0", "LeftUpOpenCollisionTerrainTagId": "0", "LeftUpOpenCollisionTerrainTagId": "0"
+@desc
+Specify various information for half-square collision detection. Common to all types of information, if 0 is set, the setting will be invalidated.
+
+@param TriangleCollisionMassInfo
+@text Triangular cell collision detection information
+@type struct <TriangleCollisionMassInfo>
+@default {"LeftUpTriangleRegionId": "0", "DownLeftTriangleRegionId": "0", "RightDownTriangleRegionId": "0", "UpRightTriangleRegionId": "0", "LeftUpTriangleTerrainTagId": "0", "DownLeftTriangleTerrainTagId": "0" , "RightDownTriangleTerrainTagId": "0", "UpRightTriangleTerrainTagId": "0"}
+@desc
+Specify various information for collision detection of triangular squares. Common to all types of information, if 0 is set, the setting will be invalidated.
 */
 
 /*~struct~CharacterInfo:
@@ -169,9 +193,368 @@ Specifies the X coordinate offset when moving to a location.
 Specifies the Y coordinate offset when moving to a location.
 */
 
+
+/*~struct~HalfCollisionMassInfo:
+@param UpCollisionRegionId
+@text Upward collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the upward collision detection.
+
+@param RightCollisionRegionId
+@text Right-hand collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the right-handed mass collision detection.
+
+@param DownCollisionRegionId
+@text Downward collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the downward mass collision detection.
+
+@param LeftCollisionRegionId
+@text Left-hand collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the left-handed mass collision detection.
+
+@param UpRightCollisionRegionId
+@text Upper right collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the mass collision detection in the upper right direction.
+
+@param RightDownCollisionRegionId
+@text Lower right collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the mass collision detection in the lower right direction.
+
+@param DownLeftCollisionRegionId
+@text Lower left collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the mass collision detection in the lower left direction.
+
+@param LeftUpCollisionRegionId
+@text Upper left collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the mass collision detection in the upper left direction.
+
+@param UpRightOpenCollisionRegionId
+@text Top right direction Free collision detection Region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the free space collision detection in the upper right direction.
+
+@param RightDownOpenCollisionRegionId
+@text Lower right collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for collision detection in the lower right direction.
+
+@param DownLeftOpenCollisionRegionId
+@text Lower left collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for collision detection in the lower left direction.
+
+@param LeftUpOpenCollisionRegionId
+@text Upper left collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the free space collision detection in the upper left direction.
+
+@param UpCollisionRegionId
+@text Upward collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the upward collision detection.
+
+@param RightCollisionRegionId
+@text Right-hand collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the right-handed mass collision detection.
+
+@param DownCollisionRegionId
+@text Downward collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the downward mass collision detection.
+
+@param LeftCollisionRegionId
+@text Left-hand collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the left-handed mass collision detection.
+
+@param UpRightCollisionRegionId
+@text Upper right collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the mass collision detection in the upper right direction.
+
+@param RightDownCollisionRegionId
+@text Lower right collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the mass collision detection in the lower right direction.
+
+@param DownLeftCollisionRegionId
+@text Lower left collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the mass collision detection in the lower left direction.
+
+@param LeftUpCollisionRegionId
+@text Upper left collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the mass collision detection in the upper left direction.
+
+@param UpRightOpenCollisionRegionId
+@text Top right direction Free collision detection Region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the free space collision detection in the upper right direction.
+
+@param RightDownOpenCollisionRegionId
+@text Lower right collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for collision detection in the lower right direction.
+
+@param DownLeftOpenCollisionRegionId
+@text Lower left collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for collision detection in the lower left direction.
+
+@param LeftUpOpenCollisionRegionId
+@text Upper left collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for the free space collision detection in the upper left direction.
+
+
+@param UpCollisionTerrainTagId
+@text Upward collision detection Terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for the upward collision detection.
+
+@param RightCollisionTerrainTagId
+@text Right-hand collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the right direction.
+
+@param DownCollisionTerrainTagId
+@text Downward collision detection Terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for the downward mass collision detection.
+
+@param LeftCollisionTerrainTagId
+@text Left-hand collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for the left-hand side collision detection.
+
+@param UpRightCollisionTerrainTagId
+@text Collision detection terrain tag ID in the upper right direction
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for the square collision detection in the upper right direction.
+
+@param RightDownCollisionTerrainTagId
+@text Lower right collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for the mass collision detection in the lower right direction.
+
+@param DownLeftCollisionTerrainTagId
+@text Lower left collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for the mass collision detection in the lower left direction.
+
+@param LeftUpCollisionTerrainTagId
+@text Upper left collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for the square collision detection in the upper left direction.
+
+@param UpRightOpenCollisionTerrainTagId
+@text Top right direction vacant collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the upper right direction.
+
+@param RightDownOpenCollisionTerrainTagId
+@text Lower right collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the lower right direction.
+
+@param DownLeftOpenCollisionTerrainTagId
+@text Lower left collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the lower left direction.
+
+@param LeftUpOpenCollisionTerrainTagId
+@text Upper left collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the upper left direction.
+*/
+
+/*~struct~TriangleCollisionMassInfo:
+@param LeftUpTriangleRegionId
+@text Upper left triangle collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for collision detection in the upper left direction.
+
+@param DownLeftTriangleRegionId
+@text Lower left triangle collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for collision detection in the lower left direction.
+
+@param RightDownTriangleRegionId
+@text Lower right triangle collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID for collision detection in the lower right direction.
+
+@param UpRightTriangleRegionId
+@text Upper right triangle collision detection region ID
+@type number
+@min 0
+@default 0
+@desc
+Set the region ID of the triangle collision detection in the upper right direction.
+
+
+@param LeftUpTriangleTerrainTagId
+@text Upper left collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the upper left direction.
+
+@param DownLeftTriangleTerrainTagId
+@text Lower left collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the lower left direction.
+
+@param RightDownTriangleTerrainTagId
+@text Lower right collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the lower right direction.
+
+@param UpRightTriangleTerrainTagId
+@text Upper right triangle collision detection terrain tag ID
+@type number
+@min 0
+@default 0
+@desc
+Set the terrain tag ID for collision detection in the upper right triangle direction.
+*/
+
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.2.0
+@plugindesc ドット移動システム機能拡張 v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -185,6 +568,7 @@ Specifies the Y coordinate offset when moving to a location.
 ・イベントめり込み時の挙動の変更
 ・当たり判定付きジャンプ
 ・地形の半マス当たり判定
+・地形の三角マス当たり判定
 
 【使用方法】
 ■ プレイヤーサイズの変更
@@ -249,6 +633,13 @@ this.smartJump(2, -3.5);
 プラグインパラメータ「HalfCollisionMassInfo」を編集することで、
 リージョンまたは地形タグをもとに地形の半マスに当たり判定を設定します。
 
+■ 地形の三角マス当たり判定
+プラグインパラメータ「TriangleCollisionMassInfo」を編集することで、
+リージョンまたは地形タグをもとに地形の三角マスに当たり判定を設定します。
+
+【ライセンス】
+このプラグインは、MITライセンスの条件の下で利用可能です。
+
 
 @param PlayerInfo
 @text プレイヤー情報
@@ -278,8 +669,12 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 @desc
 半マス当たり判定の各種情報を指定します。各種情報共通で、0が設定された場合は設定を無効化します。
 
-【ライセンス】
-このプラグインは、MITライセンスの条件の下で利用可能です。
+@param TriangleCollisionMassInfo
+@text 三角マス当たり判定情報
+@type struct<TriangleCollisionMassInfo>
+@default {"LeftUpTriangleRegionId":"0","DownLeftTriangleRegionId":"0","RightDownTriangleRegionId":"0","UpRightTriangleRegionId":"0","LeftUpTriangleTerrainTagId":"0","DownLeftTriangleTerrainTagId":"0","RightDownTriangleTerrainTagId":"0","UpRightTriangleTerrainTagId":"0"}
+@desc
+三角マス当たり判定の各種情報を指定します。各種情報共通で、0が設定された場合は設定を無効化します。
 */
 
 /*~struct~CharacterInfo:ja
@@ -644,6 +1039,73 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 左上方向の空きマス当たり判定の地形タグIDを設定します。
 */
 
+/*~struct~TriangleCollisionMassInfo:ja
+@param LeftUpTriangleRegionId
+@text 左上三角当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左上方向の三角マス当たり判定のリージョンIDを設定します。
+
+@param DownLeftTriangleRegionId
+@text 左下三角当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+左下方向の三角マス当たり判定のリージョンIDを設定します。
+
+@param RightDownTriangleRegionId
+@text 右下三角当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右下方向の三角マス当たり判定のリージョンIDを設定します。
+
+@param UpRightTriangleRegionId
+@text 右上三角当たり判定リージョンID
+@type number
+@min 0
+@default 0
+@desc
+右上方向の三角マス当たり判定のリージョンIDを設定します。
+
+
+@param LeftUpTriangleTerrainTagId
+@text 左上方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+左上方向の三角マス当たり判定の地形タグIDを設定します。
+
+@param DownLeftTriangleTerrainTagId
+@text 左下方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+左下方向の三角マス当たり判定の地形タグIDを設定します。
+
+@param RightDownTriangleTerrainTagId
+@text 右下方向当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+右下方向の三角マス当たり判定の地形タグIDを設定します。
+
+@param UpRightTriangleTerrainTagId
+@text 右上三角当たり判定地形タグID
+@type number
+@min 0
+@default 0
+@desc
+右上三角方向の三角マス当たり判定の地形タグIDを設定します。
+*/
+
 const DotMoveSystem_FunctionExPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
 (() => {
@@ -735,9 +1197,21 @@ const typeDefine = {
     PlayerInfo: {},
     FollowerInfo: {},
     HalfCollisionMassInfo: {},
+    TriangleCollisionMassInfo: {},
 };
 const PP = PluginParamsParser.parse(PluginManager.parameters(DotMoveSystem_FunctionExPluginName), typeDefine);
 
+
+/*
+ * ● 定数定義
+ */
+const LEFT_UP_TRIANGLE_ID = 13;
+const DOWN_LEFT_TRIANGLE_ID = 14;
+const RIGHT_DOWN_TRIANGLE_ID = 15;
+const UP_RIGHT_TRIANGLE_ID = 16;
+
+const START_TRIANGLE_ID = 13;
+const END_TRIANGLE_ID = 16;
 
 /*
  * ● 初期化処理
@@ -1101,6 +1575,13 @@ Game_CharacterBase.prototype.smartJump = function(xPlus, yPlus, baseJumpPeak = 1
     this.straighten();
 };
 
+Game_CharacterBase.prototype.smartJumpAbs = function(x, y, baseJumpPeak = 10) {
+    const xPlus = x - this._realX;
+    const yPlus = y - this._realY;
+    this.smartJump(xPlus, yPlus, baseJumpPeak);
+};
+
+
 Game_CharacterBase.prototype.isSmartJumping = function() {
     return this._jumpXPlus != null && this._jumpYPlus != null;
 };
@@ -1186,6 +1667,14 @@ CharacterCollisionChecker.prototype.getMassCollisionType = function(x, y) {
             return 11;
         case PP.HalfCollisionMassInfo.LeftUpOpenCollisionRegionId:
             return 12;
+        case PP.TriangleCollisionMassInfo.LeftUpTriangleRegionId:
+            return LEFT_UP_TRIANGLE_ID;
+        case PP.TriangleCollisionMassInfo.DownLeftTriangleRegionId:
+            return DOWN_LEFT_TRIANGLE_ID;
+        case PP.TriangleCollisionMassInfo.RightDownTriangleRegionId:
+            return RIGHT_DOWN_TRIANGLE_ID;
+        case PP.TriangleCollisionMassInfo.UpRightTriangleRegionId:
+            return UP_RIGHT_TRIANGLE_ID;
         }
     }
     if (terrainTag > 0) {
@@ -1214,6 +1703,14 @@ CharacterCollisionChecker.prototype.getMassCollisionType = function(x, y) {
             return 11;
         case PP.HalfCollisionMassInfo.LeftUpOpenCollisionTerrainTagId:
             return 12;
+        case PP.TriangleCollisionMassInfo.LeftUpTriangleTerrainTagId:
+            return LEFT_UP_TRIANGLE_ID;
+        case PP.TriangleCollisionMassInfo.DownLeftTriangleTerrainTagId:
+            return DOWN_LEFT_TRIANGLE_ID;
+        case PP.TriangleCollisionMassInfo.RightDownTriangleTerrainTagId:
+            return RIGHT_DOWN_TRIANGLE_ID;
+        case PP.TriangleCollisionMassInfo.UpRightTriangleTerrainTagId:
+            return UP_RIGHT_TRIANGLE_ID;
         }
     }
     return 0;
@@ -1241,11 +1738,11 @@ CharacterCollisionChecker.prototype.checkPassMass = function(x, y, d) {
         return true;
     }
 
-    if (this.getMassCollisionType(x2, y2) >= 1 && this.getMassCollisionType(x2, y2) <= 12) {
+    if (this.getMassCollisionType(x2, y2) >= 1 && this.getMassCollisionType(x2, y2) <= END_TRIANGLE_ID) {
         return false;
     }
     const prevPoint = DotMoveUtils.prevPointWithDirection({ x: x2, y: y2 }, d);
-    if (this.getMassCollisionType(prevPoint.x, prevPoint.y) >= 1 && this.getMassCollisionType(prevPoint.x, prevPoint.y) <= 12) {
+    if (this.getMassCollisionType(prevPoint.x, prevPoint.y) >= 1 && this.getMassCollisionType(prevPoint.x, prevPoint.y) <= END_TRIANGLE_ID) {
         return true;
     }
 
@@ -1258,7 +1755,7 @@ CharacterCollisionChecker.prototype.checkPassMass = function(x, y, d) {
 
 const _CharacterCollisionChecker_checkCollisionXCliff = CharacterCollisionChecker.prototype.checkCollisionXCliff;
 CharacterCollisionChecker.prototype.checkCollisionXCliff = function(targetRect, x, x1, x2, y1, d) {
-    if (this.getMassCollisionType(x1, y1) >= 1 && this.getMassCollisionType(x1, y1) <= 12 && this.getMassCollisionType(x2, y1) >= 1 && this.getMassCollisionType(x2, y1) <= 12) {
+    if (this.getMassCollisionType(x1, y1) >= 1 && this.getMassCollisionType(x1, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(x2, y1) >= 1 && this.getMassCollisionType(x2, y1) <= END_TRIANGLE_ID) {
         return [];
     }
     return _CharacterCollisionChecker_checkCollisionXCliff.call(this, targetRect, x, x1, x2, y1, d);
@@ -1266,10 +1763,435 @@ CharacterCollisionChecker.prototype.checkCollisionXCliff = function(targetRect, 
 
 const _CharacterCollisionChecker_checkCollisionYCliff = CharacterCollisionChecker.prototype.checkCollisionYCliff;
 CharacterCollisionChecker.prototype.checkCollisionYCliff = function(targetRect, y, y1, y2, x1, d) {
-    if (this.getMassCollisionType(x1, y1) >= 1 && this.getMassCollisionType(x1, y1) <= 12 && this.getMassCollisionType(x1, y2) >= 1 && this.getMassCollisionType(x1, y2) <= 12) {
+    if (this.getMassCollisionType(x1, y1) >= 1 && this.getMassCollisionType(x1, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(x1, y2) >= 1 && this.getMassCollisionType(x1, y2) <= END_TRIANGLE_ID) {
         return [];
     }
     return _CharacterCollisionChecker_checkCollisionYCliff.call(this, targetRect, y, y1, y2, x1, d);
+};
+
+/*
+ * ● 三角マス通行判定設定
+ */
+Object.defineProperty(CollisionResult, "triangleType", {
+    get: function() {
+        return this._triangleType;
+    },
+    set: function(_triangleType) {
+        this._triangleType = _triangleType;
+    },
+    configurable: true
+});
+
+DotMoveUtils.calcMassTriangle = function(id, characterRect, direction, ix, iy) {
+    switch (id) {
+    case LEFT_UP_TRIANGLE_ID:
+        if (direction === 8) {
+            const dx = characterRect.x - ix;
+            const h = 1 - dx;
+            return new Rectangle(ix, iy, 1, h);
+        } else if (direction === 4) {
+            const dy = characterRect.y - iy;
+            let w = 1 - dy;
+            return new Rectangle(ix, iy, w, 1);
+        }
+        break;
+    case DOWN_LEFT_TRIANGLE_ID:
+        if (direction === 2) {
+            const dx = characterRect.x - ix;
+            const h = 1 - dx;
+            return new Rectangle(ix, iy + (1 - h), 1, h);
+        } else if (direction === 4) {
+            const dy = (characterRect.y + characterRect.height) - iy;
+            const w = dy;
+            return new Rectangle(ix, iy, w, 1);
+        }
+        break;
+    case RIGHT_DOWN_TRIANGLE_ID:
+        if (direction === 6) {
+            const dy = (characterRect.y + characterRect.height) - iy;
+            const w = dy;
+            return new Rectangle(ix + (1 - w), iy, w, 1);
+        } else if (direction === 2) {
+            const dx = (characterRect.x + characterRect.width) - ix;
+            const h = dx;
+            return new Rectangle(ix, iy + (1 - h), 1, h);
+        }
+        break;
+    case UP_RIGHT_TRIANGLE_ID:
+        if (direction === 8) {
+            const dx = (characterRect.x + characterRect.width) - ix;
+            const h = dx;
+            return new Rectangle(ix, iy, 1, h);
+        } else if (direction === 6) {
+            const dy = characterRect.y - iy;
+            const w = 1 - dy;
+            return new Rectangle(ix + (1 - w), iy, w, 1);
+        }
+        break;
+    }
+    throw new Error(`Calc triangle failed. (id=${id}, direction=${direction})`);
+};
+
+const _CharacterCollisionChecker_checkCollisionCliff = CharacterCollisionChecker.prototype.checkCollisionCliff;
+CharacterCollisionChecker.prototype.checkCollisionCliff = function(targetRect, x, y, x1, y1, x2, y2, d) {
+    for (let ix = x1; ix < x2; ix++) {
+        for (let iy = y1; iy < y2; iy++) {
+            const id = $gameMap.regionId(ix, iy);
+            if (id >= START_TRIANGLE_ID && id <= END_TRIANGLE_ID) return [];
+        }
+    }
+    return _CharacterCollisionChecker_checkCollisionCliff.call(this, targetRect, x, y, x1, y1, x2, y2, d);
+};
+
+CharacterController.prototype.canSlideWithoutSlideLength = function(collisionResults) {
+    if (collisionResults.length === 0) {
+        return false;
+    } else {
+        if (collisionResults[0].triangleType >= 1 || collisionResults[0].triangleType <= 4) {
+            return false;
+        }
+
+        if (collisionResults.length === 1) {
+            return true;
+        } else {
+            const collisionRectX = collisionResults[0].collisionRect.x;
+            const collisionRectY = collisionResults[0].collisionRect.y;
+            return collisionResults.every(result => {
+                return result.collisionRect.x === collisionRectX && result.collisionRect.y === collisionRectY;
+            });
+        }
+    }
+};
+
+const _CharacterCollisionChecker_checkCollisionMass = CharacterCollisionChecker.prototype.checkCollisionMass;
+CharacterCollisionChecker.prototype.checkCollisionMass = function(targetRect, d, ix, iy) {
+    const id = this.getMassCollisionType(ix, iy);
+
+    if (this.checkPassMass(ix, iy, d)) return [];
+
+    if (id === LEFT_UP_TRIANGLE_ID) {
+        return this.checkCollisionMassLeftUp(targetRect, d, ix, iy);
+    } else if (id === DOWN_LEFT_TRIANGLE_ID) {
+        return this.checkCollisionMassDownLeft(targetRect, d, ix, iy);
+    } else if (id === RIGHT_DOWN_TRIANGLE_ID) {
+        return this.checkCollisionMassRightDown(targetRect, d, ix, iy);
+    } else if (id === UP_RIGHT_TRIANGLE_ID) {
+        return this.checkCollisionMassUpRight(targetRect, d, ix, iy);
+    } else {
+        return _CharacterCollisionChecker_checkCollisionMass.call(this, targetRect, d, ix, iy);
+    }
+};
+
+CharacterCollisionChecker.prototype.checkCollisionMassLeftUp = function(targetRect, d, ix, iy) {
+    const massRect = new Rectangle(ix, iy, 1, 1);
+    const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
+    if (!result) return [];
+    const pos = this._character.positionPoint();
+    if (d === 8) {
+        if (pos.x < ix) {
+            result.triangleType = 1;
+            return [result];
+        } else {
+            const rect = DotMoveUtils.calcMassTriangle(LEFT_UP_TRIANGLE_ID, targetRect, d, ix, iy);
+            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
+            if (!result2) return [];
+            result2.triangleType = 1;
+            return [result2];
+        }
+    } else if (d === 6) {
+        if (pos.x < ix) {
+            return [result];
+        } else {
+            return [];
+        }
+    } else if (d === 2) {
+        if (pos.y < iy) {
+            return [result];
+        } else {
+            return [];
+        }
+    } else if (d === 4) {
+        if (pos.y < iy) { 
+            result.triangleType = 1;
+            return [result];
+        } else {
+            const rect = DotMoveUtils.calcMassTriangle(LEFT_UP_TRIANGLE_ID, targetRect, d, ix, iy);
+            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
+            if (!result2) return [];
+            result2.triangleType = 1;
+            return [result2];
+        }
+    }
+};
+
+CharacterCollisionChecker.prototype.checkCollisionMassDownLeft = function(targetRect, d, ix, iy) {
+    const massRect = new Rectangle(ix, iy, 1, 1);
+    const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
+    if (!result) return [];
+    const pos = this._character.positionPoint();
+    if (d === 8) {
+        if (pos.y + this._character.height() < iy + 1) {
+            return [];
+        } else {
+            return [result];
+        }
+    } else if (d === 6) {
+        if (pos.x < ix) {
+            return [result];
+        } else {
+            return [];
+        }
+    } else if (d === 2) {
+        if (pos.x < ix) { 
+            result.triangleType = 2;
+            return [result];
+        } else {
+            const rect = DotMoveUtils.calcMassTriangle(DOWN_LEFT_TRIANGLE_ID, targetRect, d, ix, iy);
+            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
+            if (!result2) return [];
+            result2.triangleType = 2;
+            return [result2];
+        }
+    } else if (d === 4) {
+        if (pos.y + this._character.height() > iy + 1) { 
+            result.triangleType = 2;
+            return [result];
+        } else {
+            const rect = DotMoveUtils.calcMassTriangle(DOWN_LEFT_TRIANGLE_ID, targetRect, d, ix, iy);
+            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
+            if (!result2) return [];
+            result2.triangleType = 2;
+            return [result2];
+        }
+    }
+};
+
+CharacterCollisionChecker.prototype.checkCollisionMassRightDown = function(targetRect, d, ix, iy) {
+    const massRect = new Rectangle(ix, iy, 1, 1);
+    const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
+    if (!result) return [];
+    const pos = this._character.positionPoint();
+    if (d === 8) {
+        if (pos.y + this._character.height() < iy + 1) {
+            return [];
+        } else {
+            return [result];
+        }
+    } else if (d === 6) {
+        if (pos.y + this._character.height() > iy + 1) { 
+            result.triangleType = 3;
+            return [result];
+        } else {
+            const rect = DotMoveUtils.calcMassTriangle(RIGHT_DOWN_TRIANGLE_ID, targetRect, d, ix, iy);
+            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
+            if (!result2) return [];
+            result2.triangleType = 3;
+            return [result2];
+        }
+    } else if (d === 2) {
+        if (pos.x + this._character.width() > ix + 1) {
+            result.triangleType = 3;
+            return [result];
+        } else {
+            const rect = DotMoveUtils.calcMassTriangle(RIGHT_DOWN_TRIANGLE_ID, targetRect, d, ix, iy);
+            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
+            if (!result2) return [];
+            result2.triangleType = 3;
+            return [result2];
+        }
+    } else if (d === 4) {
+        if (pos.x + this._character.width() > ix + 1) {
+            return [result];
+        } else {
+            return [];
+        }
+    }
+};
+
+CharacterCollisionChecker.prototype.checkCollisionMassUpRight = function(targetRect, d, ix, iy) {
+    const massRect = new Rectangle(ix, iy, 1, 1);
+    const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
+    if (!result) return [];
+    const pos = this._character.positionPoint();
+    if (d === 8) {
+        if (pos.x + this._character.width() >= ix + 1) {
+            result.triangleType = 4;
+            return [result];
+        } else {
+            const rect = DotMoveUtils.calcMassTriangle(UP_RIGHT_TRIANGLE_ID, targetRect, d, ix, iy);
+            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
+            if (!result2) return [];
+            result2.triangleType = 4;
+            return [result2];
+        }
+    } else if (d === 6) {
+        if (pos.y < iy) { 
+            result.triangleType = 4;
+            return [result];
+        } else {
+            const rect = DotMoveUtils.calcMassTriangle(UP_RIGHT_TRIANGLE_ID, targetRect, d, ix, iy);
+            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
+            if (!result2) return [];
+            result2.triangleType = 4;
+            return [result2];
+        }
+    } else if (d === 2) {
+        if (pos.y > iy) {
+            return [];
+        } else {
+            return [result];
+        }
+    } else if (d === 4) {
+        if (pos.x + this._character.width() > ix + 1) {
+            return [result];
+        } else {
+            return [];
+        }
+    }
+};
+
+CharacterController.prototype.calcUp = function(dis) {
+    const target = this._character.collisionRect();
+    const collisionResults = this.checkCollision(target.x, target.y + dis.y, 8);
+
+    if (collisionResults.length >= 1) {
+        if (collisionResults.every(res => res.triangleType === 1)) {
+            let dis2 = this.calcDistance(45);
+            return this.calcUpRight(dis2, false, false);
+        } else if (collisionResults.every(res => res.triangleType === 4)) {
+            let dis2 = this.calcDistance(315);
+            return this.calcLeftUp(dis2, false, false);
+        }
+    }
+
+    if (this.canSlide(collisionResults, "x")) {
+        const collisionCharacterRect = collisionResults[0].collisionRect;
+        if ($gameMap.isLoopHorizontal()) {
+            if (DotMoveUtils.checkCorrectX2ToLoopedPos(target.x, target.width, collisionCharacterRect.x)) {
+                collisionCharacterRect.x += $gameMap.width();
+            } else if (DotMoveUtils.checkCorrectX1ToLoopedPos(target.x, collisionCharacterRect.x, collisionCharacterRect.width)) {
+                target.x += $gameMap.width();
+            }
+        }
+        if (collisionCharacterRect.x >= (target.x + target.width - this.slideLengthX())) {
+            return this.calcLeftUp(dis, true, true);
+        } else if ((collisionCharacterRect.x + collisionCharacterRect.width) <= (target.x + this.slideLengthY())) {
+            return this.calcUpRight(dis, true, true);
+        }
+    }
+    if (dis.x < 0) {
+        return this.calcLeftUp(dis, false, false);
+    } else {
+        return this.calcUpRight(dis, false, false);
+    }
+};
+
+CharacterController.prototype.calcRight = function(dis) {
+    const target = this._character.collisionRect();
+    const collisionResults = this.checkCollision(target.x + dis.x, target.y, 6);
+
+    if (collisionResults.length >= 1) {
+        if (collisionResults.every(res => res.triangleType === 4)) {
+            let dis2 = this.calcDistance(135);
+            return this.calcRightDown(dis2, false, false);
+        } else if (collisionResults.every(res => res.triangleType === 3)) {
+            let dis2 = this.calcDistance(45);
+            return this.calcUpRight(dis2, false, false);
+        }
+    }
+
+    if (this.canSlide(collisionResults, "y")) {
+        const collisionCharacterRect = collisionResults[0].collisionRect;
+        if ($gameMap.isLoopVertical()) {
+            if (DotMoveUtils.checkCorrectY2ToLoopedPos(target.y, target.height, collisionCharacterRect.y)) {
+                collisionCharacterRect.y += $gameMap.height();
+            } else if (DotMoveUtils.checkCorrectY1ToLoopedPos(target.y, collisionCharacterRect.y, collisionCharacterRect.height)) {
+                target.y += $gameMap.height();
+            }
+        }
+        if (collisionCharacterRect.y >= (target.y + target.height - this.slideLengthY())) {
+            return this.calcUpRight(dis, true, true);
+        } else if ((collisionCharacterRect.y + collisionCharacterRect.height) <= (target.y + this.slideLengthY())) {
+            return this.calcRightDown(dis, true, true);
+        }
+    }
+    if (dis.y < 0) {
+        return this.calcUpRight(dis, false, false);
+    } else {
+        return this.calcRightDown(dis, false, false);
+    }
+};
+
+CharacterController.prototype.calcDown = function(dis) {
+    const target = this._character.collisionRect();
+    const collisionResults = this.checkCollision(target.x, target.y + dis.y, 2);
+
+    if (collisionResults.length >= 1) {
+        if (collisionResults.every(res => res.triangleType === 2)) {
+            let dis2 = this.calcDistance(135);
+            return this.calcRightDown(dis2, false, false);
+        } else if (collisionResults.every(res => res.triangleType === 3)) {
+            let dis2 = this.calcDistance(225);
+            return this.calcDownLeft(dis2, false, false);
+        }
+    }
+
+    if (this.canSlide(collisionResults, "x")) {
+        const collisionCharacterRect = collisionResults[0].collisionRect;
+        if ($gameMap.isLoopHorizontal()) {
+            if (DotMoveUtils.checkCorrectX2ToLoopedPos(target.x, target.width, collisionCharacterRect.x)) {
+                collisionCharacterRect.x += $gameMap.width();
+            } else if (DotMoveUtils.checkCorrectX1ToLoopedPos(target.x, collisionCharacterRect.x, collisionCharacterRect.width)) {
+                target.x += $gameMap.width();
+            }
+        }
+        if (collisionCharacterRect.x >= (target.x + target.width - this.slideLengthX())) {
+            return this.calcDownLeft(dis, true, true);
+        } else if ((collisionCharacterRect.x + collisionCharacterRect.width) <= (target.x + this.slideLengthY())) {
+            return this.calcRightDown(dis, true, true);
+        }
+    }
+    if (dis.x < 0) {
+        return this.calcDownLeft(dis, false, false);
+    } else {
+        return this.calcRightDown(dis, false, false);
+    }
+};
+
+CharacterController.prototype.calcLeft = function(dis) {
+    const target = this._character.collisionRect();
+    const collisionResults = this.checkCollision(target.x + dis.x, target.y, 4);
+
+    if (collisionResults.length >= 1) {
+        if (collisionResults.every(res => res.triangleType === 1)) {
+            let dis2 = this.calcDistance(225);
+            return this.calcDownLeft(dis2, false, false);
+        } else if (collisionResults.every(res => res.triangleType === 2)) {
+            let dis2 = this.calcDistance(315);
+            return this.calcLeftUp(dis2, false, false);
+        }
+    }
+
+    if (this.canSlide(collisionResults, "y")) {
+        const collisionCharacterRect = collisionResults[0].collisionRect;
+        if ($gameMap.isLoopVertical()) {
+            if (DotMoveUtils.checkCorrectY2ToLoopedPos(target.y, target.height, collisionCharacterRect.y)) {
+                collisionCharacterRect.y += $gameMap.height();
+            } else if (DotMoveUtils.checkCorrectY1ToLoopedPos(target.y, collisionCharacterRect.y, collisionCharacterRect.height)) {
+                target.y += $gameMap.height();
+            }
+        }
+        if (collisionCharacterRect.y >= (target.y + target.height - this.slideLengthY())) {
+            return this.calcLeftUp(dis, true, true);
+        } else if ((collisionCharacterRect.y + collisionCharacterRect.height) <= (target.y + this.slideLengthY())) {
+            return this.calcDownLeft(dis, true, true);
+        }
+    }
+    if (dis.y < 0) {
+        return this.calcLeftUp(dis, false, false);
+    } else {
+        return this.calcDownLeft(dis, false, false);
+    }
 };
 
 })();
