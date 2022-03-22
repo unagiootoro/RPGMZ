@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 当たり判定可視化 v1.0.0
+@plugindesc 当たり判定可視化 v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VisualizeCollisionArea.js
 @help
@@ -8,8 +8,10 @@
 
 【使用方法】
 このプラグインを導入したうえでF3キーを押すことで、当たり判定を表示することができます。
+ドット移動機能拡張プラグインによって設定した半マス当たり判定や斜め当たり判定についても反映されます。
 また、プラグインパラメータ「イベントを当たり判定に含める」を設定することで、
 当たり判定可視化のチェックにイベントが含まれるのを許可したり禁止したりすることができます。
+※注意: イベントが移動した場合については考慮されません。
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -29,7 +31,7 @@ trueを設定すると、当たり判定可視化の際にイベントを当た�
 衝突エリアのカラーをCSSカラー形式(RGBA)で指定します。
 
 @param VisualizeKeyCode
-@text 可視化キー名
+@text 可視化キーコード
 @type string
 @default 114
 @desc
@@ -73,15 +75,37 @@ class Sprite_CollisionArea extends Sprite {
     
         const massCollisionTableGenerator = new MassCollisionTableGenerator();
         const massCollisionTable = massCollisionTableGenerator.createMassCollisionTable();
-        for (const massRects of massCollisionTable) {
-            if (!massRects) continue;
-            for (const rect of massRects) {
-                const x = rect.x * $gameMap.tileWidth();
-                const y = rect.y * $gameMap.tileHeight();
-                const width = rect.width * $gameMap.tileWidth();
-                const height = rect.height * $gameMap.tileHeight();
-                this.bitmap.fillRect(x, y, width, height, CollisionAreaColor);
+        for (const massInfos of massCollisionTable) {
+            if (!massInfos) continue;
+            for (const massInfo of massInfos) {
+                this.drawMassInfo(massInfo);
             }
+        }
+    }
+
+    drawMassInfo(massInfo) {
+        if (massInfo.type === "rect") {
+            const rect = massInfo.rect;
+            const x = rect.x * $gameMap.tileWidth();
+            const y = rect.y * $gameMap.tileHeight();
+            const width = rect.width * $gameMap.tileWidth();
+            const height = rect.height * $gameMap.tileHeight();
+            this.bitmap.fillRect(x, y, width, height, CollisionAreaColor);
+        } else if (massInfo.type === "triangle") {
+            const triangle = massInfo.triangle;
+            const x1 = triangle.x1 * $gameMap.tileWidth();
+            const y1 = triangle.y1 * $gameMap.tileHeight();
+            const x2 = triangle.x2 * $gameMap.tileWidth();
+            const y2 = triangle.y2 * $gameMap.tileHeight();
+            const x3 = triangle.x3 * $gameMap.tileWidth();
+            const y3 = triangle.y3 * $gameMap.tileHeight();
+            const ctx = this.bitmap.context;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x3, y3);
+            ctx.fillStyle = CollisionAreaColor;
+            ctx.fill();
         }
     }
 }
@@ -120,7 +144,7 @@ class MassCollisionTableGenerator {
         for (let y = 0; y < $gameMap.height(); y++) {
             for (let x = 0; x < $gameMap.width(); x++) {
                 const pos = y * $gameMap.width() + x;
-                massCollisionTable[pos] = this.getMassRects(x, y);
+                massCollisionTable[pos] = this.getMassInfos(x, y);
             }
         }
     
@@ -129,12 +153,24 @@ class MassCollisionTableGenerator {
         return massCollisionTable;
     }
 
-    getMassRects(x, y) {
+    getMassInfos(x, y) {
         if (typeof DotMoveSystem_FunctionExPluginName === "undefined") {
-            return [new Rectangle(x, y, 1, 1)];
+            return [new MassInfo("rect", new Rectangle(x, y, 1, 1))];
         } else {
             const collisionChecker = $gamePlayer.mover()._controller._collisionChecker;
-            return collisionChecker.getMassRects(x, y);
+            const id = collisionChecker.getMassCollisionType(x, y);
+            if (id === 13) {
+                return [new MassInfo("triangle", new Triangle(x, y, x + 1, y, x, y + 1))];
+            } else if (id === 14) {
+                return [new MassInfo("triangle", new Triangle(x, y, x + 1, y + 1, x, y + 1))];
+            } else if (id === 15) {
+                return [new MassInfo("triangle", new Triangle(x + 1, y, x + 1, y + 1, x, y + 1))];
+            } else if (id === 16) {
+                return [new MassInfo("triangle", new Triangle(x, y, x + 1, y, x + 1, y + 1))];
+            } else {
+                const rects = collisionChecker.getMassRects(x, y);
+                return rects.map(rect => new MassInfo("rect", rect));
+            }
         }
     }
 
@@ -143,7 +179,7 @@ class MassCollisionTableGenerator {
             const x2 = $gameMap.roundXWithDirection(x, direction);
             const y2 = $gameMap.roundYWithDirection(y, direction);
             const collisionChecker = $gamePlayer.mover()._controller._collisionChecker;
-            if (collisionChecker.getMassCollisionType(x2, y2) >= 1 && collisionChecker.getMassCollisionType(x2, y2) <= 12) {
+            if (collisionChecker.getMassCollisionType(x2, y2) >= 1 && collisionChecker.getMassCollisionType(x2, y2) <= 16) {
                 return false;
             }
         }
@@ -151,6 +187,38 @@ class MassCollisionTableGenerator {
             return $gamePlayer.canPass(x, y, direction);
         }
         return $gamePlayer.isMapPassable(x, y, direction);
+    }
+}
+
+
+class Triangle {
+    constructor(x1, y1, x2, y2, x3, y3) {
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
+        this.x3 = x3;
+        this.y3 = y3;
+    }
+}
+
+
+class MassInfo {
+    get type() { return this._type; }
+    get rect() { return this._rect; }
+    get triangle() { return this._triangle; }
+
+    constructor(type, rectOrTriangle) {
+        this._type = type;
+        if (type === "rect") {
+            this._rect = rectOrTriangle;
+            this._triangle = null;
+        } else if (type === "triangle") {
+            this._rect = null;
+            this._triangle = rectOrTriangle;
+        } else {
+            throw new Error(`${type} is not found.`);
+        }
     }
 }
 
