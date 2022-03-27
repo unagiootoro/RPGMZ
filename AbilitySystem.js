@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Skill replacement system v1.4.3
+@plugindesc Skill replacement system v1.5.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -21,11 +21,13 @@ You can give the actor skills.
 ・Equip skills
 By opening the skill equipment scene from the menu, you can equip the skill that the actor has.
 
-・Set the maximum cost value for the actor
-In the memo field of the actor
+・Set a maximum cost value for an actor or class
+In the memo field of the actor or class
 <MaxCost: Cost value>
-You can set the maximum cost value for the actor by stating.
+You can set the maximum cost value for an actor or class by stating.
 Set the cost value to an integer greater than or equal to 0.
+* 1 To reflect the maximum cost set for each class, it is also necessary to set the plug-in parameter "Cost management by classes".
+* 2 The maximum cost set for each class is managed for each class.
 
 ・Set a cost value for the skill
 In the skill memo field
@@ -44,6 +46,8 @@ The skill for the cost over is automatically removed according to the maximum co
 ・Skill automatic equipment when acquiring skills
 When the switch specified in "Skill automatic equipment activation switch ID" is turned on
 If there is an empty equipment slot when acquiring the skill, the skill will be automatically equipped.
+* If you want to include the initial ability skill in the automatic equipment target,
+you need to set "Skill automatic equipment activation switch initial value" to true.
 
 【License】
 This plugin is available under the terms of the MIT license.
@@ -70,6 +74,13 @@ Specify the switch ID that enables automatic equipment when acquiring skills.
 @desc
 When enabled, specify a switch ID that will enable all available skills in the map scene.
 
+@param EnableAutoEquipSkillSwitchInitValue
+@text Skill automatic equipment activation switch initial value
+@type boolean
+@default true
+@desc
+Set the initial value of the skill automatic equipment activation switch.
+
 @param MaxEquipAbilities
 @text Maximum number of abilities that can be equipped
 @type number
@@ -83,6 +94,13 @@ Specifies the number of abilities that can be equipped.
 @default true
 @desc
 Activate the cost of the skill.
+
+@param CostManagementByClasses
+@text Cost management by classes
+@type boolean
+@default false
+@desc
+Try to manage costs by classes by actor.
 
 @param EquipAbilitySe
 @text Ability Equipment SE
@@ -302,7 +320,7 @@ Specify the actor ID.
 
 /*:ja
 @target MZ
-@plugindesc スキル付け替えシステム v1.4.3
+@plugindesc スキル付け替えシステム v1.5.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AbilitySystem.js
 
@@ -323,11 +341,13 @@ Specify the actor ID.
 ・スキルを装備する
 スキル装備シーンをメニューから開くことによって、アクターが持っているスキルを装備することができます。
 
-・アクターに最大コスト値を設定する
-アクターのメモ欄に
+・アクターまたは職業に最大コスト値を設定する
+アクターまたは職業のメモ欄に
 <MaxCost: コスト値>
-と記載することで、アクターに最大コスト値を設定することができます。
+と記載することで、アクターまたは職業に最大コスト値を設定することができます。
 コスト値には0以上の整数を設定してください。
+※1 職業に設定した最大コストを反映するにはプラグインパラメータ「職業別コスト管理」の設定も合わせて必要になります。
+※2 職業に設定した最大コストはアクターごとの職業ごとに管理されます。
 
 ・スキルにコスト値を設定する
 スキルのメモ欄に
@@ -346,6 +366,7 @@ Specify the actor ID.
 ・スキル取得時のスキル自動装備
 「スキル自動装備有効化スイッチID」で指定したスイッチをONにすると
 スキル取得時に空いている装備スロットがあればスキルを自動で装備するようになります。
+※初期アビリティスキルを自動装備対象に含める場合は「スキル自動装備有効化スイッチ初期値」をtrueに設定する必要があります。
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
@@ -356,21 +377,28 @@ Specify the actor ID.
 @type switch
 @default 0
 @desc
-メニューのアビリティ管理画面の有効/無効を判定するスイッチIDを指定します。
+メニューのアビリティ管理画面の有効/無効を判定するスイッチIDを指定します。0の場合は常に有効となります。
 
 @param EnableAutoEquipSkillSwitchId
 @text スキル自動装備有効化スイッチID
 @type switch
 @default 0
 @desc
-スキル取得時の自動装備を有効化するスイッチIDを指定します。
+スキル取得時の自動装備を有効化するスイッチIDを指定します。0の場合は常に無効となります。
 
 @param EnableUsableAllSkillsByMapSceneSwitchId
 @text マップシーン全スキル使用可能有効化スイッチID
 @type switch
 @default 0
 @desc
-有効にするとマップシーンでは装備可能な全スキルが使用可能になるスイッチIDを指定します。
+有効にするとマップシーンでは装備可能な全スキルが使用可能になるスイッチIDを指定します。0の場合は常に有効となります。
+
+@param EnableAutoEquipSkillSwitchInitValue
+@text スキル自動装備有効化スイッチ初期値
+@type boolean
+@default true
+@desc
+スキル自動装備有効化スイッチの初期値を設定します。
 
 @param MaxEquipAbilities
 @text 最大装備可能アビリティ数
@@ -385,6 +413,13 @@ Specify the actor ID.
 @default true
 @desc
 スキルのコストを有効化します。
+
+@param CostManagementByClasses
+@text 職業別コスト管理
+@type boolean
+@default false
+@desc
+コストをアクターごとの職業ごとに管理するようにします。
 
 @param EquipAbilitySe
 @text アビリティ装備SE
@@ -434,6 +469,7 @@ Specify the actor ID.
 @arg SlotIndex
 @text スロットインデックス
 @type number
+@min -1
 @desc
 アビリティスキルを変更するスロットのインデックスを指定します。-1を指定すると空いている枠に設定します。
 
@@ -455,6 +491,12 @@ Specify the actor ID.
 @desc
 最大コストを取得するアクターを指定します。
 
+@arg ClassId
+@text 職業ID
+@type class
+@desc
+最大コスト取得対象の職業IDを指定します。アクター単位でコストを管理する場合は0を指定してください。
+
 @arg VariableId
 @text 変数ID
 @type variable
@@ -472,6 +514,12 @@ Specify the actor ID.
 @type actor
 @desc
 最大コストを設定するアクターを指定します。
+
+@arg ClassId
+@text 職業ID
+@type class
+@desc
+最大コスト設定対象の職業IDを指定します。アクター単位でコストを管理する場合は0を指定してください。
 
 @arg VariableId
 @text 変数ID
@@ -605,6 +653,7 @@ const AbilitySystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$
 const AbilitySystemClassAlias = (() => {
 "use strict";
 
+
 class PluginParamsParser {
     static parse(params, typeData, predictEnable = true) {
         return new PluginParamsParser(predictEnable).parse(params, typeData);
@@ -696,12 +745,17 @@ const params = PluginParamsParser.parse(PluginManager.parameters(AbilitySystemPl
 const EnabledAbilitySystemSwitchId = params.EnabledAbilitySystemSwitchId;
 const EnableAutoEquipSkillSwitchId = params.EnableAutoEquipSkillSwitchId;
 const EnableUsableAllSkillsByMapSceneSwitchId = params.EnableUsableAllSkillsByMapSceneSwitchId;
+const EnableAutoEquipSkillSwitchInitValue = params.EnableAutoEquipSkillSwitchInitValue;
 const MaxEquipAbilities = params.MaxEquipAbilities;
 const EnableCost = params.EnableCost;
+const CostManagementByClasses = params.CostManagementByClasses;
 const EquipAbilitySe = params.EquipAbilitySe;
 const WindowSize = params.WindowSize;
 const Text = params.Text;
 const BackgroundImage = params.BackgroundImage;
+
+const FACE_HEIGHT_WHEN_ENABLE_CONST = 80;
+const FACE_HEIGHT_WHEN_DISABLE_CONST = 120;
 
 class AbilitySystemUtils {
     static isAbilitySkill(skillData) {
@@ -717,11 +771,20 @@ class AbilitySystemUtils {
         return 0;
     }
 
-    static getMaxCost(actorId) {
+    static getMaxCostByActorId(actorId) {
         const actorData = $dataActors[actorId];
         if (!actorData) throw new Error(`Unknow actor id ${actorId}`);
         if (actorData.meta.MaxCost) {
             return parseInt(actorData.meta.MaxCost);
+        }
+        return 0;
+    }
+
+    static getMaxCostByClassId(classId) {
+        const classData = $dataClasses[classId];
+        if (!classData) throw new Error(`Unknow class id ${classId}`);
+        if (classData.meta.MaxCost) {
+            return parseInt(classData.meta.MaxCost);
         }
         return 0;
     }
@@ -736,6 +799,15 @@ class AbilitySystemUtils {
 
     static isAutoEquipSkill() {
         if (EnableAutoEquipSkillSwitchId > 0) return $gameSwitches.value(EnableAutoEquipSkillSwitchId);
+        return false;
+    }
+
+    static isEnableUsableAllSkillsByMapScene() {
+        if (EnableUsableAllSkillsByMapSceneSwitchId > 0 && $gameSwitches.value(EnableUsableAllSkillsByMapSceneSwitchId)) {
+            if (!(SceneManager._scene instanceof Scene_Battle)) {
+                return true;
+            }
+        }
         return false;
     }
 }
@@ -954,6 +1026,7 @@ class Window_AbilitiesBase extends Window_Selectable {
 
     setActor(actor) {
         this._actor = actor;
+        this._actor.safeInit();
     }
 
     select(index) {
@@ -1093,7 +1166,12 @@ class Window_StatusAbility extends Window_StatusBase {
         const nameRect = this.itemLineRect(0);
         nameRect.width = this.width - ImageManager.faceWidth - this.padding * 2;
         this.drawActorName(this._actor, ImageManager.faceWidth, 0, nameRect.width);
-        let faceHeight = 80;
+        let faceHeight;
+        if (EnableCost) {
+            faceHeight = FACE_HEIGHT_WHEN_ENABLE_CONST;
+        } else {
+            faceHeight = FACE_HEIGHT_WHEN_DISABLE_CONST;
+        }
         let faceY = nameRect.y;
         super.drawActorFace(this._actor, nameRect.x, faceY, ImageManager.faceWidth, faceHeight);
     }
@@ -1136,14 +1214,30 @@ Game_Actor.prototype.initMembers = function() {
     // This skills is added when equip change.
     this._addedAbilitySkills = [];
     this._maxCost = null;
+    this._classesMaxCost = {};
     // This flag is used to display all acquired ability skills as you level up.
     this._addedSkillsReturnAllFlag = false;
+};
+
+// セーブデータにアビリティスキルの情報が含まれていない場合を考慮した初期化を行う。
+Game_Actor.prototype.safeInit = function() {
+    if (this._hasAbilitySkills == null) this._hasAbilitySkills = [];
+    if (this._equipAbilitySkills == null) this._equipAbilitySkills = [];
+    if (this._addedAbilitySkills == null) this._addedAbilitySkills = [];
+    if (this._maxCost == null || this._classesMaxCost == null) this.initMaxCost();
+};
+
+Game_Actor.prototype.initMaxCost = function() {
+    for (let classId = 1; classId < $dataClasses.length; classId++) {
+        this._classesMaxCost[classId] = AbilitySystemUtils.getMaxCostByClassId(classId);
+    }
+    this._maxCost = AbilitySystemUtils.getMaxCostByActorId(this.actorId());
 };
 
 const _Game_Actor_setup = Game_Actor.prototype.setup;
 Game_Actor.prototype.setup = function(actorId) {
     _Game_Actor_setup.call(this, actorId);
-    this._maxCost = AbilitySystemUtils.getMaxCost(actorId);
+    if (this._maxCost == null || this._classesMaxCost == null) this.initMaxCost();
 };
 
 const _Game_Actor_refresh = Game_Actor.prototype.refresh;
@@ -1160,9 +1254,11 @@ Game_Actor.prototype.refreshAddedAbilitySkills = function() {
         if (AbilitySystemUtils.isAbilitySkill(skill)) {
             if (!this._addedAbilitySkills.includes(skillId)) {
                 this._addedAbilitySkills.push(skillId);
-                this.addAbilitySkill(skillId);
-                if (AbilitySystemUtils.isAutoEquipSkill()) {
-                    this.bestSetEquipAbilitySkill(skillId);
+                if (!this.learnedAbilitySkillIds().includes(skillId)) {
+                    this.addAbilitySkill(skillId);
+                    if (AbilitySystemUtils.isAutoEquipSkill()) {
+                        this.bestSetEquipAbilitySkill(skillId);
+                    }
                 }
             }
         }
@@ -1174,21 +1270,15 @@ Game_Actor.prototype.refreshAddedAbilitySkills = function() {
     }
 };
 
-const _Game_Actor_addedSkills = Game_Actor.prototype.addedSkills;
-Game_Actor.prototype.addedSkills = function() {
-    let skills = _Game_Actor_addedSkills.call(this);
-    let isIncludeHasAbilitySkills = false;
-    if (this._addedSkillsReturnAllFlag) {
-        isIncludeHasAbilitySkills = true;
-    } else {
-        if (EnableUsableAllSkillsByMapSceneSwitchId > 0 && $gameSwitches.value(EnableUsableAllSkillsByMapSceneSwitchId)) {
-            if (!(SceneManager._scene instanceof Scene_Battle)) {
-                isIncludeHasAbilitySkills = true;
-            }
+const _Game_Actor_skills = Game_Actor.prototype.skills;
+Game_Actor.prototype.skills = function(opt = { includeHasAbilitySkills: false }) {
+    const list = _Game_Actor_skills.call(this);
+    if (AbilitySystemUtils.isEnableUsableAllSkillsByMapScene() || opt.includeHasAbilitySkills) {
+        for (const skillId of this._hasAbilitySkills) {
+            list.push($dataSkills[skillId]);
         }
     }
-    if (isIncludeHasAbilitySkills) skills = skills.concat(this._hasAbilitySkills);
-    return skills;
+    return list;
 };
 
 const _Game_Actor_changeEquip = Game_Actor.prototype.changeEquip;
@@ -1227,9 +1317,13 @@ Game_Actor.prototype.hasAbilitySkill = function(index) {
     return null;
 };
 
+Game_Actor.prototype.learnedAbilitySkillIds = function() {
+    const existEquipAbilitySkills = this._equipAbilitySkills.filter(id => id != null);
+    return existEquipAbilitySkills.concat(this._hasAbilitySkills);
+};
+
 Game_Actor.prototype.addAbilitySkill = function(skillId) {
-    const skills = this._equipAbilitySkills.concat(this._hasAbilitySkills);
-    if (skills.includes(skillId)) return;
+    if (this.learnedAbilitySkillIds().includes(skillId)) return;
     this._hasAbilitySkills.push(skillId);
 };
 
@@ -1245,12 +1339,31 @@ Game_Actor.prototype.totalCost = function(equipAbilitySkills = this._equipAbilit
 };
 
 Game_Actor.prototype.maxCost = function() {
-    return this._maxCost + AbilitySystemUtils.getAddCost(this);
+    if (CostManagementByClasses) {
+        return this.getMaxCost(this._classId);
+    } else {
+        return this.getMaxCost();
+    }
 };
 
-Game_Actor.prototype.setMaxCost = function(value) {
-    this._maxCost = value;
-}
+Game_Actor.prototype.getMaxCost = function(classId = 0) {
+    if (this._maxCost == null || this._classesMaxCost == null) this.initMaxCost();
+    const addCost = AbilitySystemUtils.getAddCost(this);
+    if (classId === 0) {
+        return this._maxCost + addCost;
+    } else {
+        return this._classesMaxCost[classId] + addCost;
+    }
+};
+
+Game_Actor.prototype.setMaxCost = function(value, classId = 0) {
+    if (this._maxCost == null || this._classesMaxCost == null) this.initMaxCost();
+    if (classId === 0) {
+        this._maxCost = value;
+    } else {
+        this._classesMaxCost[classId] = value;
+    }
+};
 
 Game_Actor.prototype.changeEquipAbilitySkill = function(index, targetSkillId) {
     if (this.canChangeEquipAbilitySkill(index, targetSkillId)) {
@@ -1331,21 +1444,32 @@ Game_Actor.prototype.forgetSkill = function(skillId) {
     }
 };
 
-Game_Actor.prototype.skills = function() {
-    const list = [];
-    for (const id of this._skills.concat(this.addedSkills())) {
-        if (!list.includes($dataSkills[id])) {
-            list.push($dataSkills[id]);
-        }
+Game_Actor.prototype.changeExp = function(exp, show, opt = { isClassChange: false }) {
+    this._exp[this._classId] = Math.max(exp, 0);
+    const lastLevel = this._level;
+    const lastSkills = this.skills({ includeHasAbilitySkills: true });
+    if (opt.isClassChange) {
+        // クラスチェンジによる経験値変更なら現在持っているスキルもlastSkillsに加える。
+        lastSkills.push(...this._hasAbilitySkills);
     }
-    return list;
+    while (!this.isMaxLevel() && this.currentExp() >= this.nextLevelExp()) {
+        this.levelUp();
+    }
+    while (this.currentExp() < this.currentLevelExp()) {
+        this.levelDown();
+    }
+    if (show && this._level > lastLevel) {
+        this.displayLevelUp(this.findNewSkills(lastSkills, { includeHasAbilitySkills: true }));
+    }
+    this.refresh();
 };
 
-const _Game_Actor_changeExp = Game_Actor.prototype.changeExp;
-Game_Actor.prototype.changeExp = function(exp, show) {
-    this._addedSkillsReturnAllFlag = true;
-    _Game_Actor_changeExp.call(this, exp, show);
-    this._addedSkillsReturnAllFlag = false;
+Game_Actor.prototype.findNewSkills = function(lastSkills, opt = { includeHasAbilitySkills: false }) {
+    const newSkills = this.skills({ includeHasAbilitySkills: opt.includeHasAbilitySkills });
+    for (const lastSkill of lastSkills) {
+        newSkills.remove(lastSkill);
+    }
+    return newSkills;
 };
 
 
@@ -1361,6 +1485,7 @@ Window_MenuCommand.prototype.isEnabledAbilityCommand = function() {
     return $gameSwitches.value(EnabledAbilitySystemSwitchId);
 };
 
+
 const _Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
 Scene_Menu.prototype.createCommandWindow = function() {
     _Scene_Menu_createCommandWindow.call(this);
@@ -1374,6 +1499,15 @@ Scene_Menu.prototype.onPersonalOk = function() {
     case "ability":
         SceneManager.push(Scene_Ability);
         break;
+    }
+};
+
+
+const _DataManager_createGameObjects = DataManager.createGameObjects;
+DataManager.createGameObjects = function() {
+    _DataManager_createGameObjects.call(this);
+    if (EnableAutoEquipSkillSwitchId > 0) {
+        $gameSwitches.setValue(EnableAutoEquipSkillSwitchId, EnableAutoEquipSkillSwitchInitValue);
     }
 };
 
@@ -1400,17 +1534,19 @@ PluginManager.registerCommand(AbilitySystemPluginName, "ChangeEquipAbilitySkill"
 });
 
 PluginManager.registerCommand(AbilitySystemPluginName, "GetMaxCost", args => {
-    const params = PluginParamsParser.parse(args, { ActorId: "number", VariableId: "number" });
+    const params = PluginParamsParser.parse(args, { ActorId: "number", ClassId: "number", VariableId: "number" });
     const actor = $gameActors.actor(params.ActorId);
-    const value = actor.maxCost();
+    const classId = params.ClassId == null ? 0 : params.ClassId;
+    const value = actor.getMaxCost(classId);
     $gameVariables.setValue(params.VariableId, value);
 });
 
 PluginManager.registerCommand(AbilitySystemPluginName, "SetMaxCost", args => {
-    const params = PluginParamsParser.parse(args, { ActorId: "number", VariableId: "number", Value: "number" });
+    const params = PluginParamsParser.parse(args, { ActorId: "number", ClassId: "number", VariableId: "number", Value: "number" });
     const value = (params.VariableId > 0 ? $gameVariables.value(params.VariableId) : params.Value);
     const actor = $gameActors.actor(params.ActorId);
-    return actor.setMaxCost(value);
+    const classId = params.ClassId == null ? 0 : params.ClassId;
+    return actor.setMaxCost(value, classId);
 });
 
 
