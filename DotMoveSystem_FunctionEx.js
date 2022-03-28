@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.3.0
+@plugindesc Dot movement system enhancement v1.3.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -89,14 +89,14 @@ This plugin is available under the terms of the MIT license.
 
 @param PlayerInfo
 @text player information
-@type struct <CharacterInfo>
+@type struct<CharacterInfo>
 @default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.5","SlideLengthY":"0.5","TransferOffsetX":"0","TransferOffsetY":"0"}
 @desc
 Specify various information of the player.
 
 @param FollowerInfo
 @text follower information
-@type struct <CharacterInfo>
+@type struct<CharacterInfo>
 @default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.75","SlideLengthY":"0.75","TransferOffsetX":"0","TransferOffsetY":"0"}
 @desc
 Specify various information of followers.
@@ -110,14 +110,14 @@ Setting true allows you to bypass conflicted events.
 
 @param HalfCollisionMassInfo
 @text Collision detection information per half square
-@type struct <HalfCollisionMassInfo>
+@type struct<HalfCollisionMassInfo>
 @default {"UpCollisionRegionId": "0", "RightCollisionRegionId": "0", "DownCollisionRegionId": "0", "LeftCollisionRegionId": "0", "UpRightCollisionRegionId": "0", "RightDownCollisionRegionId": "0" , "DownLeftCollisionRegionId": "0", "LeftUpCollisionRegionId": "0", "UpRightOpenCollisionRegionId": "0", "RightDownOpenCollisionRegionId": "0", "DownLeftOpenCollisionRegionId": "0", "LeftUpOpenCol" UpCollisionTerrainTagId ":" 0 "," RightCollisionTerrainTagId ":" 0 "," DownCollisionTerrainTagId ":" 0 "," LeftCollisionTerrainTagId ":" 0 "," UpRightCollisionTerrainTagId ":" 0 "," RightDownCollisionTerrainTagId ":" 0 "," RightDownCollisionTerrainTagId ":" 0 " : "0", "LeftUpCollisionTerrainTagId": "0", "UpRightOpenCollisionTerrainTagId": "0", "RightDownOpenCollisionTerrainTagId": "0", "DownLeftOpenCollisionTerrainTagId": "0", "LeftUpOpenCollisionTerrainTagId": "0", "LeftUpOpenCollisionTerrainTagId": "0"
 @desc
 Specify various information for half-square collision detection. Common to all types of information, if 0 is set, the setting will be invalidated.
 
 @param TriangleCollisionMassInfo
 @text Triangular cell collision detection information
-@type struct <TriangleCollisionMassInfo>
+@type struct<TriangleCollisionMassInfo>
 @default {"LeftUpTriangleRegionId": "0", "DownLeftTriangleRegionId": "0", "RightDownTriangleRegionId": "0", "UpRightTriangleRegionId": "0", "LeftUpTriangleTerrainTagId": "0", "DownLeftTriangleTerrainTagId": "0" , "RightDownTriangleTerrainTagId": "0", "UpRightTriangleTerrainTagId": "0"}
 @desc
 Specify various information for collision detection of triangular squares. Common to all types of information, if 0 is set, the setting will be invalidated.
@@ -554,7 +554,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.3.0
+@plugindesc ドット移動システム機能拡張 v1.3.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -1754,19 +1754,19 @@ CharacterCollisionChecker.prototype.checkPassMass = function(x, y, d) {
 };
 
 const _CharacterCollisionChecker_checkCollisionXCliff = CharacterCollisionChecker.prototype.checkCollisionXCliff;
-CharacterCollisionChecker.prototype.checkCollisionXCliff = function(targetRect, x, x1, x2, y1, d) {
-    if (this.getMassCollisionType(x1, y1) >= 1 && this.getMassCollisionType(x1, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(x2, y1) >= 1 && this.getMassCollisionType(x2, y1) <= END_TRIANGLE_ID) {
+CharacterCollisionChecker.prototype.checkCollisionXCliff = function(targetRect, x1, x2, iy, d) {
+    if (this.getMassCollisionType(x1, iy) >= 1 && this.getMassCollisionType(x1, iy) <= END_TRIANGLE_ID && this.getMassCollisionType(x2, iy) >= 1 && this.getMassCollisionType(x2, iy) <= END_TRIANGLE_ID) {
         return [];
     }
-    return _CharacterCollisionChecker_checkCollisionXCliff.call(this, targetRect, x, x1, x2, y1, d);
+    return _CharacterCollisionChecker_checkCollisionXCliff.call(this, targetRect, x1, x2, iy, d);
 };
 
 const _CharacterCollisionChecker_checkCollisionYCliff = CharacterCollisionChecker.prototype.checkCollisionYCliff;
-CharacterCollisionChecker.prototype.checkCollisionYCliff = function(targetRect, y, y1, y2, x1, d) {
-    if (this.getMassCollisionType(x1, y1) >= 1 && this.getMassCollisionType(x1, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(x1, y2) >= 1 && this.getMassCollisionType(x1, y2) <= END_TRIANGLE_ID) {
+CharacterCollisionChecker.prototype.checkCollisionYCliff = function(targetRect, y1, y2, ix, d) {
+    if (this.getMassCollisionType(ix, y1) >= 1 && this.getMassCollisionType(ix, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(ix, y2) >= 1 && this.getMassCollisionType(ix, y2) <= END_TRIANGLE_ID) {
         return [];
     }
-    return _CharacterCollisionChecker_checkCollisionYCliff.call(this, targetRect, y, y1, y2, x1, d);
+    return _CharacterCollisionChecker_checkCollisionYCliff.call(this, targetRect, y1, y2, ix, d);
 };
 
 /*
@@ -1833,34 +1833,14 @@ DotMoveUtils.calcMassTriangle = function(id, characterRect, direction, ix, iy) {
 };
 
 const _CharacterCollisionChecker_checkCollisionCliff = CharacterCollisionChecker.prototype.checkCollisionCliff;
-CharacterCollisionChecker.prototype.checkCollisionCliff = function(targetRect, x, y, x1, y1, x2, y2, d) {
+CharacterCollisionChecker.prototype.checkCollisionCliff = function(targetRect, x1, y1, x2, y2, d) {
     for (let ix = x1; ix < x2; ix++) {
         for (let iy = y1; iy < y2; iy++) {
             const id = $gameMap.regionId(ix, iy);
             if (id >= START_TRIANGLE_ID && id <= END_TRIANGLE_ID) return [];
         }
     }
-    return _CharacterCollisionChecker_checkCollisionCliff.call(this, targetRect, x, y, x1, y1, x2, y2, d);
-};
-
-CharacterController.prototype.canSlideWithoutSlideLength = function(collisionResults) {
-    if (collisionResults.length === 0) {
-        return false;
-    } else {
-        if (collisionResults[0].triangleType >= 1 || collisionResults[0].triangleType <= 4) {
-            return false;
-        }
-
-        if (collisionResults.length === 1) {
-            return true;
-        } else {
-            const collisionRectX = collisionResults[0].collisionRect.x;
-            const collisionRectY = collisionResults[0].collisionRect.y;
-            return collisionResults.every(result => {
-                return result.collisionRect.x === collisionRectX && result.collisionRect.y === collisionRectY;
-            });
-        }
-    }
+    return _CharacterCollisionChecker_checkCollisionCliff.call(this, targetRect, x1, y1, x2, y2, d);
 };
 
 const _CharacterCollisionChecker_checkCollisionMass = CharacterCollisionChecker.prototype.checkCollisionMass;
@@ -2057,27 +2037,17 @@ CharacterController.prototype.calcUp = function(dis) {
     if (collisionResults.length >= 1) {
         if (collisionResults.every(res => res.triangleType === 1)) {
             let dis2 = this.calcDistance(45);
-            return this.calcUpRight(dis2, false, false);
+            return this.calcUpRight(dis2, true, true);
         } else if (collisionResults.every(res => res.triangleType === 4)) {
             let dis2 = this.calcDistance(315);
-            return this.calcLeftUp(dis2, false, false);
+            return this.calcLeftUp(dis2, true, true);
         }
     }
 
-    if (this.canSlide(collisionResults, "x")) {
-        const collisionCharacterRect = collisionResults[0].collisionRect;
-        if ($gameMap.isLoopHorizontal()) {
-            if (DotMoveUtils.checkCorrectX2ToLoopedPos(target.x, target.width, collisionCharacterRect.x)) {
-                collisionCharacterRect.x += $gameMap.width();
-            } else if (DotMoveUtils.checkCorrectX1ToLoopedPos(target.x, collisionCharacterRect.x, collisionCharacterRect.width)) {
-                target.x += $gameMap.width();
-            }
-        }
-        if (collisionCharacterRect.x >= (target.x + target.width - this.slideLengthX())) {
-            return this.calcLeftUp(dis, true, true);
-        } else if ((collisionCharacterRect.x + collisionCharacterRect.width) <= (target.x + this.slideLengthY())) {
-            return this.calcUpRight(dis, true, true);
-        }
+    if (this.canSlide(collisionResults, 4)) {
+        return this.calcLeftUp(dis, true, true);
+    } else if (this.canSlide(collisionResults, 6)) {
+        return this.calcUpRight(dis, true, true);
     }
     if (dis.x < 0) {
         return this.calcLeftUp(dis, false, false);
@@ -2093,27 +2063,17 @@ CharacterController.prototype.calcRight = function(dis) {
     if (collisionResults.length >= 1) {
         if (collisionResults.every(res => res.triangleType === 4)) {
             let dis2 = this.calcDistance(135);
-            return this.calcRightDown(dis2, false, false);
+            return this.calcRightDown(dis2, true, true);
         } else if (collisionResults.every(res => res.triangleType === 3)) {
             let dis2 = this.calcDistance(45);
-            return this.calcUpRight(dis2, false, false);
+            return this.calcUpRight(dis2, true, true);
         }
     }
 
-    if (this.canSlide(collisionResults, "y")) {
-        const collisionCharacterRect = collisionResults[0].collisionRect;
-        if ($gameMap.isLoopVertical()) {
-            if (DotMoveUtils.checkCorrectY2ToLoopedPos(target.y, target.height, collisionCharacterRect.y)) {
-                collisionCharacterRect.y += $gameMap.height();
-            } else if (DotMoveUtils.checkCorrectY1ToLoopedPos(target.y, collisionCharacterRect.y, collisionCharacterRect.height)) {
-                target.y += $gameMap.height();
-            }
-        }
-        if (collisionCharacterRect.y >= (target.y + target.height - this.slideLengthY())) {
-            return this.calcUpRight(dis, true, true);
-        } else if ((collisionCharacterRect.y + collisionCharacterRect.height) <= (target.y + this.slideLengthY())) {
-            return this.calcRightDown(dis, true, true);
-        }
+    if (this.canSlide(collisionResults, 8)) {
+        return this.calcUpRight(dis, true, true);
+    } else if (this.canSlide(collisionResults, 2)) {
+        return this.calcRightDown(dis, true, true);
     }
     if (dis.y < 0) {
         return this.calcUpRight(dis, false, false);
@@ -2129,27 +2089,17 @@ CharacterController.prototype.calcDown = function(dis) {
     if (collisionResults.length >= 1) {
         if (collisionResults.every(res => res.triangleType === 2)) {
             let dis2 = this.calcDistance(135);
-            return this.calcRightDown(dis2, false, false);
+            return this.calcRightDown(dis2, true, true);
         } else if (collisionResults.every(res => res.triangleType === 3)) {
             let dis2 = this.calcDistance(225);
-            return this.calcDownLeft(dis2, false, false);
+            return this.calcDownLeft(dis2, true, true);
         }
     }
 
-    if (this.canSlide(collisionResults, "x")) {
-        const collisionCharacterRect = collisionResults[0].collisionRect;
-        if ($gameMap.isLoopHorizontal()) {
-            if (DotMoveUtils.checkCorrectX2ToLoopedPos(target.x, target.width, collisionCharacterRect.x)) {
-                collisionCharacterRect.x += $gameMap.width();
-            } else if (DotMoveUtils.checkCorrectX1ToLoopedPos(target.x, collisionCharacterRect.x, collisionCharacterRect.width)) {
-                target.x += $gameMap.width();
-            }
-        }
-        if (collisionCharacterRect.x >= (target.x + target.width - this.slideLengthX())) {
-            return this.calcDownLeft(dis, true, true);
-        } else if ((collisionCharacterRect.x + collisionCharacterRect.width) <= (target.x + this.slideLengthY())) {
-            return this.calcRightDown(dis, true, true);
-        }
+    if (this.canSlide(collisionResults, 4)) {
+        return this.calcDownLeft(dis, true, true);
+    } else if (this.canSlide(collisionResults, 6)) {
+        return this.calcRightDown(dis, true, true);
     }
     if (dis.x < 0) {
         return this.calcDownLeft(dis, false, false);
@@ -2165,27 +2115,17 @@ CharacterController.prototype.calcLeft = function(dis) {
     if (collisionResults.length >= 1) {
         if (collisionResults.every(res => res.triangleType === 1)) {
             let dis2 = this.calcDistance(225);
-            return this.calcDownLeft(dis2, false, false);
+            return this.calcDownLeft(dis2, true, true);
         } else if (collisionResults.every(res => res.triangleType === 2)) {
             let dis2 = this.calcDistance(315);
-            return this.calcLeftUp(dis2, false, false);
+            return this.calcLeftUp(dis2, true, true);
         }
     }
 
-    if (this.canSlide(collisionResults, "y")) {
-        const collisionCharacterRect = collisionResults[0].collisionRect;
-        if ($gameMap.isLoopVertical()) {
-            if (DotMoveUtils.checkCorrectY2ToLoopedPos(target.y, target.height, collisionCharacterRect.y)) {
-                collisionCharacterRect.y += $gameMap.height();
-            } else if (DotMoveUtils.checkCorrectY1ToLoopedPos(target.y, collisionCharacterRect.y, collisionCharacterRect.height)) {
-                target.y += $gameMap.height();
-            }
-        }
-        if (collisionCharacterRect.y >= (target.y + target.height - this.slideLengthY())) {
-            return this.calcLeftUp(dis, true, true);
-        } else if ((collisionCharacterRect.y + collisionCharacterRect.height) <= (target.y + this.slideLengthY())) {
-            return this.calcDownLeft(dis, true, true);
-        }
+    if (this.canSlide(collisionResults, 8)) {
+        return this.calcLeftUp(dis, true, true);
+    } else if (this.canSlide(collisionResults, 2)) {
+        return this.calcDownLeft(dis, true, true);
     }
     if (dis.y < 0) {
         return this.calcLeftUp(dis, false, false);
