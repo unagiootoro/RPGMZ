@@ -105,9 +105,10 @@
   };
 
   // src/Globals.ts
-  var $scene3d = null;
+  function getScene3d() {
+    return window.$scene3d;
+  }
   function setScene3d(scene3d) {
-    $scene3d = scene3d;
     window.$scene3d = scene3d;
   }
   var pluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
@@ -293,9 +294,7 @@
   // src/Mode7Camera.ts
   var Mode7Camera = class extends import_three2.PerspectiveCamera {
     constructor(opt = {}) {
-      const near = opt.near == null ? 1 : opt.near;
-      const far = opt.far == null ? 1500 : opt.far;
-      super(45, Graphics.width / Graphics.height, near, far);
+      super(45, Graphics.width / Graphics.height, opt.near == null ? 1 : opt.near, opt.far == null ? 1500 : opt.far);
       this._angle = 0;
       this._cameraHeight = opt.cameraHeight == null ? 48 * 15.5 : opt.cameraHeight;
       this._farFromCenter = opt.farFromCenter == null ? 0 : opt.farFromCenter;
@@ -1359,6 +1358,10 @@
       uvs[7] = vBegin;
       this.geometry.setAttribute("uv", new import_three8.Float32BufferAttribute(uvs, 2));
     }
+    correctXPos() {
+      const cx = Math.round((this._camera.position.x - this.position.x) * 0.025);
+      this.position.x -= cx;
+    }
   };
 
   // src/CharacterVertShader.ts
@@ -1482,7 +1485,7 @@
   // src/Sprite3D_WrapPixi.ts
   var Sprite3D_WrapPixi = class extends Sprite3D_Mesh {
     constructor(pixiSprite, baseX = 0, baseZ = 0, priority = 0) {
-      super($scene3d.mode7Camera(), pixiSprite.width, pixiSprite.height);
+      super(getScene3d().mode7Camera(), pixiSprite.width, pixiSprite.height);
       this._hue = 0;
       this._blendColor = [0, 0, 0, 0];
       this._colorTone = [0, 0, 0, 0];
@@ -1533,7 +1536,7 @@
       }
     }
     getScreenPosition() {
-      const projection = $scene3d.mode7Camera().getProjection(this);
+      const projection = getScene3d().mode7Camera().getProjection(this);
       const x = Graphics.width - (projection.x + 1) * Graphics.width / 2 - this.width / 2;
       const y = Graphics.height - (projection.y + 1) * Graphics.height / 2 - this.height / 2;
       return new import_three9.Vector2(x, y);
@@ -1670,10 +1673,14 @@
         this.position.y = this.baseY() + this._priority;
       }
       this.position.x = this._character._realX * 48 + 24 + this._baseX;
-      this.position.z = this._character._realY * 48 - this._character.shiftY() - this.height / 2 + 24 + this._baseZ;
+      this.position.z = this._character._realY * 48 - this._character.shiftY() - this.height / 2 + 24 + this.mode7ShiftY() + this._baseZ;
+      this.correctXPos();
     }
     baseY() {
       return 0;
+    }
+    mode7ShiftY() {
+      return 12;
     }
     updateUVs() {
       const frame = this._pixiSprite._frame.clone();
@@ -2258,7 +2265,7 @@
       const location = new import_three15.Vector3(this._targets[0].position.x, 24, this._targets[0].position.z);
       this._playing = true;
       const speed = this._animation.speed / 200;
-      $scene3d._effekseerController.play(this._effect, location, { speed });
+      getScene3d()._effekseerController.play(this._effect, location, { speed });
     }
     update() {
       if (this._delay > 0) {
@@ -2362,6 +2369,7 @@
       this._tilemapContainer.dispose();
     }
     updateScene() {
+      this._camera.update();
       this._tilemapContainer.update();
       if (SuperMode7Utils.isEnableMove360()) {
         if (Input.isPressed("pageup")) {
@@ -2370,7 +2378,6 @@
           $gamePlayer._realAngle -= 4;
         }
       }
-      this._camera.update();
       for (const child of this._scene.children) {
         if (child instanceof EffectContainer) {
           child.update();
@@ -2435,17 +2442,24 @@
   var _Scene_Map_onMapLoaded = Scene_Map.prototype.onMapLoaded;
   Scene_Map.prototype.onMapLoaded = function() {
     _Scene_Map_onMapLoaded.call(this);
+    let scene3d = getScene3d();
     if (SuperMode7Utils.isEnabledSuperMode7()) {
-      if ($scene3d && $gameMap.mapId() === $gameTemp.lastMapId()) {
-        $scene3d.resetScene();
+      if (scene3d && $gameMap.mapId() === $gameTemp.lastMapId()) {
+        scene3d.resetScene();
       } else {
-        setScene3d(new MapScene3D());
+        scene3d = new MapScene3D();
+        setScene3d(scene3d);
       }
-      $scene3d.initPIXITextture();
-      Graphics._effekseer = $scene3d._effekseerController._context;
-      this._spriteset._sprite3dContainer.addChild($scene3d._sprite);
+      if (scene3d) {
+        scene3d.initPIXITextture();
+        Graphics._effekseer = scene3d._effekseerController._context;
+        this._spriteset._sprite3dContainer.addChild(scene3d._sprite);
+      }
     } else {
-      $scene3d?.dispose();
+      if (scene3d) {
+        scene3d.dispose();
+        Graphics._createEffekseerContext();
+      }
       setScene3d(null);
     }
     $gameTemp.setLastMapId($gameMap.mapId());
@@ -2453,9 +2467,9 @@
   var _Scene_Map_update = Scene_Map.prototype.update;
   Scene_Map.prototype.update = function() {
     _Scene_Map_update.call(this);
-    if ($scene3d) {
-      $scene3d.update();
-    }
+    const scene3d = getScene3d();
+    if (scene3d)
+      scene3d.update();
   };
   Scene_Map.prototype.createSpriteset = function() {
     this._spriteset = new Spriteset_Map();
@@ -2463,10 +2477,13 @@
     this._spriteset.update();
   };
   Scene_Map.prototype.onMapTouch = function() {
+    const scene3d = getScene3d();
+    if (!scene3d)
+      return;
     const mouseX = TouchInput.x / (Graphics.width / 2) - 1;
     const mouseY = -(TouchInput.y / (Graphics.height / 2)) + 1;
     const pos = new import_three17.Vector2(mouseX, mouseY);
-    const point = $scene3d.raycastToTilemap(pos);
+    const point = scene3d.raycastToTilemap(pos);
     if (point) {
       const x = Math.round((point.x - 24) / 48);
       const y = Math.round((point.z - 24) / 48);
@@ -2493,7 +2510,7 @@
       if (this.isMVAnimation(animation)) {
       } else {
         for (const target of request.targets) {
-          const sprite3d = $scene3d._tilemapContainer.findCharacterSprite(target, 4);
+          const sprite3d = getScene3d()._tilemapContainer.findCharacterSprite(target, 4);
           let container;
           if (sprite3d.children.length === 1) {
             container = new EffectContainer(request.animationId, [sprite3d.children[0]]);
@@ -2502,7 +2519,7 @@
           }
           if (!container)
             throw new Error("container is null.");
-          $scene3d._scene.add(container);
+          getScene3d()._scene.add(container);
           container.play();
           this._effectContainers.push(container);
         }
@@ -2515,7 +2532,7 @@
   Spriteset_Map.prototype.updateAnimations = function() {
     if (SuperMode7Utils.isEnabledSuperMode7()) {
       this.processAnimationRequests();
-      if ($scene3d && !$scene3d._effekseerController.isPlaying() && this._effectContainers.length > 0) {
+      if (getScene3d() && !getScene3d()._effekseerController.isPlaying() && this._effectContainers.length > 0) {
         for (const container of this._effectContainers) {
           for (const target of container.targets()) {
             if (target.character().endAnimation)
@@ -2694,18 +2711,22 @@
   Game_Player.prototype.update = function(sceneActive) {
     _Game_Player_update.call(this, sceneActive);
     if (SuperMode7Utils.isEnableMove360()) {
-      if ($scene3d)
-        $scene3d.mode7Camera().angle = this._realAngle;
+      const scene3d = getScene3d();
+      if (scene3d)
+        scene3d.mode7Camera().angle = this._realAngle;
     }
   };
   var _Game_Player_getOnVehicle = Game_Player.prototype.getOnVehicle;
   Game_Player.prototype.getOnVehicle = function() {
     const result = _Game_Player_getOnVehicle.call(this);
     if (result) {
-      const cameraHeight = $scene3d.mode7Camera().cameraHeight;
-      const farFromCenter = $scene3d.mode7Camera().farFromCenter;
-      const angle = $scene3d.mode7Camera().angle;
-      const fadeEffectRate = $scene3d.fadeEffectRate();
+      const scene3d = getScene3d();
+      if (!scene3d)
+        return false;
+      const cameraHeight = scene3d.mode7Camera().cameraHeight;
+      const farFromCenter = scene3d.mode7Camera().farFromCenter;
+      const angle = scene3d.mode7Camera().angle;
+      const fadeEffectRate = scene3d.fadeEffectRate();
       this._vehicleOffState = { angle, cameraHeight, farFromCenter, fadeEffectRate };
       if (this._vehicleType === "boat") {
         const func = new Function(PP.OnBoatExecScript);
@@ -2721,12 +2742,15 @@
   Game_Player.prototype.getOffVehicle = function() {
     const result = _Game_Player_getOffVehicle.call(this);
     if (result) {
+      const scene3d = getScene3d();
+      if (!scene3d)
+        return false;
       const cameraHeight = this._vehicleOffState.cameraHeight;
       const farFromCenter = this._vehicleOffState.farFromCenter;
       const fadeEffectRate = this._vehicleOffState.fadeEffectRate;
-      $scene3d.mode7Camera().changeCameraHeight(cameraHeight, 60);
-      $scene3d.mode7Camera().changeFarFromCenter(farFromCenter, 60);
-      $scene3d.changeFadeEffect(fadeEffectRate, 60);
+      scene3d.mode7Camera().changeCameraHeight(cameraHeight, 60);
+      scene3d.mode7Camera().changeFarFromCenter(farFromCenter, 60);
+      scene3d.changeFadeEffect(fadeEffectRate, 60);
     }
     return result;
   };
@@ -2766,18 +2790,35 @@
     };
   }
 
+  // src/Scene_Battle.ts
+  var _Scene_Battle_create = Scene_Battle.prototype.create;
+  Scene_Battle.prototype.create = function() {
+    _Scene_Battle_create.call(this);
+    if (SuperMode7Utils.isEnabledSuperMode7()) {
+      Graphics._createEffekseerContext();
+    }
+  };
+
   // src/Main.ts
   function SMode7_ChangeCameraHeight(cameraHeight, duration) {
-    $scene3d?.mode7Camera().changeCameraHeight(cameraHeight, duration);
+    const scene3d = getScene3d();
+    if (scene3d)
+      scene3d.mode7Camera().changeCameraHeight(cameraHeight, duration);
   }
   function SMode7_ChangeFarFromCenter(farFromCenter, duration) {
-    $scene3d?.mode7Camera().changeFarFromCenter(farFromCenter, duration);
+    const scene3d = getScene3d();
+    if (scene3d)
+      scene3d.mode7Camera().changeFarFromCenter(farFromCenter, duration);
   }
   function SMode7_ChangeAngle(angle, direction, duration) {
-    $scene3d?.mode7Camera().changeAngle(angle, direction, duration);
+    const scene3d = getScene3d();
+    if (scene3d)
+      scene3d.mode7Camera().changeAngle(angle, direction, duration);
   }
   function SMode7_ChangeFadeEffect(rate, duration) {
-    $scene3d?.changeFadeEffect(rate, duration);
+    const scene3d = getScene3d();
+    if (scene3d)
+      scene3d.changeFadeEffect(rate, duration);
   }
   PluginManager.registerCommand(pluginName, "ChangeCameraHeight", (args) => {
     const params = PluginParamsParser.parse(args, { CameraHeight: "number", Duration: "number" });
@@ -2803,7 +2844,7 @@
 })();
 /*!/*:
 @target MZ
-@plugindesc SuperMode7 v0.2.0
+@plugindesc SuperMode7 v0.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SuperMode7.js
 @help
