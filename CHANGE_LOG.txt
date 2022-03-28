@@ -30,6 +30,8 @@ AnalogStickEx.js
         ・新規作成
 
 DotMoveSystem.js
+    2022/03/28 v1.9.8
+        ・当たり判定見直し
     2022/03/21 v1.9.7
         ・利用可能なスクリプトにstopMove/resumeMove/cancelMoveを追加
         ・当たり判定見直し
