@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Quest system v1.5.1
+@plugindesc Quest system v1.5.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -971,7 +971,7 @@ Specifies the icon for the hidden quest command.
 
 /*:ja
 @target MV MZ
-@plugindesc クエストシステム v1.5.1
+@plugindesc クエストシステム v1.5.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -2385,7 +2385,6 @@ class QuestSaveData {
     }
 
     getRewards() {
-        console.log("getRewards");
         for (const reward of this.rewards()) {
             reward.getReward();
         }
