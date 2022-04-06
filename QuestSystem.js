@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Quest system v1.5.2
+@plugindesc Quest system v1.5.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -111,6 +111,78 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 
 【License】
 This plugin is available under the terms of the MIT license.
+
+
+@command StartQuestScene
+@text Quest scene start
+@desc Start the quest scene.
+
+@arg QuestCommands
+@type select[]
+@option all
+@option questOrder
+@option orderingQuest
+@option questCancel
+@option questReport
+@option reportedQuest
+@option failedQuest
+@option expiredQuest
+@option hiddenQuest
+@default ["questOrder", "questCancel", "questReport"]
+@text quest command
+@desc Specify the quest command.
+
+@arg BackgroundImage
+@text background image
+@type struct<BackgroundImage>
+@default {"FileName1": "", "FileName2": "", "XOfs": "240", "YOfs": "300"}
+@desc
+Specify the background image of the quest scene.
+
+
+@command GetRewards
+@text Get rewards
+@desc Get rewards for quests.
+
+@arg VariableId
+@type variable
+@text variable ID
+@desc Specify the variable ID of the quest to get the reward.
+
+
+@command ChangeDetail
+@text Quest details changed
+@desc Change the quest details.
+
+@arg VariableId
+@type variable
+@text variable ID
+@desc Specifies the variable ID of the quest whose details you want to change.
+
+@arg DetailNote
+@type note
+@text details
+@desc Set the quest details to change.
+
+@arg Detail
+@type multiline_string
+@text details(compatibility)
+@desc (This is an older parameter but is left for compatibility.)Set the quest details to change.
+
+
+@command ChangeRewards
+@text Reward change
+@desc Change quest rewards.
+
+@arg VariableId
+@type variable
+@text variable ID
+@desc Specify the variable ID of the quest whose reward you want to change.
+
+@arg Rewards
+@type struct<Reward>[]
+@text reward
+@desc Set the reward for the quest you want to change.
 
 
 @param QuestDatas
@@ -269,78 +341,6 @@ Set the presence or absence of line breaks in the quest title.
 @default 0
 @desc
 Specify the number of quests that can be ordered at one time. If it is 0, you can receive infinite orders.
-
-
-@command StartQuestScene
-@text Quest scene start
-@desc Start the quest scene.
-
-@arg QuestCommands
-@type select[]
-@option all
-@option questOrder
-@option orderingQuest
-@option questCancel
-@option questReport
-@option reportedQuest
-@option failedQuest
-@option expiredQuest
-@option hiddenQuest
-@default ["questOrder", "questCancel", "questReport"]
-@text quest command
-@desc Specify the quest command.
-
-@arg BackgroundImage
-@text background image
-@type struct<BackgroundImage>
-@default {"FileName1": "", "FileName2": "", "XOfs": "240", "YOfs": "300"}
-@desc
-Specify the background image of the quest scene.
-
-
-@command GetRewards
-@text Get rewards
-@desc Get rewards for quests.
-
-@arg VariableId
-@type variable
-@text variable ID
-@desc Specify the variable ID of the quest to get the reward.
-
-
-@command ChangeDetail
-@text Quest details changed
-@desc Change the quest details.
-
-@arg VariableId
-@type variable
-@text variable ID
-@desc Specifies the variable ID of the quest whose details you want to change.
-
-@arg DetailNote
-@type note
-@text details
-@desc Set the quest details to change.
-
-@arg Detail
-@type multiline_string
-@text details(compatibility)
-@desc (This is an older parameter but is left for compatibility.)Set the quest details to change.
-
-
-@command ChangeRewards
-@text Reward change
-@desc Change quest rewards.
-
-@arg VariableId
-@type variable
-@text variable ID
-@desc Specify the variable ID of the quest whose reward you want to change.
-
-@arg Rewards
-@type struct<Reward>[]
-@text reward
-@desc Set the reward for the quest you want to change.
 */
 
 
@@ -971,7 +971,7 @@ Specifies the icon for the hidden quest command.
 
 /*:ja
 @target MV MZ
-@plugindesc クエストシステム v1.5.2
+@plugindesc クエストシステム v1.5.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -1081,6 +1081,78 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
+
+
+@command StartQuestScene
+@text クエストシーン開始
+@desc クエストシーンを開始します。
+
+@arg QuestCommands
+@type select[]
+@option all
+@option questOrder
+@option orderingQuest
+@option questCancel
+@option questReport
+@option reportedQuest
+@option failedQuest
+@option expiredQuest
+@option hiddenQuest
+@default ["questOrder","questCancel","questReport"]
+@text クエストコマンド
+@desc クエストコマンドを指定します。
+
+@arg BackgroundImage
+@text 背景画像
+@type struct<BackgroundImage>
+@default {"FileName1":"","FileName2":"","XOfs":"240","YOfs":"300"}
+@desc
+クエストシーンの背景画像を指定します。
+
+
+@command GetRewards
+@text 報酬を入手
+@desc クエストの報酬を入手します。
+
+@arg VariableId
+@type variable
+@text 変数ID
+@desc 報酬を入手するクエストの変数IDを指定します。
+
+
+@command ChangeDetail
+@text クエスト詳細変更
+@desc クエストの詳細を変更します。
+
+@arg VariableId
+@type variable
+@text 変数ID
+@desc 詳細を変更するクエストの変数IDを指定します。
+
+@arg DetailNote
+@type note
+@text 詳細
+@desc 変更するクエスト詳細を設定します。
+
+@arg Detail
+@type multiline_string
+@text 詳細(互換)
+@desc (これは旧版のパラメータですが、互換性のために残しています。)変更するクエスト詳細を設定します。
+
+
+@command ChangeRewards
+@text 報酬変更
+@desc クエストの報酬を変更します。
+
+@arg VariableId
+@type variable
+@text 変数ID
+@desc 報酬を変更するクエストの変数IDを指定します。
+
+@arg Rewards
+@type struct<Reward>[]
+@text 報酬
+@desc 変更するクエストの報酬を設定します。
 
 
 @param QuestDatas
@@ -1239,78 +1311,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @default 0
 @desc
 一度に受注可能なクエスト数を指定します。0だと無限に受注可能になります。
-
-
-@command StartQuestScene
-@text クエストシーン開始
-@desc クエストシーンを開始します。
-
-@arg QuestCommands
-@type select[]
-@option all
-@option questOrder
-@option orderingQuest
-@option questCancel
-@option questReport
-@option reportedQuest
-@option failedQuest
-@option expiredQuest
-@option hiddenQuest
-@default ["questOrder","questCancel","questReport"]
-@text クエストコマンド
-@desc クエストコマンドを指定します。
-
-@arg BackgroundImage
-@text 背景画像
-@type struct<BackgroundImage>
-@default {"FileName1":"","FileName2":"","XOfs":"240","YOfs":"300"}
-@desc
-クエストシーンの背景画像を指定します。
-
-
-@command GetRewards
-@text 報酬を入手
-@desc クエストの報酬を入手します。
-
-@arg VariableId
-@type variable
-@text 変数ID
-@desc 報酬を入手するクエストの変数IDを指定します。
-
-
-@command ChangeDetail
-@text クエスト詳細変更
-@desc クエストの詳細を変更します。
-
-@arg VariableId
-@type variable
-@text 変数ID
-@desc 詳細を変更するクエストの変数IDを指定します。
-
-@arg DetailNote
-@type note
-@text 詳細
-@desc 変更するクエスト詳細を設定します。
-
-@arg Detail
-@type multiline_string
-@text 詳細(互換)
-@desc (これは旧版のパラメータですが、互換性のために残しています。)変更するクエスト詳細を設定します。
-
-
-@command ChangeRewards
-@text 報酬変更
-@desc クエストの報酬を変更します。
-
-@arg VariableId
-@type variable
-@text 変数ID
-@desc 報酬を変更するクエストの変数IDを指定します。
-
-@arg Rewards
-@type struct<Reward>[]
-@text 報酬
-@desc 変更するクエストの報酬を設定します。
 */
 
 
