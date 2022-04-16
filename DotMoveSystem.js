@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.9.8
+@plugindesc Dot movement system v1.9.9
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -101,7 +101,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.9.8
+@plugindesc ドット移動システム v1.9.9
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -1350,14 +1350,14 @@ class CharacterController {
         const target = this._character.collisionRect();
         const collisionResults = this.checkCollision(target.x, target.y + dis.y, 8);
         if (this.canSlide(collisionResults, 4)) {
-            return this.calcLeftUp(dis, true, true);
+            return this.calcLeftUp(dis);
         } else if (this.canSlide(collisionResults, 6)) {
-            return this.calcUpRight(dis, true, true);
+            return this.calcUpRight(dis);
         }
         if (dis.x < 0) {
-            return this.calcLeftUp(dis, false, false);
+            return this.calcLeftUpWithoutSlide(dis);
         } else {
-            return this.calcUpRight(dis, false, false);
+            return this.calcUpRightWithoutSlide(dis);
         }
     }
 
@@ -1365,14 +1365,14 @@ class CharacterController {
         const target = this._character.collisionRect();
         const collisionResults = this.checkCollision(target.x + dis.x, target.y, 6);
         if (this.canSlide(collisionResults, 8)) {
-            return this.calcUpRight(dis, true, true);
+            return this.calcUpRight(dis);
         } else if (this.canSlide(collisionResults, 2)) {
-            return this.calcRightDown(dis, true, true);
+            return this.calcRightDown(dis);
         }
         if (dis.y < 0) {
-            return this.calcUpRight(dis, false, false);
+            return this.calcUpRightWithoutSlide(dis);
         } else {
-            return this.calcRightDown(dis, false, false);
+            return this.calcRightDownWithoutSlide(dis);
         }
     }
 
@@ -1380,14 +1380,14 @@ class CharacterController {
         const target = this._character.collisionRect();
         const collisionResults = this.checkCollision(target.x, target.y + dis.y, 2);
         if (this.canSlide(collisionResults, 4)) {
-            return this.calcDownLeft(dis, true, true);
+            return this.calcDownLeft(dis);
         } else if (this.canSlide(collisionResults, 6)) {
-            return this.calcRightDown(dis, true, true);
+            return this.calcRightDown(dis);
         }
         if (dis.x < 0) {
-            return this.calcDownLeft(dis, false, false);
+            return this.calcDownLeftWithoutSlide(dis);
         } else {
-            return this.calcRightDown(dis, false, false);
+            return this.calcRightDownWithoutSlide(dis);
         }
     }
 
@@ -1395,21 +1395,20 @@ class CharacterController {
         const target = this._character.collisionRect();
         const collisionResults = this.checkCollision(target.x + dis.x, target.y, 4);
         if (this.canSlide(collisionResults, 8)) {
-            return this.calcLeftUp(dis, true, true);
+            return this.calcLeftUp(dis);
         } else if (this.canSlide(collisionResults, 2)) {
-            return this.calcDownLeft(dis, true, true);
+            return this.calcDownLeft(dis);
         }
         if (dis.y < 0) {
-            return this.calcLeftUp(dis, false, false);
+            return this.calcLeftUpWithoutSlide(dis);
         } else {
-            return this.calcDownLeft(dis, false, false);
+            return this.calcDownLeftWithoutSlide(dis);
         }
     }
 
-    calcUpRight(dis, enableSlideX = this.needDiagonalSlideX(), enableSlideY = this.needDiagonalSlideY()) {
-        const target = this._character.collisionRect();
-
-        if (enableSlideX) {
+    calcUpRight(dis) {
+        if (this.needDiagonalSlideX()) {
+            const target = this._character.collisionRect();
             const collisionResults1 = this.checkCollision(target.x, target.y + dis.y, 8);
             if (this.canSlide(collisionResults1, 6)) {
                 dis = this.slideDistance(dis, target, collisionResults1, 45, "x", 6);
@@ -1419,7 +1418,8 @@ class CharacterController {
             }
         }
 
-        if (enableSlideY) {
+        if (this.needDiagonalSlideY()) {
+            const target = this._character.collisionRect();
             const collisionResults2 = this.checkCollision(target.x + dis.x, target.y, 6);
             if (this.canSlide(collisionResults2, 8)) {
                 dis = this.slideDistance(dis, target, collisionResults2, 45, "y", 8);
@@ -1429,17 +1429,12 @@ class CharacterController {
             }
         }
 
-        dis = this.correctUpDistance(target, dis);
-        target.y += dis.y;
-        dis = this.correctRightDistance(target, dis);
-        target.x += dis.x;
-        return new Point(target.x, target.y);
+        return this.calcUpRightWithoutSlide(dis);
     }
 
-    calcRightDown(dis, enableSlideX = this.needDiagonalSlideX(), enableSlideY = this.needDiagonalSlideY()) {
-        const target = this._character.collisionRect();
-
-        if (enableSlideY) {
+    calcRightDown(dis) {
+        if (this.needDiagonalSlideY()) {
+            const target = this._character.collisionRect();
             const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 6);
             if (this.canSlide(collisionResults1, 2)) {
                 dis = this.slideDistance(dis, target, collisionResults1, 135, "y", 2);
@@ -1449,7 +1444,8 @@ class CharacterController {
             }
         }
 
-        if (enableSlideX) {
+        if (this.needDiagonalSlideX()) {
+            const target = this._character.collisionRect();
             const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 2);
             if (this.canSlide(collisionResults2, 6)) {
                 dis = this.slideDistance(dis, target, collisionResults2, 135, "x", 6);
@@ -1459,17 +1455,12 @@ class CharacterController {
             }
         }
 
-        dis = this.correctRightDistance(target, dis);
-        target.x += dis.x;
-        dis = this.correctDownDistance(target, dis);
-        target.y += dis.y;
-        return new Point(target.x, target.y);
+        return this.calcRightDownWithoutSlide(dis);
     }
 
-    calcDownLeft(dis, enableSlideX = this.needDiagonalSlideX(), enableSlideY = this.needDiagonalSlideY()) {
-        const target = this._character.collisionRect();
-
-        if (enableSlideY) {
+    calcDownLeft(dis) {
+        if (this.needDiagonalSlideY()) {
+            const target = this._character.collisionRect();
             const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 4);
             if (this.canSlide(collisionResults1, 2)) {
                 dis = this.slideDistance(dis, target, collisionResults1, 225, "y", 2);
@@ -1479,7 +1470,8 @@ class CharacterController {
             }
         }
 
-        if (enableSlideX) {
+        if (this.needDiagonalSlideX()) {
+            const target = this._character.collisionRect();
             const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 2);
             if (this.canSlide(collisionResults2, 4)) {
                 dis = this.slideDistance(dis, target, collisionResults2, 225, "x", 4);
@@ -1489,17 +1481,12 @@ class CharacterController {
             }
         }
 
-        dis = this.correctDownDistance(target, dis);
-        target.y += dis.y;
-        dis = this.correctLeftDistance(target, dis);
-        target.x += dis.x;
-        return new Point(target.x, target.y);
+        return this.calcDownLeftWithoutSlide(dis);
     }
 
-    calcLeftUp(dis, enableSlideX = this.needDiagonalSlideX(), enableSlideY = this.needDiagonalSlideY()) {
-        const target = this._character.collisionRect();
-
-        if (enableSlideY) {
+    calcLeftUp(dis) {
+        if (this.needDiagonalSlideY()) {
+            const target = this._character.collisionRect();
             const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 4);
             if (this.canSlide(collisionResults1, 8)) {
                 dis = this.slideDistance(dis, target, collisionResults1, 315, "y", 8);
@@ -1509,7 +1496,8 @@ class CharacterController {
             }
         }
 
-        if (enableSlideX) {
+        if (this.needDiagonalSlideX()) {
+            const target = this._character.collisionRect();
             const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 8);
             if (this.canSlide(collisionResults2, 4)) {
                 dis = this.slideDistance(dis, target, collisionResults2, 315, "x", 4);
@@ -1519,6 +1507,38 @@ class CharacterController {
             }
         }
 
+        return this.calcLeftUpWithoutSlide(dis);
+    }
+
+    calcUpRightWithoutSlide(dis) {
+        const target = this._character.collisionRect();
+        dis = this.correctUpDistance(target, dis);
+        target.y += dis.y;
+        dis = this.correctRightDistance(target, dis);
+        target.x += dis.x;
+        return new Point(target.x, target.y);
+    }
+
+    calcRightDownWithoutSlide(dis) {
+        const target = this._character.collisionRect();
+        dis = this.correctRightDistance(target, dis);
+        target.x += dis.x;
+        dis = this.correctDownDistance(target, dis);
+        target.y += dis.y;
+        return new Point(target.x, target.y);
+    }
+
+    calcDownLeftWithoutSlide(dis) {
+        const target = this._character.collisionRect();
+        dis = this.correctDownDistance(target, dis);
+        target.y += dis.y;
+        dis = this.correctLeftDistance(target, dis);
+        target.x += dis.x;
+        return new Point(target.x, target.y);
+    }
+
+    calcLeftUpWithoutSlide(dis) {
+        const target = this._character.collisionRect();
         dis = this.correctLeftDistance(target, dis);
         target.x += dis.x;
         dis = this.correctUpDistance(target, dis);
@@ -1952,12 +1972,12 @@ class EventMover extends CharacterMover {
     initialize(character) {
         super.initialize(character);
         this._controller = new EventController(character);
-        this._width = null;
-        this._height = null;
-        this._offsetX = null;
-        this._offsetY = null;
-        this._widthArea = null;
-        this._heightArea = null;
+        this._width = EventParamParser.getWidth(character);
+        this._height = EventParamParser.getHeight(character);
+        this._offsetX = EventParamParser.getOffsetX(character);
+        this._offsetY = EventParamParser.getOffsetY(character);
+        this._widthArea = EventParamParser.getWidthArea(character);
+        this._heightArea = EventParamParser.getHeightArea(character);
     }
 
     update() {
@@ -1969,45 +1989,11 @@ class EventMover extends CharacterMover {
         this._controller.initMapCharactersCache();
     }
 
-    width() {
-        if (this._width == null) {
-            this._width = EventParamParser.getWidth(this._character);
-        }
-        return super.width();
-    }
-
-    height() {
-        if (this._height == null) {
-            this._height = EventParamParser.getHeight(this._character);
-        }
-        return super.height();
-    }
-
-    offsetX() {
-        if (this._offsetX == null) {
-            this._offsetX = EventParamParser.getOffsetX(this._character);
-        }
-        return super.offsetX();
-    }
-
-    offsetY() {
-        if (this._offsetY == null) {
-            this._offsetY = EventParamParser.getOffsetY(this._character);
-        }
-        return super.offsetY();
-    }
-
     widthArea() {
-        if (this._widthArea == null) {
-            this._widthArea = EventParamParser.getWidthArea(this._character);
-        }
         return this._widthArea;
     }
 
     heightArea() {
-        if (this._heightArea == null) {
-            this._heightArea = EventParamParser.getHeightArea(this._character);
-        }
         return this._heightArea;
     }
 
@@ -3122,13 +3108,13 @@ if (Utils.RPGMAKER_NAME === "MV") {
 }
 
 Game_Followers.prototype.update = function() {
+    for (const follower of this._data) {
+        follower.update();
+    }
     if (this.areGathering()) {
         this.updateGather();
     } else {
         this.updateMove();
-    }
-    for (const follower of this._data) {
-        follower.update();
     }
 };
 
