@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.1.5
+@plugindesc formation system v1.2.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -132,6 +132,13 @@ Specifies the Y coordinate offset to the start of the formation in battle.
 @default {"FormationListHeight":"216"}
 @desc
 Set the size of various windows.
+
+@param ShiftButton
+@text shift button
+@type struct <ShiftButton>
+@default {"ButtonSetX": "8", "ButtonSetW": "2"}
+@desc
+Set the shift button information.
 
 @param Text
 @text Display text
@@ -300,6 +307,23 @@ Specifies the vertical width of the formation list window.
 */
 
 
+/*~struct~ShiftButton:
+@param ButtonSetX
+@text button set X
+@type string
+@default 8
+@desc
+Specifies the X position of the shift button on the button set. (Unit: 48px)
+
+@param ButtonSetW
+@text button set W
+@type string
+@default 2
+@desc
+Specifies the width of the shift button on the button set. (Unit: 48px)
+*/
+
+
 /*~struct~Text:
 @param MenuFormationText
 @text Menu display text
@@ -333,7 +357,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.1.5
+@plugindesc 陣形システム v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -468,6 +492,13 @@ trueを設定すると、戦闘中の陣形変更を有効化します。
 @default {"FormationListHeight":"216"}
 @desc
 各種ウィンドウのサイズを設定します。
+
+@param ShiftButton
+@text シフトボタン
+@type struct<ShiftButton>
+@default {"ButtonSetX":"8","ButtonSetW":"2"}
+@desc
+シフトボタンの情報設定します。
 
 @param Text
 @text 表示テキスト
@@ -636,6 +667,23 @@ trueを設定すると、戦闘中の陣形変更を有効化します。
 */
 
 
+/*~struct~ShiftButton:ja
+@param ButtonSetX
+@text ボタンセットX
+@type string
+@default 8
+@desc
+シフトボタンのボタンセット上でのX位置を指定します。(単位: 48px)
+
+@param ButtonSetW
+@text ボタンセットW
+@type string
+@default 2
+@desc
+シフトボタンのボタンセット上での横幅を指定します。(単位: 48px)
+*/
+
+
 /*~struct~Text:ja
 @param MenuFormationText
 @text メニュー表示テキスト
@@ -733,6 +781,7 @@ class HttpRequest {
     }
 }
 
+
 class PluginParamsParser {
     static parse(params, typeData, predictEnable = true) {
         return new PluginParamsParser(predictEnable).parse(params, typeData);
@@ -746,7 +795,11 @@ class PluginParamsParser {
         if (++loopCount > 255) throw new Error("endless loop error");
         const result = {};
         for (const name in typeData) {
-            result[name] = this.convertParam(params[name], typeData[name], loopCount);
+            if (params[name] === "" || params[name] === undefined) {
+                result[name] = null;
+            } else {
+                result[name] = this.convertParam(params[name], typeData[name], loopCount);
+            }
         }
         if (!this._predictEnable) return result;
         if (typeof params === "object" && !(params instanceof Array)) {
@@ -785,7 +838,7 @@ class PluginParamsParser {
         case "string":
             return param;
         case "number":
-            if (param.match(/\d+\.\d+/)) return parseFloat(param);
+            if (param.match(/^\-?\d+\.\d+$/)) return parseFloat(param);
             return parseInt(param);
         case "boolean":
             return param === "true";
@@ -795,7 +848,7 @@ class PluginParamsParser {
     }
 
     predict(param) {
-        if (param.match(/^\d+$/) || param.match(/^\d+\.\d+$/)) {
+        if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
             return "number";
         } else if (param === "true" || param === "false") {
             return "boolean";
@@ -804,6 +857,7 @@ class PluginParamsParser {
         }
     }
 }
+
 
 class SpriteMover {
     constructor(sprite, moveSpeed) {
@@ -1001,6 +1055,7 @@ const typeDefine = {
     ChangeCurrentFormationSe: {},
     WindowSize: {},
     Text: {},
+    ShiftButton: {},
 };
 
 const params = PluginParamsParser.parse(PluginManager.parameters(FormationSystemPluginName), typeDefine);
@@ -1015,6 +1070,7 @@ const ChangeFormationSlotSe = params.ChangeFormationSlotSe;
 const ChangeCurrentFormationSe = params.ChangeCurrentFormationSe;
 const WindowSize = params.WindowSize;
 const Text = params.Text;
+const ShiftButton = params.ShiftButton;
 
 
 class FormationData {
@@ -1062,7 +1118,7 @@ class Sprite_ShiftButton extends Sprite_Button {
 
     buttonData() {
         const buttonTable = {
-            shift: { x: 10, w: 1 }
+            shift: { x: ShiftButton.ButtonSetX, w: ShiftButton.ButtonSetW }
         };
         return buttonTable[this._buttonType];
     }
