@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill Tree Layout Extension v1.2.3
+@plugindesc Skill Tree Layout Extension v1.3.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
 
@@ -45,6 +45,7 @@ Specifies the X coordinate offset of the icon.
 
 @param OpenedImage
 @type struct <OpenedImage>
+@default {"EnableOpenedImage":"false","FileName":"","XOfs":"0","YOfs":"0"}
 @desc
 Set the image to be added to the acquired skill.
 
@@ -62,6 +63,7 @@ Specifies the font size of the skill's characters.
 
 @param BackgroundImage
 @type struct <BackgroundImage>
+@default {"FileName":"","BackgroundImage2":"[]","BackgroundImage2XOfs":"240","BackgroundImage2YOfs":"300"}
 @desc
 Set the background image of the skill tree scene.
 */
@@ -134,7 +136,7 @@ Specify the actor ID.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー レイアウト拡張 v1.2.3
+@plugindesc スキルツリー レイアウト拡張 v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
 
@@ -179,6 +181,7 @@ fileName...画像のファイル名。画像は、「img/pictures」フォルダ
 
 @param OpenedImage
 @type struct<OpenedImage>
+@default {"EnableOpenedImage":"false","FileName":"","XOfs":"0","YOfs":"0"}
 @desc
 習得済みスキルに追加する画像を設定します。
 
@@ -196,6 +199,7 @@ trueを設定すると、習得済みスキルの文字の色を変更します�
 
 @param BackgroundImage
 @type struct<BackgroundImage>
+@default {"FileName":"","BackgroundImage2":"[]","BackgroundImage2XOfs":"240","BackgroundImage2YOfs":"300"}
 @desc
 スキルツリーシーンの背景画像を設定します。
 */
@@ -229,7 +233,6 @@ trueを設定すると、習得済みスキルに画像を追加します。
 /*~struct~BackgroundImage:
 @param FileName
 @type file
-@default {"FileName":"","BackgroundImage2":"[]","BackgroundImage2XOfs":"240","BackgroundImage2YOfs":"300"}
 @dir img
 @desc
 スキルツリーシーンの背景画像のファイル名を指定します。
@@ -383,22 +386,25 @@ const SkillTreeView = SkillTreeClassAlias.SkillTreeView;
 
 const _Scene_SkillTree_isReady = Scene_SkillTree.prototype.isReady;
 Scene_SkillTree.prototype.isReady = function() {
-    if (!_Scene_SkillTree_isReady.call(this)) return false;
+    let ready = true;
+
+    if (!_Scene_SkillTree_isReady.call(this)) ready = false;
     if (OpenedImage.FileName) {
         const openedImage = ImageManager.loadBitmap("img/", OpenedImage.FileName);
-        if (!openedImage.isReady()) return false;
+        if (!openedImage.isReady()) ready = false;
     }
     if (BackgroundImage.FileName) {
         const backgroundImage1 = ImageManager.loadBitmap("img/", BackgroundImage.FileName);
-        if (!backgroundImage1.isReady()) return false;
+        if (!backgroundImage1.isReady()) ready = false;
     }
     for (const img2 of BackgroundImage.BackgroundImage2) {
         if (img2.FileName) {
             const backgroundImage2 = ImageManager.loadBitmap("img/", img2.FileName);
-            if (!backgroundImage2.isReady()) return false;
+            if (!backgroundImage2.isReady()) ready = false;
         }
     }
-    return true;
+
+    return ready;
 };
 
 SkillTreeNodeInfo.prototype.iconBitmap = function(opened) {
@@ -505,7 +511,8 @@ SkillTreeConfigLoader.prototype.loadTypes = function(actorId) {
             break;
         }
     }
-    if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
+    // if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
+    if (!cfgTypes) return [];
     for (let cfgType of cfgTypes) {
         const enabled = (cfgType.length === 3 ? true : cfgType[3]);
         const type = new SkillDataType(cfgType[0], actorId, cfgType[1], cfgType[2], enabled);
@@ -575,7 +582,7 @@ Scene_SkillTree.prototype.updateActor = function() {
 Scene_SkillTree.prototype.updateBackgroundImage2 = function() {
     if (!this._backgroundSprite2) return;
     const backgroundImage2 = this.getBackgroundImage2($gameParty.menuActor().actorId());
-    if (backgroundImage2) this._backgroundSprite2.bitmap = backgroundImage2;
+    this._backgroundSprite2.bitmap = backgroundImage2;
 };
 
 })();
