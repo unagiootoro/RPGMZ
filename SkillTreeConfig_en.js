@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree config
+@plugindesc Skill tree config v1.0.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTreeConfig.js
 
