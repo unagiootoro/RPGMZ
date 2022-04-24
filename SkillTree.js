@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.6.4
+@plugindesc Skill tree v1.7.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.6.4
+@plugindesc スキルツリー v1.7.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -627,6 +627,29 @@ class SkillTreeNodeInfo {
         throw new Error(`Unknown ${this._iconData[0]}`);
     }
 
+    checkIconBitmapReady() {
+        if (this._iconData[0] === "img") {
+            const bitmap = ImageManager.loadPicture(this._iconData[1]);
+            if (!bitmap.isReady()) return false;
+        } else if (this._iconData[0] === "icon") {
+            const iconSet = ImageManager.loadSystem("IconSet");
+            if (!iconSet.isReady()) return false;
+        } else if (this._iconData[0] === "icon_ex") {
+            const iconSet = ImageManager.loadSystem("IconSet");
+            if (!iconSet.isReady()) return false;
+            if (typeof this._iconData[1] === "string") {
+                const backBitmap = ImageManager.loadPicture(this._iconData[1]);
+                if (!backBitmap.isReady()) return false;
+            } else {
+                const backBitmap = ImageManager.loadPicture(this._iconData[1][0]);
+                if (!backBitmap.isReady()) return false;
+            }
+        } else {
+            throw new Error(`Unknown ${this._iconData[0]}`);
+        }
+        return true;
+    }
+
     needSp() {
         return this._needSp;
     }
@@ -787,6 +810,10 @@ class SkillTreeNode {
         return this._info.iconBitmap();
     }
 
+    checkIconBitmapReady() {
+        return this._info.checkIconBitmapReady();
+    }
+
     helpMessage() {
         return this._info.helpMessage();
     }
@@ -928,7 +955,8 @@ class SkillTreeConfigLoader {
                 break;
             }
         }
-        if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
+        // if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
+        if (!cfgTypes) return [];
         for (const cfgType of cfgTypes) {
             const enabled = (cfgType.length === 3 ? true : cfgType[3]);
             typesArray.push(new SkillDataType(cfgType[0], actorId, cfgType[1], cfgType[2], enabled));
@@ -1353,20 +1381,24 @@ class Scene_SkillTree extends Scene_MenuBase {
     }
 
     isReady() {
-        if (!super.isReady()) return false;
+        let ready = true;
+
+        if (!super.isReady()) ready = false;
+
         for (const actor of $gameParty.members()) {
             const faceImage = ImageManager.loadFace(actor.faceName());
-            if (!faceImage.isReady()) return false;
+            if (!faceImage.isReady()) ready = false;
         }
         // Do not use flatMap because some browsers do not support it.
         for (const actor of $gameParty.members()) {
             for (const type of $skillTreeData.types(actor.actorId())) {
                 for (const node of Object.values($skillTreeData.getAllNodesByType(type))) {
-                    if (!node.iconBitmap().isReady()) return false;
+                    if (!node.checkIconBitmapReady()) ready = false;
                 }
             }
         }
-        return true;
+
+        return ready;
     }
 
     start() {
@@ -1384,6 +1416,18 @@ class Scene_SkillTree extends Scene_MenuBase {
         this._windowSkillTree.show();
         this._windowSkillTreeNodeInfo.refresh();
         this._windowNodeOpen.refresh();
+    }
+
+    nextActor() {
+        $gameParty.makeMenuActorNextOrPreviousWhenSkillTree(true);
+        this.updateActor();
+        this.onActorChange();
+    }
+
+    previousActor() {
+        $gameParty.makeMenuActorNextOrPreviousWhenSkillTree(false);
+        this.updateActor();
+        this.onActorChange();
     }
 
     applyMapDatas() {
@@ -2400,6 +2444,7 @@ Scene_Boot.prototype.isReady = function() {
     return true;
 };
 
+
 const _Game_Party_setupStartingMembers = Game_Party.prototype.setupStartingMembers;
 Game_Party.prototype.setupStartingMembers = function() {
     _Game_Party_setupStartingMembers.call(this);
@@ -2415,6 +2460,29 @@ Game_Party.prototype.addActor = function(actorId) {
     _Game_Party_addActor.call(this, actorId);
     $skillTreeConfigLoader.loadConfig(actorId);
     if (!$skillTreeData.sp(actorId)) $skillTreeData.setSp(actorId, 0);
+};
+
+// アクターのスキルツリーが存在しない場合はスキップする
+Game_Party.prototype.makeMenuActorNextOrPreviousWhenSkillTree = function(isNext) {
+    let index = this.members().indexOf(this.menuActor());
+    if (index >= 0) {
+        const firstIndex = index;
+        do {
+            if (isNext) {
+                index = (index + 1) % this.members().length;
+            } else {
+                index = (index + this.members().length - 1) % this.members().length;
+            }
+            const actor = this.members()[index];
+            const types = $skillTreeData.types(actor.actorId());
+            if (types.length > 0) {
+                this.setMenuActor(actor);
+                break;
+            }
+        } while (firstIndex !== index);
+    } else {
+        this.setMenuActor(this.members()[0]);
+    }
 };
 
 
@@ -2444,6 +2512,37 @@ Scene_Menu.prototype.onPersonalOk = function() {
         SceneManager.push(Scene_SkillTree);
         break;
     }
+};
+
+
+// アクターのスキルツリーが存在しない場合は、スキルツリー画面を表示しない
+const _Window_MenuStatus_processOk = Window_MenuStatus.prototype.processOk;
+Window_MenuStatus.prototype.processOk = function() {
+    const scene = SceneManager._scene;
+    if (scene instanceof Scene_Menu && scene._commandWindow.currentSymbol() === "skillTree") {
+        // シーンがメニューでシンボルがスキルツリーの場合
+        const actor = this.actor(this.index());
+        const types = $skillTreeData.types(actor.actorId());
+        if (types.length > 0) {
+            $gameParty.setMenuActor(actor);
+            if (Utils.RPGMAKER_NAME === "MZ") {
+                Window_StatusBase.prototype.processOk.call(this);
+            } else {
+                Window_Selectable.prototype.processOk.call(this);
+            }
+        } else {
+            SoundManager.playBuzzer();
+        }
+    } else {
+        _Window_MenuStatus_processOk.call(this);
+    }
+};
+
+// MV compatible
+const _Window_MenuStatus_actor = Window_MenuStatus.prototype.actor;
+Window_MenuStatus.prototype.actor = function(index) {
+    if (Utils.RPGMAKER_NAME === "MZ") return _Window_MenuStatus_actor.call(this, index);
+    return $gameParty.members()[index];
 };
 
 
@@ -2599,22 +2698,22 @@ Game_Actor.prototype.changeClass = function(classId, keepExp) {
 
 // Define class alias.
 return {
-    SkillTreeNodeInfo: SkillTreeNodeInfo,
-    SkillTreeNode: SkillTreeNode,
-    SkillTreeTopNode: SkillTreeTopNode,
-    SkillDataType: SkillDataType,
-    SkillTreeMapLoader: SkillTreeMapLoader,
-    SkillTreeConfigLoadError: SkillTreeConfigLoadError,
-    SkillTreeConfigLoader: SkillTreeConfigLoader,
-    SkillTreeData: SkillTreeData,
-    SkillTreeManager: SkillTreeManager,
-    Scene_SkillTree: Scene_SkillTree,
-    Window_TypeSelect: Window_TypeSelect,
-    Window_ActorInfo: Window_ActorInfo,
-    Window_SkillTreeNodeInfo: Window_SkillTreeNodeInfo,
-    Window_SkillTree: Window_SkillTree,
-    Window_NodeOpen: Window_NodeOpen,
-    SkillTreeView: SkillTreeView,
-}
+    SkillTreeNodeInfo,
+    SkillTreeNode,
+    SkillTreeTopNode,
+    SkillDataType,
+    SkillTreeMapLoader,
+    SkillTreeConfigLoadError,
+    SkillTreeConfigLoader,
+    SkillTreeData,
+    SkillTreeManager,
+    Scene_SkillTree,
+    Window_TypeSelect,
+    Window_ActorInfo,
+    Window_SkillTreeNodeInfo,
+    Window_SkillTree,
+    Window_NodeOpen,
+    SkillTreeView,
+};
 
 })();
