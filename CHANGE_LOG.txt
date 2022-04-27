@@ -91,6 +91,8 @@ DotMoveSystem.js
         ・イベントサイズによってイベント起動位置がずれる不具合を修正
 
 DotMoveSystem_FunctionEx.js
+    2022/04/16 v1.3.3
+        ・DotMoveSystem.js本体のv1.9.10に対応
     2022/04/16 v1.3.2
         ・DotMoveSystem.js本体のv1.9.9に対応
     2022/03/28 v1.3.1

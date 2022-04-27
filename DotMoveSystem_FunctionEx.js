@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.3.2
+@plugindesc Dot movement system enhancement v1.3.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -554,7 +554,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.3.2
+@plugindesc ドット移動システム機能拡張 v1.3.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -1111,10 +1111,8 @@ const DotMoveSystem_FunctionExPluginName = document.currentScript.src.match(/^.*
 (() => {
 "use strict";
 
-for (const className in DotMoveSystemClassAlias) {
-    this[className] = DotMoveSystemClassAlias[className];
-}
-
+const { CharacterCollisionChecker, FollowerCollisionChecker } = DotMoveSystemClassAlias;
+const { DotMoveUtils, CollisionResult, CharacterController, CharacterMover, PlayerMover } = DotMoveSystemClassAlias;
 
 class PluginParamsParser {
     static parse(params, typeData, predictEnable = true) {
@@ -2037,17 +2035,17 @@ CharacterController.prototype.calcUp = function(dis) {
     if (collisionResults.length >= 1) {
         if (collisionResults.every(res => res.triangleType === 1)) {
             let dis2 = this.calcDistance(45);
-            return this.calcUpRight(dis2);
+            return this.calcUpRightWithSlide(dis2);
         } else if (collisionResults.every(res => res.triangleType === 4)) {
             let dis2 = this.calcDistance(315);
-            return this.calcLeftUp(dis2);
+            return this.calcLeftUpWithSlide(dis2);
         }
     }
 
     if (this.canSlide(collisionResults, 4)) {
-        return this.calcLeftUp(dis);
+        return this.calcLeftUpWithSlide(dis);
     } else if (this.canSlide(collisionResults, 6)) {
-        return this.calcUpRight(dis);
+        return this.calcUpRightWithSlide(dis);
     }
     if (dis.x < 0) {
         return this.calcLeftUpWithoutSlide(dis);
@@ -2063,17 +2061,17 @@ CharacterController.prototype.calcRight = function(dis) {
     if (collisionResults.length >= 1) {
         if (collisionResults.every(res => res.triangleType === 4)) {
             let dis2 = this.calcDistance(135);
-            return this.calcRightDown(dis2);
+            return this.calcRightDownWithSlide(dis2);
         } else if (collisionResults.every(res => res.triangleType === 3)) {
             let dis2 = this.calcDistance(45);
-            return this.calcUpRight(dis2);
+            return this.calcUpRightWithSlide(dis2);
         }
     }
 
     if (this.canSlide(collisionResults, 8)) {
-        return this.calcUpRight(dis);
+        return this.calcUpRightWithSlide(dis);
     } else if (this.canSlide(collisionResults, 2)) {
-        return this.calcRightDown(dis);
+        return this.calcRightDownWithSlide(dis);
     }
     if (dis.y < 0) {
         return this.calcUpRightWithoutSlide(dis);
@@ -2089,17 +2087,17 @@ CharacterController.prototype.calcDown = function(dis) {
     if (collisionResults.length >= 1) {
         if (collisionResults.every(res => res.triangleType === 2)) {
             let dis2 = this.calcDistance(135);
-            return this.calcRightDown(dis2);
+            return this.calcRightDownWithSlide(dis2);
         } else if (collisionResults.every(res => res.triangleType === 3)) {
             let dis2 = this.calcDistance(225);
-            return this.calcDownLeft(dis2);
+            return this.calcDownLeftWithSlide(dis2);
         }
     }
 
     if (this.canSlide(collisionResults, 4)) {
-        return this.calcDownLeft(dis);
+        return this.calcDownLeftWithSlide(dis);
     } else if (this.canSlide(collisionResults, 6)) {
-        return this.calcRightDown(dis);
+        return this.calcRightDownWithSlide(dis);
     }
     if (dis.x < 0) {
         return this.calcDownLeftWithoutSlide(dis);
@@ -2115,17 +2113,17 @@ CharacterController.prototype.calcLeft = function(dis) {
     if (collisionResults.length >= 1) {
         if (collisionResults.every(res => res.triangleType === 1)) {
             let dis2 = this.calcDistance(225);
-            return this.calcDownLeft(dis2);
+            return this.calcDownLeftWithSlide(dis2);
         } else if (collisionResults.every(res => res.triangleType === 2)) {
             let dis2 = this.calcDistance(315);
-            return this.calcLeftUp(dis2);
+            return this.calcLeftUpWithSlide(dis2);
         }
     }
 
     if (this.canSlide(collisionResults, 8)) {
-        return this.calcLeftUp(dis);
+        return this.calcLeftUpWithSlide(dis);
     } else if (this.canSlide(collisionResults, 2)) {
-        return this.calcDownLeft(dis);
+        return this.calcDownLeftWithSlide(dis);
     }
     if (dis.y < 0) {
         return this.calcLeftUpWithoutSlide(dis);
