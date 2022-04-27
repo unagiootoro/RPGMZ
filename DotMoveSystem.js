@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v1.9.9
+@plugindesc Dot movement system v1.9.10
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -101,7 +101,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v1.9.9
+@plugindesc ドット移動システム v1.9.10
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -502,13 +502,13 @@ class DotMoveUtils {
     static isFloatLt(left, right, margin = 1.0 / MARGIN_UNIT) {
         if (left <= right - margin) return true;
         if (left <= right + margin) return true;
-        return false; 
+        return false;
     }
 
     static isFloatGt(left, right, margin = 1.0 / MARGIN_UNIT) {
         if (left >= right - margin) return true;
         if (left >= right + margin) return true;
-        return false; 
+        return false;
     }
 
     static calcDistance(deg, dpf) {
@@ -1350,9 +1350,9 @@ class CharacterController {
         const target = this._character.collisionRect();
         const collisionResults = this.checkCollision(target.x, target.y + dis.y, 8);
         if (this.canSlide(collisionResults, 4)) {
-            return this.calcLeftUp(dis);
+            return this.calcLeftUpWithSlide(dis);
         } else if (this.canSlide(collisionResults, 6)) {
-            return this.calcUpRight(dis);
+            return this.calcUpRightWithSlide(dis);
         }
         if (dis.x < 0) {
             return this.calcLeftUpWithoutSlide(dis);
@@ -1365,9 +1365,9 @@ class CharacterController {
         const target = this._character.collisionRect();
         const collisionResults = this.checkCollision(target.x + dis.x, target.y, 6);
         if (this.canSlide(collisionResults, 8)) {
-            return this.calcUpRight(dis);
+            return this.calcUpRightWithSlide(dis);
         } else if (this.canSlide(collisionResults, 2)) {
-            return this.calcRightDown(dis);
+            return this.calcRightDownWithSlide(dis);
         }
         if (dis.y < 0) {
             return this.calcUpRightWithoutSlide(dis);
@@ -1380,9 +1380,9 @@ class CharacterController {
         const target = this._character.collisionRect();
         const collisionResults = this.checkCollision(target.x, target.y + dis.y, 2);
         if (this.canSlide(collisionResults, 4)) {
-            return this.calcDownLeft(dis);
+            return this.calcDownLeftWithSlide(dis);
         } else if (this.canSlide(collisionResults, 6)) {
-            return this.calcRightDown(dis);
+            return this.calcRightDownWithSlide(dis);
         }
         if (dis.x < 0) {
             return this.calcDownLeftWithoutSlide(dis);
@@ -1395,9 +1395,9 @@ class CharacterController {
         const target = this._character.collisionRect();
         const collisionResults = this.checkCollision(target.x + dis.x, target.y, 4);
         if (this.canSlide(collisionResults, 8)) {
-            return this.calcLeftUp(dis);
+            return this.calcLeftUpWithSlide(dis);
         } else if (this.canSlide(collisionResults, 2)) {
-            return this.calcDownLeft(dis);
+            return this.calcDownLeftWithSlide(dis);
         }
         if (dis.y < 0) {
             return this.calcLeftUpWithoutSlide(dis);
@@ -1407,7 +1407,23 @@ class CharacterController {
     }
 
     calcUpRight(dis) {
-        if (this.needDiagonalSlideX()) {
+        return this.calcUpRightWithSlide(dis, this.needDiagonalSlideX(), this.needDiagonalSlideY());
+    }
+
+    calcRightDown(dis) {
+        return this.calcRightDownWithSlide(dis, this.needDiagonalSlideX(), this.needDiagonalSlideY());
+    }
+
+    calcDownLeft(dis) {
+        return this.calcDownLeftWithSlide(dis, this.needDiagonalSlideX(), this.needDiagonalSlideY());
+    }
+
+    calcLeftUp(dis) {
+        return this.calcLeftUpWithSlide(dis, this.needDiagonalSlideX(), this.needDiagonalSlideY());
+    }
+
+    calcUpRightWithSlide(dis, enableSlideX = true, enableSlideY = true) {
+        if (enableSlideX) {
             const target = this._character.collisionRect();
             const collisionResults1 = this.checkCollision(target.x, target.y + dis.y, 8);
             if (this.canSlide(collisionResults1, 6)) {
@@ -1418,7 +1434,7 @@ class CharacterController {
             }
         }
 
-        if (this.needDiagonalSlideY()) {
+        if (enableSlideY) {
             const target = this._character.collisionRect();
             const collisionResults2 = this.checkCollision(target.x + dis.x, target.y, 6);
             if (this.canSlide(collisionResults2, 8)) {
@@ -1432,8 +1448,8 @@ class CharacterController {
         return this.calcUpRightWithoutSlide(dis);
     }
 
-    calcRightDown(dis) {
-        if (this.needDiagonalSlideY()) {
+    calcRightDownWithSlide(dis, enableSlideX = true, enableSlideY = true) {
+        if (enableSlideY) {
             const target = this._character.collisionRect();
             const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 6);
             if (this.canSlide(collisionResults1, 2)) {
@@ -1444,7 +1460,7 @@ class CharacterController {
             }
         }
 
-        if (this.needDiagonalSlideX()) {
+        if (enableSlideX) {
             const target = this._character.collisionRect();
             const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 2);
             if (this.canSlide(collisionResults2, 6)) {
@@ -1458,8 +1474,8 @@ class CharacterController {
         return this.calcRightDownWithoutSlide(dis);
     }
 
-    calcDownLeft(dis) {
-        if (this.needDiagonalSlideY()) {
+    calcDownLeftWithSlide(dis, enableSlideX = true, enableSlideY = true) {
+        if (enableSlideY) {
             const target = this._character.collisionRect();
             const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 4);
             if (this.canSlide(collisionResults1, 2)) {
@@ -1470,7 +1486,7 @@ class CharacterController {
             }
         }
 
-        if (this.needDiagonalSlideX()) {
+        if (enableSlideX) {
             const target = this._character.collisionRect();
             const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 2);
             if (this.canSlide(collisionResults2, 4)) {
@@ -1484,8 +1500,8 @@ class CharacterController {
         return this.calcDownLeftWithoutSlide(dis);
     }
 
-    calcLeftUp(dis) {
-        if (this.needDiagonalSlideY()) {
+    calcLeftUpWithSlide(dis, enableSlideX = true, enableSlideY = true) {
+        if (enableSlideY) {
             const target = this._character.collisionRect();
             const collisionResults1 = this.checkCollision(target.x + dis.x, target.y, 4);
             if (this.canSlide(collisionResults1, 8)) {
@@ -1496,7 +1512,7 @@ class CharacterController {
             }
         }
 
-        if (this.needDiagonalSlideX()) {
+        if (enableSlideX) {
             const target = this._character.collisionRect();
             const collisionResults2 = this.checkCollision(target.x, target.y + dis.y, 8);
             if (this.canSlide(collisionResults2, 4)) {
