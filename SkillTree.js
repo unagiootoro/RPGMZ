@@ -1216,7 +1216,7 @@ class SkillTreeManager {
     }
 
     changeNextNode() {
-        parent = this._selectNode.parent(0);
+        const parent = this._selectNode.parent(0);
         if (!parent) throw new Error("Unknown parent");
         const i = parent.childs().indexOf(this._selectNode);
         const nextNode = parent.child(i + 1);
@@ -1228,7 +1228,7 @@ class SkillTreeManager {
     }
 
     changePrevNode() {
-        parent = this._selectNode.parent(0);
+        const parent = this._selectNode.parent(0);
         if (!parent) throw new Error("Unknown parent");
         const i = parent.childs().indexOf(this._selectNode);
         const nextNode = parent.child(i - 1);
