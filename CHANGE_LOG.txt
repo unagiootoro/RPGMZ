@@ -29,6 +29,10 @@ AnalogStickEx.js
     2021/06/17 v1.0.0
         ・新規作成
 
+CharacterMoveMotionEx.js
+    2022/05/29 v1.0.0
+        ・新規作成
+
 DotMoveSystem.js
     2022/05/29 v1.10.0
         ・利用可能なスクリプトにcheckCharacter/checkHitCharactersを追加
