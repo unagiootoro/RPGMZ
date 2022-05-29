@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.3.3
+@plugindesc Dot movement system enhancement v1.4.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -554,7 +554,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.3.3
+@plugindesc ドット移動システム機能拡張 v1.4.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -1502,18 +1502,13 @@ PlayerMover.prototype.moveProcess = function() {
 PlayerMover.prototype.eventPushProcess = function() {
     const x = this._character._realX;
     const y = this._character._realY;
-    const width = this._character.width();
-    const height = this._character.height();
     const dpf = this._character.distancePerFrame();
     const margin = dpf / 2;
     const dir = this._character.direction();
-    const dis = DotMoveUtils.calcDistance(DotMoveUtils.direction2deg(dir), dpf);
-    const x2 = x + dis.x;
-    const y2 = y + dis.y;
-    for (const event of DotMoveUtils.enteringMassesEvents(x2, y2, width, height)) {
+    for (const result of this.checkHitCharactersStepDir(x, y, dir, Game_Event)) {
+        const event = result.collisionObject;
         if (!event.event().meta.PushableEvent) continue;
-        const result = this.checkCharacter(x2, y2, dir, event);
-        if (!(result && result.collisionLengthX() >= margin && result.collisionLengthY() >= margin)) continue;
+        if (!(result.collisionLengthX() >= margin && result.collisionLengthY() >= margin)) continue;
         event.mover().dotMoveByDirection(dir);
     }
 };
@@ -1525,14 +1520,11 @@ CharacterCollisionChecker.prototype.checkEventsPrepare = function(notCollisionEv
     const collidedEvents = [];
     const x = this._character._realX;
     const y = this._character._realY;
-    const width = this._character.width();
-    const height = this._character.height();
     const margin = this._character.distancePerFrame();
-    const events = DotMoveUtils.enteringMassesEvents(x, y, width, height);
-    for (const event of events) {
+    for (const result of this.checkHitCharacters(x, y, this._character.direction(), Game_Event)) {
+        const event = result.collisionObject;
         if (event.isNormalPriority() && !event.isThrough() && !notCollisionEventIds.includes(event.eventId())) {
-            const result = this.checkCharacter(x, y, this._character.direction(), event);
-            if (result && result.collisionLengthX() >= margin && result.collisionLengthY() >= margin) collidedEvents.push(event);
+            if (result.collisionLengthX() >= margin && result.collisionLengthY() >= margin) collidedEvents.push(event);
         }
     }
     return collidedEvents.map(event => event.eventId());
@@ -1889,7 +1881,7 @@ CharacterCollisionChecker.prototype.checkCollisionMassLeftUp = function(targetRe
             return [];
         }
     } else if (d === 4) {
-        if (pos.y < iy) { 
+        if (pos.y < iy) {
             result.triangleType = 1;
             return [result];
         } else {
@@ -1920,7 +1912,7 @@ CharacterCollisionChecker.prototype.checkCollisionMassDownLeft = function(target
             return [];
         }
     } else if (d === 2) {
-        if (pos.x < ix) { 
+        if (pos.x < ix) {
             result.triangleType = 2;
             return [result];
         } else {
@@ -1931,7 +1923,7 @@ CharacterCollisionChecker.prototype.checkCollisionMassDownLeft = function(target
             return [result2];
         }
     } else if (d === 4) {
-        if (pos.y + this._character.height() > iy + 1) { 
+        if (pos.y + this._character.height() > iy + 1) {
             result.triangleType = 2;
             return [result];
         } else {
@@ -1956,7 +1948,7 @@ CharacterCollisionChecker.prototype.checkCollisionMassRightDown = function(targe
             return [result];
         }
     } else if (d === 6) {
-        if (pos.y + this._character.height() > iy + 1) { 
+        if (pos.y + this._character.height() > iy + 1) {
             result.triangleType = 3;
             return [result];
         } else {
@@ -2003,7 +1995,7 @@ CharacterCollisionChecker.prototype.checkCollisionMassUpRight = function(targetR
             return [result2];
         }
     } else if (d === 6) {
-        if (pos.y < iy) { 
+        if (pos.y < iy) {
             result.triangleType = 4;
             return [result];
         } else {
