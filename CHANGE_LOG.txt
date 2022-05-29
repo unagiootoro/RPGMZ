@@ -30,6 +30,8 @@ AnalogStickEx.js
         ・新規作成
 
 DotMoveSystem.js
+    2022/05/29 v1.10.0
+        ・利用可能なスクリプトにcheckCharacter/checkHitCharactersを追加
     2022/04/27 v1.9.10
         ・キャラクターサイズ変更時に壁衝突時のスライド処理が動作しない不具合を修正
     2022/04/16 v1.9.9
