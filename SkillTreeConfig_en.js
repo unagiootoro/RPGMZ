@@ -95,6 +95,18 @@ Is described.
 In script
 skt_open (actor ID);
 By writing, you can start the skill tree of the specified actor.
+
+■ Acquire skills in the skill tree from a script
+With a script
+skt_learn (actor ID, "type name", skill name, forced acquisition (optional));
+By stating, you can acquire the specified skill.
+Use the skill name specified in "skillTreeInfo".
+If true is set for the presence / absence of forced acquisition, the skill will be forcibly acquired regardless of the judgment of whether or not it can be learned.
+Also, in this case SP is not consumed.
+If false is set for forced acquisition, the skill will be acquired in the usual way. In this case, SP is also consumed.
+This item can be omitted. If omitted, false is applied.
+For example: If you are a character with actor ID 1 and want to acquire "Strong Attack" in the skill tree of type "Sword skill"
+skt_learn(1, "Sword skill", "Strong Attack", false);
 */
 
 const loadSkillTreeConfig = () => {

@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc スキルツリーコンフィグ v1.0.0
+@plugindesc スキルツリーコンフィグ v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTreeConfig.js
 
@@ -93,6 +93,18 @@ skt_migrationType(アクターID, "下位魔法", "上位魔法", true);
 スクリプトで
 skt_open(アクターID);
 と記載することで、指定したアクターのスキルツリーを起動することができます。
+
+■ スクリプトからスキルツリーのスキルを取得する
+スクリプトで
+skt_learn(アクターID, "タイプ名", スキル名, 強制取得有無(省略可));
+と記載することで、指定したスキルを取得することができます。
+スキル名は「skillTreeInfo」で指定したものを使用してください。
+強制取得有無にtrueを設定した場合、習得可能か否かの判定を無視して強制的にスキルを取得します。
+また、この場合SPは消費されません。
+強制取得有無にfalseを設定した場合は通常通りの方法でスキルを取得します。この場合はSPも消費されます。
+なおこの項目については省略可能です。省略した場合はfalseが適用されます。
+例: アクターID1のキャラクターで、タイプ「剣技」のスキルツリーの「強撃」を取得する場合
+skt_learn(1, "剣技", "強撃", false);
 */
 
 const loadSkillTreeConfig = () => {

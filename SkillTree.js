@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.7.1
+@plugindesc Skill tree v1.8.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.7.0
+@plugindesc スキルツリー v1.8.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -426,6 +426,17 @@ const skt_totalSp = (actorId, variableId) => {
     $gameVariables.setValue(variableId, totalSp)
 };
 
+const skt_learn = (actorId, typeName, skillId, force = false) => {
+    const types = $skillTreeData.types(actorId);
+    const findedType = types.find(type => type.skillTreeName() === typeName);
+    if (!findedType) return;
+    if (force) {
+        $skillTreeData.forceOpenNode(findedType, skillId);
+    } else {
+        $skillTreeData.openNode(findedType, skillId);
+    }
+};
+
 const skt_enableType = (actorId, typeName) => {
     const types = $skillTreeData.types(actorId);
     let targetType = null;
@@ -579,10 +590,18 @@ class SkillTreeNodeInfo {
         this._helpMessage = helpMessage;
     }
 
+    actorId() {
+        return this._actorId;
+    }
+
     actor() {
         const actor = $gameActors.actor(this._actorId);
         if (!actor) throw new Error(`actor id: ${this._actorId} is not found.`)
         return actor;
+    }
+
+    skillId() {
+        return this._skillId;
     }
 
     skill() {
@@ -659,6 +678,7 @@ class SkillTreeNodeInfo {
     }
 }
 
+
 class SkillTreeNode {
     constructor(tag) {
         this._tag = tag
@@ -725,8 +745,8 @@ class SkillTreeNode {
         this._info = info;
     }
 
-    isOpenable(nowSp) {
-        return this.isSelectable() && !this.isOpened() && this._info.canLearn(nowSp);
+    isOpenable() {
+        return this.isSelectable() && !this.isOpened() && this.canCostConsumption();
     }
 
     isSelectable() {
@@ -744,14 +764,25 @@ class SkillTreeNode {
         this._opened = openStatus;
     }
 
-    open() {
+    open(costConsume = true) {
         this._info.learnSkill();
+        if (costConsume) this.costConsumption();
         this._opened = true;
     }
 
     close() {
         this._info.forgetSkill();
         this._opened = false;
+    }
+
+    canCostConsumption() {
+        const actorId = this._info.actorId();
+        return $skillTreeData.sp(actorId) >= this.needSp();
+    }
+
+    costConsumption() {
+        const actorId = this._info.actorId();
+        $skillTreeData.gainSp(actorId, -this.needSp());
     }
 
     clearPointNode() {
@@ -955,7 +986,6 @@ class SkillTreeConfigLoader {
                 break;
             }
         }
-        // if (!cfgTypes) throw new SkillTreeConfigLoadError(`Missing types from actorId:${actorId}`);
         if (!cfgTypes) return [];
         for (const cfgType of cfgTypes) {
             const enabled = (cfgType.length === 3 ? true : cfgType[3]);
@@ -1097,9 +1127,29 @@ class SkillTreeData {
             const dstNode = dst[tag];
             if (srcNode && dstNode && srcNode.isOpened()) {
                 srcNode.close();
-                dstNode.open();
+                dstNode.open(false);
             }
         }
+    }
+
+    openNode(type, skillId) {
+        for (const node of this.topNode(type).getAllChilds()) {
+            if (node.info().skillId() === skillId && node.isOpenable()) {
+                node.open();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    forceOpenNode(type, skillId) {
+        for (const node of this.topNode(type).getAllChilds()) {
+            if (node.info().skillId() === skillId) {
+                node.open(false);
+                return true;
+            }
+        }
+        return false;
     }
 
     makePoint(type, mode) {
@@ -1348,12 +1398,11 @@ class SkillTreeManager {
     }
 
     isSelectNodeOpenable() {
-        return this._selectNode.isOpenable($skillTreeData.sp(this._actorId));
+        return this._selectNode.isOpenable();
     }
 
     selectNodeOpen() {
         this._selectNode.open();
-        $skillTreeData.gainSp(this._actorId, -this._selectNode.needSp());
     }
 
     makePoint() {
@@ -1639,7 +1688,7 @@ class Scene_SkillTree extends Scene_MenuBase {
     }
 
     typeOk() {
-        this.changeTypeWindowToSkillTreeWindow();
+        this.change_TypeWindow_To_SkillTreeWindow();
     }
 
     typeCancel() {
@@ -1647,23 +1696,23 @@ class Scene_SkillTree extends Scene_MenuBase {
     }
 
     skillTreeOk() {
-        this.changeSkillTreeWindowToNodeOpenWindow();
+        this.change_SkillTreeWindow_To_NodeOpenWindow();
     }
 
     skillTreeCance() {
-        this.changeSkillTreeWindowToTypeWindow();
+        this.change_SkillTreeWindow_To_TypeWindow();
     }
 
     nodeOpenOk() {
         this._skillTreeManager.selectNodeOpen();
         this.playLearnSkillSe();
-        this.changeNodeOpenWindowToSkillTreeWindow();
+        this.change_NodeOpenWindow_To_SkillTreeWindow();
         this._windowSkillTree.refresh();
         this._windowActorInfo.refresh();
     }
 
     nodeOpenCancel() {
-        this.changeNodeOpenWindowToSkillTreeWindow();
+        this.change_NodeOpenWindow_To_SkillTreeWindow();
     }
 
     needsPageButtons() {
@@ -1695,7 +1744,7 @@ class Scene_SkillTree extends Scene_MenuBase {
 
     }
 
-    changeTypeWindowToSkillTreeWindow() {
+    change_TypeWindow_To_SkillTreeWindow() {
         this._windowTypeSelect.deactivate();
         this._windowTypeSelect.hideHelpWindow();
         this._windowSkillTreeNodeInfo.refresh();
@@ -1706,7 +1755,7 @@ class Scene_SkillTree extends Scene_MenuBase {
         this._windowSkillTree.activate();
     }
 
-    changeSkillTreeWindowToTypeWindow() {
+    change_SkillTreeWindow_To_TypeWindow() {
         this._windowSkillTree.deactivate();
         this._windowSkillTree.hideHelpWindow();
         this._windowSkillTreeNodeInfo.close();
@@ -1715,7 +1764,7 @@ class Scene_SkillTree extends Scene_MenuBase {
         this._windowTypeSelect.open();
     }
 
-    changeSkillTreeWindowToNodeOpenWindow() {
+    change_SkillTreeWindow_To_NodeOpenWindow() {
         this._windowSkillTree.deactivate();
         this._windowNodeOpen.refresh();
         this._windowNodeOpen.activate();
@@ -1723,7 +1772,7 @@ class Scene_SkillTree extends Scene_MenuBase {
         this._windowNodeOpen.open();
     }
 
-    changeNodeOpenWindowToSkillTreeWindow() {
+    change_NodeOpenWindow_To_SkillTreeWindow() {
         this._windowNodeOpen.deactivate();
         this._windowNodeOpen.close();
         this._windowSkillTree.open();
@@ -2254,11 +2303,13 @@ class SkillTreeView {
     viewDrawNode(bitmap) {
         for (const node of Object.values(this._skillTreeManager.getAllNodes())) {
             let [px, py] = SkillTreeView.getPixelXY(node.point);
-            if (node.isSelectable()) {
+            // NOTE: 強制オープンなどで選択可能でないノードがオープン済みになった場合は半透明にしない。
+            if (node.isSelectable() || node.isOpened()) {
                 this.drawIcon(bitmap, node.iconBitmap(), px, py);
             } else {
                 this.drawIcon(bitmap, node.iconBitmap(), px, py, 96);
             }
+            this.drawNode(bitmap, node, px, py);
             if (node.isOpened()) {
                 const x = px - ViewRectOfs;
                 const y = py - ViewRectOfs;
@@ -2411,6 +2462,7 @@ DataManager.createGameObjects = function() {
     $skillTreeData = new SkillTreeData();
 };
 
+
 const _Scene_Boot_create = Scene_Boot.prototype.create;
 Scene_Boot.prototype.create = function() {
     _Scene_Boot_create.call(this);
@@ -2498,6 +2550,7 @@ Window_MenuCommand.prototype.isEnabledSkillTree = function() {
     return $gameSwitches.value(EnabledSkillTreeSwitchId);
 };
 
+
 const _Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
 Scene_Menu.prototype.createCommandWindow = function() {
     _Scene_Menu_createCommandWindow.call(this);
@@ -2582,11 +2635,13 @@ Game_Enemy.prototype.sp = function() {
     return battleEndGainSp ? parseInt(battleEndGainSp) : 0;
 };
 
+
 Game_Troop.prototype.spTotal = function() {
     return this.deadMembers().reduce((r, enemy) => {
         return r + enemy.sp();
     }, 0);
 };
+
 
 const _BattleManager_makeRewards = BattleManager.makeRewards;
 BattleManager.makeRewards = function() {
@@ -2647,6 +2702,7 @@ Game_Temp.prototype.prevLevel = function() {
 Game_Temp.prototype.setPrevLevel = function(prevLevel) {
     return this._prevLevel = prevLevel;
 };
+
 
 const _Game_Actor_changeExp = Game_Actor.prototype.changeExp;
 Game_Actor.prototype.changeExp = function(exp, show) {

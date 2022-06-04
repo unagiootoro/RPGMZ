@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill Tree Layout Extension v1.3.0
+@plugindesc Skill Tree Layout Extension v1.3.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree_LayoutEx.js
 
@@ -480,7 +480,7 @@ SkillTreeNode.prototype.iconBitmap = function() {
 SkillTreeView.prototype.viewDrawNode = function(bitmap) {
     for (const node of Object.values(this._skillTreeManager.getAllNodes())) {
         let [px, py] = SkillTreeView.getPixelXY(node.point);
-        if (node.isSelectable()) {
+        if (node.isSelectable() || node.isOpened()) {
             this.drawIcon(bitmap, node.iconBitmap(), px, py);
         } else {
             this.drawIcon(bitmap, node.iconBitmap(), px, py, 96);
