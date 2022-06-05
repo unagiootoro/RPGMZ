@@ -123,6 +123,18 @@
     static isEnabledSuperMode7() {
       return !!$dataMap.meta.SuperMode7;
     }
+    static tileWidth() {
+      return $gameMap.tileWidth();
+    }
+    static tileHeight() {
+      return $gameMap.tileHeight();
+    }
+    static halfTileWidth() {
+      return this.tileWidth() / 2;
+    }
+    static halfTileHeight() {
+      return this.tileHeight() / 2;
+    }
     static superMode7MapParams() {
       const reg = /<SuperMode7>(.+?)<\/SuperMode7>/sg;
       const matchData = reg.exec($dataMap.note);
@@ -296,7 +308,8 @@
     constructor(opt = {}) {
       super(45, Graphics.width / Graphics.height, opt.near == null ? 1 : opt.near, opt.far == null ? 1500 : opt.far);
       this._angle = 0;
-      this._cameraHeight = opt.cameraHeight == null ? 48 * 15.5 : opt.cameraHeight;
+      this._farUnit = Math.min(SuperMode7Utils.tileWidth(), SuperMode7Utils.tileHeight());
+      this._cameraHeight = opt.cameraHeight == null ? SuperMode7Utils.tileWidth() * 15.5 : opt.cameraHeight;
       this._farFromCenter = opt.farFromCenter == null ? 0 : opt.farFromCenter;
       this._cameraController = new CameraController(this);
     }
@@ -332,7 +345,9 @@
       this._cameraController.changeAngle(angle, direction, duration);
     }
     cameraFocusPoint() {
-      return new import_three2.Vector2($gameMap.displayX() + 8, $gameMap.displayY() + 6);
+      const x = $gameMap.displayX() + Math.floor(Graphics.boxWidth / 2 / SuperMode7Utils.tileWidth());
+      const y = $gameMap.displayY() + Math.floor(Graphics.boxHeight / 2 / SuperMode7Utils.tileHeight());
+      return new import_three2.Vector2(x, y);
     }
     getProjection(object3d) {
       const worldPosition = object3d.getWorldPosition(object3d.position.clone());
@@ -341,11 +356,11 @@
     updateCameraPosition() {
       this.position.y = this._cameraHeight;
       const focus = this.cameraFocusPoint();
-      const cameraBaseX = focus.x * 48 + 24;
-      const cameraBaseZ = focus.y * 48 + 24;
-      const dis = SuperMode7Utils.calcDistance(this._angle, this._farFromCenter / 48);
-      this.position.x = cameraBaseX - dis.x * 48;
-      this.position.z = cameraBaseZ - dis.y * 48;
+      const cameraBaseX = focus.x * SuperMode7Utils.tileWidth() + SuperMode7Utils.halfTileWidth();
+      const cameraBaseZ = focus.y * SuperMode7Utils.tileHeight() + SuperMode7Utils.halfTileHeight();
+      const dis = SuperMode7Utils.calcDistance(this._angle, this._farFromCenter / this._farUnit);
+      this.position.x = cameraBaseX - dis.x * SuperMode7Utils.tileWidth();
+      this.position.z = cameraBaseZ - dis.y * SuperMode7Utils.tileHeight();
       const vec3 = new import_three2.Vector3(cameraBaseX, 0, cameraBaseZ);
       this.lookAt(vec3);
     }
@@ -535,7 +550,7 @@
 
   // src/TilemapElementsGenerator.ts
   var _TilemapElementsGenerator = class {
-    constructor() {
+    constructor(tileWidth, tileHeight) {
       this.animationFrame = 0;
       this._startX = 0;
       this._startY = 0;
@@ -549,8 +564,8 @@
       this._width = Graphics.width;
       this._height = Graphics.height;
       this._margin = 0;
-      this._tileWidth = 48;
-      this._tileHeight = 48;
+      this._tileWidth = tileWidth;
+      this._tileHeight = tileHeight;
       this._mapWidth = 0;
       this._mapHeight = 0;
       this._mapData = null;
@@ -1130,6 +1145,8 @@
       this._textureHeight = textureHeight;
     }
     updateUVs() {
+      const halfTileWidth = SuperMode7Utils.halfTileWidth();
+      const halfTileHeight = SuperMode7Utils.halfTileHeight();
       const attr = this.getAttribute("uv");
       const uvs = new Float32Array(attr.array.length);
       if (!this._elements)
@@ -1139,11 +1156,11 @@
         if (setNumber < 0)
           continue;
         if (setNumber <= 3) {
-          this.setUv(uvs, setNumber, sx, sy, dx, dy, 24 - this._tileSpace, 24 - this._tileSpace, 0, 0);
+          this.setUv(uvs, setNumber, sx, sy, dx, dy, halfTileWidth - this._tileSpace, halfTileHeight - this._tileSpace, 0, 0);
         } else {
           for (let iy = 0; iy < 2; iy++) {
             for (let ix = 0; ix < 2; ix++) {
-              this.setUv(uvs, setNumber, sx, sy, dx, dy, 24 - this._tileSpace, 24 - this._tileSpace, ix * 24, iy * 24);
+              this.setUv(uvs, setNumber, sx, sy, dx, dy, halfTileWidth - this._tileSpace, halfTileHeight - this._tileSpace, ix * halfTileWidth, iy * halfTileHeight);
             }
           }
         }
@@ -1151,20 +1168,24 @@
       this.setAttribute("uv", new import_three5.Float32BufferAttribute(uvs, 2));
     }
     setUv(uvs, setNumber, sx, sy, dx, dy, sw, sh, ox, oy) {
+      const halfTileWidth = SuperMode7Utils.halfTileWidth();
+      const halfTileHeight = SuperMode7Utils.halfTileHeight();
+      const tilesetWidth = SuperMode7Utils.tileWidth() * halfTileWidth;
+      const tilesetHeight = SuperMode7Utils.tileHeight() * halfTileHeight;
       const widthSegments = this.parameters.widthSegments;
       const heightSegments = this.parameters.heightSegments;
       const dmax = widthSegments * heightSegments * 8;
-      const uvSxOfs = Math.floor(setNumber / 2) * 768;
-      const uvSyOfs = setNumber % 2 * 768;
-      const isx = sx / 24;
-      const isy = sy / 24;
-      const uvSx = (isx * 24 + this._tileSpace + ox + uvSxOfs) / this._textureWidth;
-      const uvSy = 1 - (isy * 24 + this._tileSpace + oy + uvSyOfs) / this._textureHeight;
-      const dix = Math.floor((dx + ox) / 24);
-      const diy = Math.floor((dy + oy) / 24);
+      const uvSxOfs = Math.floor(setNumber / 2) * tilesetWidth;
+      const uvSyOfs = setNumber % 2 * tilesetHeight;
+      const isx = sx / halfTileWidth;
+      const isy = sy / halfTileHeight;
+      const uvSx = (isx * halfTileWidth + this._tileSpace + ox + uvSxOfs) / this._textureWidth;
+      const uvSy = 1 - (isy * halfTileHeight + this._tileSpace + oy + uvSyOfs) / this._textureHeight;
+      const dix = Math.floor((dx + ox) / halfTileWidth);
+      const diy = Math.floor((dy + oy) / halfTileHeight);
       const dindex = (diy * widthSegments + dix) * 8;
-      const uvSx2 = (isx * 24 + this._tileSpace + ox + sw + uvSxOfs) / this._textureWidth;
-      const uvSy2 = 1 - (isy * 24 + this._tileSpace + oy + sh + uvSyOfs) / this._textureHeight;
+      const uvSx2 = (isx * halfTileWidth + this._tileSpace + ox + sw + uvSxOfs) / this._textureWidth;
+      const uvSy2 = 1 - (isy * halfTileHeight + this._tileSpace + oy + sh + uvSyOfs) / this._textureHeight;
       const rectUvs = this.createRectUvs(uvSx, uvSy, uvSx2, uvSy2);
       for (let i = 0; i < 8; i++) {
         if (uvs[dindex + i] === 0) {
@@ -1193,16 +1214,21 @@
       return new import_three6.Texture(tilemapBitmap.canvas, import_three6.Texture.DEFAULT_MAPPING, import_three6.ClampToEdgeWrapping, import_three6.ClampToEdgeWrapping, import_three6.NearestFilter, import_three6.NearestMipMapLinearFilter, import_three6.RGBAFormat, import_three6.UnsignedByteType, 1, import_three6.LinearEncoding);
     }
     _convertBitmap(dstBitmap, srcBitmap, index) {
-      const unit = 768 / 24;
-      for (let y = 0; y < unit; y++) {
-        for (let x = 0; x < unit; x++) {
-          const sx = x * 24;
-          const sy = y * 24;
-          const dxOfs = Math.floor(index / 2) * 768;
-          const dyOfs = index % 2 * 768;
-          const dx = x * 24 + dxOfs;
-          const dy = y * 24 + dyOfs;
-          dstBitmap.blt(srcBitmap, sx, sy, 24, 24, dx, dy);
+      const halfTileWidth = SuperMode7Utils.halfTileWidth();
+      const halfTileHeight = SuperMode7Utils.halfTileHeight();
+      const tilesetWidth = SuperMode7Utils.tileWidth() * halfTileWidth;
+      const tilesetHeight = SuperMode7Utils.tileHeight() * halfTileHeight;
+      const xUnit = tilesetWidth / halfTileWidth;
+      const yUnit = tilesetHeight / halfTileHeight;
+      for (let y = 0; y < xUnit; y++) {
+        for (let x = 0; x < yUnit; x++) {
+          const sx = x * halfTileWidth;
+          const sy = y * halfTileHeight;
+          const dxOfs = Math.floor(index / 2) * tilesetWidth;
+          const dyOfs = index % 2 * tilesetHeight;
+          const dx = x * halfTileWidth + dxOfs;
+          const dy = y * halfTileHeight + dyOfs;
+          dstBitmap.blt(srcBitmap, sx, sy, halfTileWidth, halfTileHeight, dx, dy);
         }
       }
     }
@@ -1290,8 +1316,8 @@
       const tileHeight = $gameMap.tileHeight();
       const x = $gameTemp.destinationX();
       const y = $gameTemp.destinationY();
-      this.position.x = x * tileWidth + 24;
-      this.position.z = y * tileHeight + 24;
+      this.position.x = x * tileWidth + tileWidth / 2;
+      this.position.z = y * tileHeight + tileHeight / 2;
     }
     updateAnimation() {
       this._frameCount++;
@@ -1672,8 +1698,8 @@
       } else {
         this.position.y = this.baseY() + this._priority;
       }
-      this.position.x = this._character._realX * 48 + 24 + this._baseX;
-      this.position.z = this._character._realY * 48 - this._character.shiftY() - this.height / 2 + 24 + this.mode7ShiftY() + this._baseZ;
+      this.position.x = this._character._realX * SuperMode7Utils.tileWidth() + SuperMode7Utils.halfTileWidth() + this._baseX;
+      this.position.z = this._character._realY * SuperMode7Utils.tileHeight() - this._character.shiftY() - this.height / 2 + SuperMode7Utils.halfTileHeight() + this.mode7ShiftY() + this._baseZ;
       this.correctXPos();
     }
     baseY() {
@@ -1715,8 +1741,8 @@
       }
       for (let baseYIndex = baseYIndexBegin; baseYIndex <= baseYIndexEnd; baseYIndex++) {
         for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
-          const baseX = (baseXIndex - 1) * $gameMap.width() * 48;
-          const baseZ = (baseYIndex - 1) * $gameMap.height() * 48;
+          const baseX = (baseXIndex - 1) * $gameMap.width() * SuperMode7Utils.tileWidth();
+          const baseZ = (baseYIndex - 1) * $gameMap.height() * SuperMode7Utils.tileHeight();
           const sprite = this.createSprite(pixiSprite, baseX, baseZ, priority);
           this._sprites.push(sprite);
           this.add(sprite);
@@ -1788,8 +1814,8 @@
       this.updateOpacity();
     }
     updatePosition() {
-      this.position.z = this._character._realY * 48 + 24 + this._baseZ;
-      this.position.x = this._character._realX * 48 + 24 + this._baseX;
+      this.position.z = this._character._realY * SuperMode7Utils.tileWidth() + SuperMode7Utils.halfTileWidth() + this._baseZ;
+      this.position.x = this._character._realX * SuperMode7Utils.tileHeight() + SuperMode7Utils.halfTileHeight() + this._baseX;
     }
     updateVisibility() {
       const pixiSprite = this.getPixiSprite();
@@ -1840,8 +1866,8 @@
       }
       for (let baseYIndex = baseYIndexBegin; baseYIndex <= baseYIndexEnd; baseYIndex++) {
         for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
-          const baseX = (baseXIndex - 1) * $gameMap.width() * 48;
-          const baseZ = (baseYIndex - 1) * $gameMap.height() * 48;
+          const baseX = (baseXIndex - 1) * $gameMap.width() * SuperMode7Utils.tileWidth();
+          const baseZ = (baseYIndex - 1) * $gameMap.height() * SuperMode7Utils.tileHeight();
           const sprite = this.createSprite(camera, baseX, baseZ);
           this._sprites.push(sprite);
           this.add(sprite);
@@ -1879,9 +1905,9 @@
     updatePosition() {
       const character = this._pixiSprite._target._character;
       if (character) {
-        this.position.x = character._realX * 48 + this._baseX + 24;
+        this.position.x = character._realX * SuperMode7Utils.tileWidth() + this._baseX + SuperMode7Utils.halfTileWidth();
         this.position.y = this._pixiSprite._target.height;
-        this.position.z = character._realY * 48 + this._baseZ;
+        this.position.z = character._realY * SuperMode7Utils.tileHeight() + this._baseZ;
       }
     }
     updateUVs() {
@@ -2123,7 +2149,7 @@
       this._camera = camera;
       this._areaSize = areaSize;
       this.createPlanes();
-      this._tilemapElementsGenerator = new TilemapElementsGenerator();
+      this._tilemapElementsGenerator = new TilemapElementsGenerator(map.tileWidth(), map.tileHeight());
       this._tilemapElementsGenerator.setData(map.width(), map.height(), map.data());
     }
     get fadeEffectRate() {
@@ -2142,8 +2168,8 @@
         this._material.uniforms.fadeEffectRate.value = this._fadeEffectRate;
       }
       const focus = this._camera.cameraFocusPoint();
-      this._tilemapElementsGenerator.width = this._areaSize * 48;
-      this._tilemapElementsGenerator.height = this._areaSize * 48;
+      this._tilemapElementsGenerator.width = this._areaSize * SuperMode7Utils.tileWidth();
+      this._tilemapElementsGenerator.height = this._areaSize * SuperMode7Utils.tileHeight();
       this._tilemapElementsGenerator.startX = Math.round(focus.x) - this._areaSize / 2;
       this._tilemapElementsGenerator.startY = Math.round(focus.y) - this._areaSize / 2;
       this._tilemapElementsGenerator.update();
@@ -2174,10 +2200,10 @@
       let index = 0;
       for (let baseYIndex = baseYIndexBegin; baseYIndex <= baseYIndexEnd; baseYIndex++) {
         for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
-          const xOfs = (baseXIndex - 1) * this._map.width() * 48;
-          const zOfs = (baseYIndex - 1) * this._map.height() * 48;
-          const xPos = xOfs + Math.round(focus.x) * 48;
-          const zPos = zOfs + Math.round(focus.y) * 48;
+          const xOfs = (baseXIndex - 1) * this._map.width() * SuperMode7Utils.tileWidth();
+          const zOfs = (baseYIndex - 1) * this._map.height() * SuperMode7Utils.tileHeight();
+          const xPos = xOfs + Math.round(focus.x) * SuperMode7Utils.tileWidth();
+          const zPos = zOfs + Math.round(focus.y) * SuperMode7Utils.tileHeight();
           const plane = this._planes[index];
           plane.position.x = xPos;
           plane.position.z = zPos;
@@ -2191,7 +2217,7 @@
       this._planeGeometry.update();
     }
     createPlanes() {
-      this._planeGeometry = new TilemapPlaneGeometry(this._areaSize * 48, this._areaSize * 48, this._areaSize * 2, this._areaSize * 2, 4);
+      this._planeGeometry = new TilemapPlaneGeometry(this._areaSize * SuperMode7Utils.tileWidth(), this._areaSize * SuperMode7Utils.tileHeight(), this._areaSize * 2, this._areaSize * 2, 4);
       if (this._useShaderMaterial) {
         this._material = this.createShaderMaterial();
       } else {
@@ -2211,8 +2237,8 @@
       }
       for (let baseYIndex = baseYIndexBegin; baseYIndex <= baseYIndexEnd; baseYIndex++) {
         for (let baseXIndex = baseXIndexBegin; baseXIndex <= baseXIndexEnd; baseXIndex++) {
-          const xOfs = (baseXIndex - 1) * this._map.width() * 48;
-          const zOfs = (baseYIndex - 1) * this._map.height() * 48;
+          const xOfs = (baseXIndex - 1) * this._map.width() * SuperMode7Utils.tileWidth();
+          const zOfs = (baseYIndex - 1) * this._map.height() * SuperMode7Utils.tileHeight();
           const plane = new import_three13.Mesh(this._planeGeometry, this._material);
           plane.position.set(xOfs, 0, zOfs);
           plane.rotation.x = SuperMode7Utils.deg2rad(0);
@@ -2485,8 +2511,8 @@
     const pos = new import_three17.Vector2(mouseX, mouseY);
     const point = scene3d.raycastToTilemap(pos);
     if (point) {
-      const x = Math.round((point.x - 24) / 48);
-      const y = Math.round((point.z - 24) / 48);
+      const x = Math.round((point.x - SuperMode7Utils.halfTileWidth()) / SuperMode7Utils.tileWidth());
+      const y = Math.round((point.z - SuperMode7Utils.halfTileHeight()) / SuperMode7Utils.tileHeight());
       $gameTemp.setDestination(x, y);
     }
   };
@@ -2844,7 +2870,7 @@
 })();
 /*!/*:
 @target MZ
-@plugindesc SuperMode7 v0.2.1
+@plugindesc SuperMode7 v0.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SuperMode7.js
 @help
