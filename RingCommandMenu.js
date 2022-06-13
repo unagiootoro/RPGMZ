@@ -1,13 +1,13 @@
 /*:
 @target MV MZ
-@plugindesc リングコマンドメニュー v1.3.1
+@plugindesc リングコマンドメニュー v1.4.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/RingCommandMenu.js
 @help
 リングコマンドメニューを導入するプラグインです。
 
 【使用方法】
-基本的に導入するだけで使用できますが、プラグインパラメータ「MainMenuCommands」を編集することで
+基本的に導入するだけで使用できますが、プラグインパラメータ「メインメニューコマンド」を編集することで
 よりリングコマンドをカスタマイズすることができます。
 
 ■ メインメニューコマンドの編集について
@@ -23,6 +23,10 @@ subMenu: サブコマンドの一覧を開く
 
 ※v1.3.0以降より、コマンドタイプのnormalはscriptに変更になりました。
   ただし互換性のためにnormalを指定した場合はscriptを指定したものとして扱います。
+
+■ アクター選択コマンドの編集について
+アクター選択画面のアイコンはキャラクターの歩行グラフィックスから自動的に生成されますが、
+アクター選択コマンドを編集することで自由にアクターのアイコンを設定することが可能です。
 
 
 【ライセンス】
@@ -49,6 +53,13 @@ subMenu: サブコマンドの一覧を開く
 @default false
 @desc
 サブコマンド表示時の回転を有効にします。
+
+@param SkipActorSelect
+@text アクター選択スキップ
+@type boolean
+@default true
+@desc
+trueを設定するとパーティメンバーが1人しかいない場合はアクター選択画面をスキップします。
 
 @param SaveCommandText
 @text セーブコマンドテキスト
@@ -434,6 +445,14 @@ const typeDefine = {
 const PP = PluginParamsParser.parse(PluginManager.parameters(RingCommandMenuPluginName), typeDefine);
 
 const $ringCommnadDatas = [];
+
+
+class RingCommandUtils {
+    static needSkipActorSelect() {
+        return PP.SkipActorSelect && $gameParty.members().length === 1;
+    }
+}
+
 
 class RingCommandData {
     get commandType() { return this._commandType; }
@@ -1274,6 +1293,13 @@ class RingCommandManager {
         case "commonEvent":
             this.evaluateData(data);
             break;
+        case "selectActor":
+            if (RingCommandUtils.needSkipActorSelect()) {
+                const actor = $gameParty.members()[0];
+                $gameParty.setMenuActor(actor);
+                this.evaluateData(data);
+            }
+            break;
         }
         return commandType;
     }
@@ -1589,7 +1615,9 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
         let datas = null;
         switch (execCommandType) {
         case "selectActor":
-            datas = this.createRingCommnadActorDatas();
+            if (!RingCommandUtils.needSkipActorSelect()) {
+                datas = this.createRingCommnadActorDatas();
+            }
             break;
         case "subMenu":
             datas = $gameTemp.ringCommandManager().currentData().subCommands;
