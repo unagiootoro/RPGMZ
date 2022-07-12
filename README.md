@@ -12,6 +12,10 @@ https://github.com/unagiootoro/RPGMZ/blob/master/LICENSE
 うなぎおおとろ  
 twitter: https://twitter.com/unagiootoro8388
 
+## プルリクエストについて
+2022/07/11より、プルリクエストの受け付けは停止しました。理由は今後プラグインを別のツクールに移植する際に
+著作権の所在が不明瞭になることを防ぐためです。予めご了承ください。
+
 ## 更新履歴
 [https://github.com/unagiootoro/RPGMZ/blob/master/CHANGE_LOG.txt](https://github.com/unagiootoro/RPGMZ/blob/master/CHANGE_LOG.txt)
 
