@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Skill tree v1.8.0
+@plugindesc Skill tree v1.8.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -201,7 +201,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc スキルツリー v1.8.0
+@plugindesc スキルツリー v1.8.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SkillTree.js
 
@@ -273,7 +273,7 @@ trueを設定すると、RPGツクールMZのレイアウト形式に合わせ�
 
 @param ViewLineWidth
 @type number
-@default 3
+@default 2
 @desc
 ラインの幅を指定します。
 
@@ -2309,7 +2309,6 @@ class SkillTreeView {
             } else {
                 this.drawIcon(bitmap, node.iconBitmap(), px, py, 96);
             }
-            this.drawNode(bitmap, node, px, py);
             if (node.isOpened()) {
                 const x = px - ViewRectOfs;
                 const y = py - ViewRectOfs;
