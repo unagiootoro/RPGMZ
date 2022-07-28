@@ -34,6 +34,11 @@ CharacterMoveMotionEx.js
         ・新規作成
 
 DotMoveSystem.js
+    2022/07/28 v2.0.0
+        ・TypeScript対応
+        ・当たり判定処理の最適化
+        ・斜め移動時のフォロワーの向きがプレイヤーに沿うように修正
+        ・ソースコードリファクタリング
     2022/05/29 v1.10.0
         ・利用可能なスクリプトにcheckCharacter/checkHitCharactersを追加
     2022/04/27 v1.9.10
