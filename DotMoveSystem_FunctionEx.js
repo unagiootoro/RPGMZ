@@ -1,6 +1,7 @@
+"use strict";
 /*:
 @target MV MZ
-@plugindesc Dot movement system enhancement v1.4.0
+@plugindesc Dot movement system function extension v2.0.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -122,7 +123,6 @@ Specify various information for half-square collision detection. Common to all t
 @desc
 Specify various information for collision detection of triangular squares. Common to all types of information, if 0 is set, the setting will be invalidated.
 */
-
 /*~struct~CharacterInfo:
 @param Width
 @text width
@@ -192,8 +192,6 @@ Specifies the X coordinate offset when moving to a location.
 @desc
 Specifies the Y coordinate offset when moving to a location.
 */
-
-
 /*~struct~HalfCollisionMassInfo:
 @param UpCollisionRegionId
 @text Upward collision detection region ID
@@ -484,7 +482,6 @@ Set the terrain tag ID for collision detection in the lower left direction.
 @desc
 Set the terrain tag ID for collision detection in the upper left direction.
 */
-
 /*~struct~TriangleCollisionMassInfo:
 @param LeftUpTriangleRegionId
 @text Upper left triangle collision detection region ID
@@ -551,10 +548,9 @@ Set the terrain tag ID for collision detection in the lower right direction.
 @desc
 Set the terrain tag ID for collision detection in the upper right triangle direction.
 */
-
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v1.4.0
+@plugindesc ドット移動システム機能拡張 v2.0.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -676,7 +672,6 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 @desc
 三角マス当たり判定の各種情報を指定します。各種情報共通で、0が設定された場合は設定を無効化します。
 */
-
 /*~struct~CharacterInfo:ja
 @param Width
 @text 横幅
@@ -746,7 +741,6 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 @desc
 場所移動時のY座標オフセットを指定します。
 */
-
 /*~struct~HalfCollisionMassInfo:ja
 @param UpCollisionRegionId
 @text 上方向当たり判定リージョンID
@@ -1038,7 +1032,6 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 @desc
 左上方向の空きマス当たり判定の地形タグIDを設定します。
 */
-
 /*~struct~TriangleCollisionMassInfo:ja
 @param LeftUpTriangleRegionId
 @text 左上三角当たり判定リージョンID
@@ -1105,1023 +1098,1064 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 @desc
 右上三角方向の三角マス当たり判定の地形タグIDを設定します。
 */
-
-const DotMoveSystem_FunctionExPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
-
-(() => {
-"use strict";
-
-const { CharacterCollisionChecker, FollowerCollisionChecker } = DotMoveSystemClassAlias;
-const { DotMoveUtils, CollisionResult, CharacterController, CharacterMover, PlayerMover } = DotMoveSystemClassAlias;
-
-class PluginParamsParser {
-    static parse(params, typeData, predictEnable = true) {
-        return new PluginParamsParser(predictEnable).parse(params, typeData);
-    }
-
-    constructor(predictEnable = true) {
-        this._predictEnable = predictEnable;
-    }
-
-    parse(params, typeData, loopCount = 0) {
-        if (++loopCount > 255) throw new Error("endless loop error");
-        const result = {};
-        for (const name in typeData) {
-            if (params[name] === "" || params[name] === undefined) {
-                result[name] = null;
-            } else {
-                result[name] = this.convertParam(params[name], typeData[name], loopCount);
+const DotMoveSystem_FunctionExPluginName = document.currentScript ? document.currentScript.src.match(/^.*\/(.+)\.js$/)[1] : "DotMoveSystem_FunctionEx";
+var DotMoveSystem;
+(function (DotMoveSystem) {
+    class PluginParamsParser {
+        constructor(predictEnable = true) {
+            this._predictEnable = predictEnable;
+        }
+        static parse(params, typeData, predictEnable = true) {
+            return new PluginParamsParser(predictEnable).parse(params, typeData);
+        }
+        parse(params, typeData, loopCount = 0) {
+            if (++loopCount > 255)
+                throw new Error("endless loop error");
+            const result = {};
+            for (const name in typeData) {
+                if (params[name] === "" || params[name] === undefined) {
+                    result[name] = null;
+                }
+                else {
+                    result[name] = this.convertParam(params[name], typeData[name], loopCount);
+                }
+            }
+            if (!this._predictEnable)
+                return result;
+            if (typeof params === "object" && !(params instanceof Array)) {
+                for (const name in params) {
+                    if (result[name])
+                        continue;
+                    const param = params[name];
+                    const type = this.predict(param);
+                    result[name] = this.convertParam(param, type, loopCount);
+                }
+            }
+            return result;
+        }
+        convertParam(param, type, loopCount) {
+            if (typeof type === "string") {
+                return this.cast(param, type);
+            }
+            else if (typeof type === "object" && type instanceof Array) {
+                const aryParam = JSON.parse(param);
+                if (type[0] === "string") {
+                    return aryParam.map((strParam) => this.cast(strParam, type[0]));
+                }
+                else {
+                    return aryParam.map((strParam) => this.parse(JSON.parse(strParam), type[0]), loopCount);
+                }
+            }
+            else if (typeof type === "object") {
+                return this.parse(JSON.parse(param), type, loopCount);
+            }
+            else {
+                throw new Error(`${type} is not string or object`);
             }
         }
-        if (!this._predictEnable) return result;
-        if (typeof params === "object" && !(params instanceof Array)) {
-            for (const name in params) {
-                if (result[name]) continue;
-                const param = params[name];
-                const type = this.predict(param);
-                result[name] = this.convertParam(param, type, loopCount);
+        cast(param, type) {
+            switch (type) {
+                case "any":
+                    if (!this._predictEnable)
+                        throw new Error("Predict mode is disable");
+                    return this.cast(param, this.predict(param));
+                case "string":
+                    return param;
+                case "number":
+                    if (param.match(/^\-?\d+\.\d+$/))
+                        return parseFloat(param);
+                    return parseInt(param);
+                case "boolean":
+                    return param === "true";
+                default:
+                    throw new Error(`Unknow type: ${type}`);
             }
         }
-        return result;
-    }
-
-    convertParam(param, type, loopCount) {
-        if (typeof type === "string") {
-            return this.cast(param, type);
-        } else if (typeof type === "object" && type instanceof Array) {
-            const aryParam = JSON.parse(param);
-            if (type[0] === "string") {
-                return aryParam.map(strParam => this.cast(strParam, type[0]));
-            } else {
-                return aryParam.map(strParam => this.parse(JSON.parse(strParam), type[0]), loopCount);
+        predict(param) {
+            if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
+                return "number";
             }
-        } else if (typeof type === "object") {
-            return this.parse(JSON.parse(param), type, loopCount);
-        } else {
-            throw new Error(`${type} is not string or object`);
+            else if (param === "true" || param === "false") {
+                return "boolean";
+            }
+            else {
+                return "string";
+            }
         }
     }
-
-    cast(param, type) {
-        switch(type) {
-        case "any":
-            if (!this._predictEnable) throw new Error("Predict mode is disable");
-            return this.cast(param, this.predict(param));
-        case "string":
-            return param;
-        case "number":
-            if (param.match(/^\-?\d+\.\d+$/)) return parseFloat(param);
-            return parseInt(param);
-        case "boolean":
-            return param === "true";
-        default:
-            throw new Error(`Unknow type: ${type}`);
-        }
-    }
-
-    predict(param) {
-        if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
-            return "number";
-        } else if (param === "true" || param === "false") {
-            return "boolean";
-        } else {
-            return "string";
-        }
-    }
-}
-
-
-const typeDefine = {
-    PlayerInfo: {},
-    FollowerInfo: {},
-    HalfCollisionMassInfo: {},
-    TriangleCollisionMassInfo: {},
-};
-const PP = PluginParamsParser.parse(PluginManager.parameters(DotMoveSystem_FunctionExPluginName), typeDefine);
-
-
-/*
- * ● 定数定義
- */
-const LEFT_UP_TRIANGLE_ID = 13;
-const DOWN_LEFT_TRIANGLE_ID = 14;
-const RIGHT_DOWN_TRIANGLE_ID = 15;
-const UP_RIGHT_TRIANGLE_ID = 16;
-
-const START_TRIANGLE_ID = 13;
-const END_TRIANGLE_ID = 16;
-
-/*
- * ● 初期化処理
- */
-const _CharacterMover_initialize = CharacterMover.prototype.initialize;
-CharacterMover.prototype.initialize = function(character) {
-    _CharacterMover_initialize.call(this, character);
-    this._lastDirection = character.direction();
-    this._changeDirectionCount = 0;
-    this._direction8 = this._character.direction();
-};
-
-const _Game_CharacterBase_initMembers = Game_CharacterBase.prototype.initMembers;
-Game_CharacterBase.prototype.initMembers = function() {
-    _Game_CharacterBase_initMembers.call(this);
-    this._dpf = null;
-    this._acceleration = 0;
-    this._inertia = 1;
-    this._accelerationPlus = null;
-    this._maxAcceleration = null;
-    this._jumpXPlus = null;
-    this._jumpYPlus = null;
-};
-
-
-const _Game_Player_initMembers = Game_Player.prototype.initMembers;
-Game_Player.prototype.initMembers = function() {
-    _Game_Player_initMembers.call(this);
-    this._width = PP.PlayerInfo.Width;
-    this._height = PP.PlayerInfo.Height;
-    this._offsetX = PP.PlayerInfo.OffsetX;
-    this._offsetY = PP.PlayerInfo.OffsetY;
-    this._slideLengthX = PP.PlayerInfo.SlideLengthX;
-    this._slideLengthY = PP.PlayerInfo.SlideLengthY;
-    this._transferOffsetX = PP.PlayerInfo.TransferOffsetX == null ? 0 : PP.PlayerInfo.TransferOffsetX;
-    this._transferOffsetY = PP.PlayerInfo.TransferOffsetX == null ? 0 : PP.PlayerInfo.TransferOffsetX;
-    this._enableTransferOffset = true;
-};
-
-
-const _Game_Follower_initMembers = Game_Follower.prototype.initMembers;
-Game_Follower.prototype.initMembers = function() {
-    _Game_Follower_initMembers.call(this);
-    this._width = PP.FollowerInfo.Width;
-    this._height = PP.FollowerInfo.Height;
-    this._offsetX = PP.FollowerInfo.OffsetX;
-    this._offsetY = PP.FollowerInfo.OffsetY;
-    this._slideLengthX = PP.FollowerInfo.SlideLengthX;
-    this._slideLengthY = PP.FollowerInfo.SlideLengthY;
-    this._transferOffsetX = PP.FollowerInfo.TransferOffsetX == null ? 0 : PP.FollowerInfo.TransferOffsetX;
-    this._transferOffsetY = PP.FollowerInfo.TransferOffsetX == null ? 0 : PP.FollowerInfo.TransferOffsetX;
-};
-
-/*
- * ● 更新処理
- */
-const _CharacterMover_update = CharacterMover.prototype.update;
-CharacterMover.prototype.update = function() {
-    _CharacterMover_update.call(this);
-    // TODO: 斜め慣性処理を実装する
-    // this.updateChangeDirection();
-};
-
-const _Game_CharacterBase_update = Game_CharacterBase.prototype.update;
-Game_CharacterBase.prototype.update = function() {
-    if (this.isJumping() && this.isSmartJumping()) this.updateSmartJump();
-    if (this.isNeedUpdateAcceleration()) this.updateAcceleration();
-    this.updateCurrentDpf();
-    _Game_CharacterBase_update.call(this);
-};
-
-/*
- * ● プレイヤーサイズの変更機能
- */
-const CharacterInfo = {
-    width() {
-        return this._width;
-    },
-
-    height() {
-        return this._height;
-    },
-
-    offsetX() {
-        return this._offsetX;
-    },
-
-    offsetY() {
-        return this._offsetY;
-    },
-
-    slideLengthX() {
-        return this._slideLengthX;
-    },
-
-    slideLengthY() {
-        return this._slideLengthY;
-    },
-};
-
-Object.assign(Game_Player.prototype, CharacterInfo);
-Object.assign(Game_Follower.prototype, CharacterInfo);
-
-Game_Player.prototype.setEnableTransferOffset = function(bool) {
-    this._enableTransferOffset = bool;
-};
-
-const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
-Game_Player.prototype.reserveTransfer = function(mapId, x, y, d, fadeType) {
-    _Game_Player_reserveTransfer.call(this, mapId, x, y, d, fadeType);
-    this._newX = x + this._transferOffsetX;
-    this._newY = y + this._transferOffsetY;
-};
-
-/*
- * ● 移動速度の調整
- */
-CharacterMover.prototype.updateChangeDirection = function() {
-    if (!this._reserveChangeDirection) return;
-    const direction = this._lastDirection;
-    if (direction !== this._character.direction()) {
-        this._changeDirectionCount++;
-        if (this._changeDirectionCount >= 3) {
-            this._reserveChangeDirection = false;
-            const deg = DotMoveUtils.direction2deg(direction);
-            const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
-            this.setDirection8(direction);
-            this.setDirection(direction4);
-            this._reserveSetDirection = null;
-        }
-    }
-};
-
-
-CharacterMover.prototype.setDirection8 = function(direction8) {
-    this._direction8 = direction8;
-};
-
-CharacterMover.prototype.direction8 = function() {
-    return this._direction8;
-};
-
-const _CharacterMover_dotMoveByDeg = CharacterMover.prototype.dotMoveByDeg;
-CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: true }) {
-    if (opt.changeDir) {
-        const direction = DotMoveUtils.deg2direction(deg);
-        this.changeDirectionWhenDotMove(direction);
-    }
-    _CharacterMover_dotMoveByDeg.call(this, deg);
-};
-
-const _CharacterMover_dotMoveByDirection = CharacterMover.prototype.dotMoveByDirection;
-CharacterMover.prototype.dotMoveByDirection = function(direction, opt = { changeDir: true }) {
-    if (opt.changeDir) {
-        this.changeDirectionWhenDotMove(direction);
-    }
-    _CharacterMover_dotMoveByDirection.call(this, direction);
-};
-
-CharacterMover.prototype.changeDirectionWhenDotMove = function(direction) {
-    if (this._lastDirection !== direction) {
-        this._lastDirection = direction;
+    const typeDefine = {
+        PlayerInfo: {},
+        FollowerInfo: {},
+        HalfCollisionMassInfo: {},
+        TriangleCollisionMassInfo: {},
+    };
+    const PP = PluginParamsParser.parse(PluginManager.parameters(DotMoveSystem_FunctionExPluginName), typeDefine);
+    /*
+     * ● 定数定義
+     */
+    const LEFT_UP_TRIANGLE_ID = 13;
+    const DOWN_LEFT_TRIANGLE_ID = 14;
+    const RIGHT_DOWN_TRIANGLE_ID = 15;
+    const UP_RIGHT_TRIANGLE_ID = 16;
+    const START_TRIANGLE_ID = 13;
+    const END_TRIANGLE_ID = 16;
+    /*
+     * ● 初期化処理
+     */
+    const _CharacterMover_initialize = DotMoveSystem.CharacterMover.prototype.initialize;
+    DotMoveSystem.CharacterMover.prototype.initialize = function (character) {
+        _CharacterMover_initialize.call(this, character);
+        this._lastDirection = character.direction();
         this._changeDirectionCount = 0;
-        this._reserveChangeDirection = true;
-        this.setDirection8(direction);
-        const deg = DotMoveUtils.direction2deg(direction);
-        const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
-        this.setDirection(direction4);
-    }
-};
-
-
-Game_CharacterBase.prototype.originDistancePerFrame = Game_CharacterBase.prototype.distancePerFrame;
-
-Game_CharacterBase.prototype.distancePerFrame = function() {
-    if (this._dpf == null) return this.originDistancePerFrame();
-    if (this.isNeedUpdateAcceleration() && this._moverData.targetCount > 1) return this.originDistancePerFrame();
-    return this._currentDpf;
-};
-
-Game_CharacterBase.prototype.updateCurrentDpf = function() {
-    const dashMul = this._dashing ? 2 : 1;
-    if (this.isNeedUpdateAcceleration()) {
-        const acc = 1 + this._acceleration / this._maxAcceleration * this._accelerationPlus;
-        this._currentDpf = this._dpf * acc * dashMul;
-    } else {
-        this._currentDpf = this._dpf * dashMul;
-    }
-};
-
-Game_CharacterBase.prototype.setDpf = function(dpf) {
-    this._dpf = dpf;
-};
-
-Game_CharacterBase.prototype.setAcc = function(maxAcc, accPlus) {
-    this._maxAcceleration = maxAcc;
-    this._accelerationPlus = accPlus;
-};
-
-Game_CharacterBase.prototype.setInertia = function(inertia) {
-    this._inertia = inertia;
-};
-
-Game_CharacterBase.prototype.isNeedUpdateAcceleration = function() {
-    return this._dpf != null && this._maxAcceleration != null && this._accelerationPlus != null;
-};
-
-Game_CharacterBase.prototype.updateAcceleration = function() {
-    if ($gameMap.isEventRunning()) {
-        this.cancelAcceleration();
-    } else {
-        if (this.isMoved()) {
-            if (this._acceleration < this._maxAcceleration) {
-                this._acceleration++;
-            }
-        } else {
-            if (this._acceleration > 0) {
-                this._acceleration -= this._inertia;
-                if (this._acceleration < 0) this._acceleration = 0;
-                this.mover().dotMoveByDirection(this.mover().direction8(), { changeDir: false });
+        this._direction8 = this._character.direction();
+    };
+    const _Game_CharacterBase_initMembers = Game_CharacterBase.prototype.initMembers;
+    Game_CharacterBase.prototype.initMembers = function () {
+        _Game_CharacterBase_initMembers.call(this);
+        this._dpf = null;
+        this._acceleration = 0;
+        this._inertia = 1;
+        this._accelerationPlus = 0;
+        this._maxAcceleration = 0;
+        this._jumpXPlus = 0;
+        this._jumpYPlus = 0;
+    };
+    const _Game_Player_initMembers = Game_Player.prototype.initMembers;
+    Game_Player.prototype.initMembers = function () {
+        _Game_Player_initMembers.call(this);
+        this._width = PP.PlayerInfo.Width;
+        this._height = PP.PlayerInfo.Height;
+        this._offsetX = PP.PlayerInfo.OffsetX;
+        this._offsetY = PP.PlayerInfo.OffsetY;
+        this._slideLengthX = PP.PlayerInfo.SlideLengthX;
+        this._slideLengthY = PP.PlayerInfo.SlideLengthY;
+        this._transferOffsetX = PP.PlayerInfo.TransferOffsetX == null ? 0 : PP.PlayerInfo.TransferOffsetX;
+        this._transferOffsetY = PP.PlayerInfo.TransferOffsetX == null ? 0 : PP.PlayerInfo.TransferOffsetX;
+        this._enableTransferOffset = true;
+    };
+    const _Game_Follower_initMembers = Game_Follower.prototype.initMembers;
+    Game_Follower.prototype.initMembers = function () {
+        _Game_Follower_initMembers.call(this);
+        this._width = PP.FollowerInfo.Width;
+        this._height = PP.FollowerInfo.Height;
+        this._offsetX = PP.FollowerInfo.OffsetX;
+        this._offsetY = PP.FollowerInfo.OffsetY;
+        this._slideLengthX = PP.FollowerInfo.SlideLengthX;
+        this._slideLengthY = PP.FollowerInfo.SlideLengthY;
+        this._transferOffsetX = PP.FollowerInfo.TransferOffsetX == null ? 0 : PP.FollowerInfo.TransferOffsetX;
+        this._transferOffsetY = PP.FollowerInfo.TransferOffsetX == null ? 0 : PP.FollowerInfo.TransferOffsetX;
+    };
+    /*
+     * ● 更新処理
+     */
+    const _CharacterMover_updateMove = DotMoveSystem.CharacterMover.prototype.updateMove;
+    DotMoveSystem.CharacterMover.prototype.updateMove = function () {
+        _CharacterMover_updateMove.call(this);
+        // TODO: 斜め慣性処理を実装する
+        // this.updateChangeDirection();
+    };
+    const _Game_CharacterBase_update = Game_CharacterBase.prototype.update;
+    Game_CharacterBase.prototype.update = function () {
+        if (this.isJumping() && this.isSmartJumping())
+            this.updateSmartJump();
+        if (this.isNeedUpdateAcceleration())
+            this.updateAcceleration();
+        this.updateCurrentDpf();
+        _Game_CharacterBase_update.call(this);
+    };
+    /*
+     * ● プレイヤーサイズの変更機能
+     */
+    Game_Player.prototype.width = function () {
+        return this._width;
+    };
+    Game_Player.prototype.height = function () {
+        return this._height;
+    };
+    Game_Player.prototype.offsetX = function () {
+        return this._offsetX;
+    };
+    Game_Player.prototype.offsetY = function () {
+        return this._offsetY;
+    };
+    Game_Player.prototype.slideLengthX = function () {
+        return this._slideLengthX;
+    };
+    Game_Player.prototype.slideLengthY = function () {
+        return this._slideLengthY;
+    };
+    Game_Player.prototype.setEnableTransferOffset = function (bool) {
+        this._enableTransferOffset = bool;
+    };
+    const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
+    Game_Player.prototype.reserveTransfer = function (mapId, x, y, d, fadeType) {
+        _Game_Player_reserveTransfer.call(this, mapId, x, y, d, fadeType);
+        this._newX = x + this._transferOffsetX;
+        this._newY = y + this._transferOffsetY;
+    };
+    Game_Follower.prototype.width = function () {
+        return this._width;
+    };
+    Game_Follower.prototype.height = function () {
+        return this._height;
+    };
+    Game_Follower.prototype.offsetX = function () {
+        return this._offsetX;
+    };
+    Game_Follower.prototype.offsetY = function () {
+        return this._offsetY;
+    };
+    Game_Follower.prototype.slideLengthX = function () {
+        return this._slideLengthX;
+    };
+    Game_Follower.prototype.slideLengthY = function () {
+        return this._slideLengthY;
+    };
+    /*
+     * ● 移動速度の調整
+     */
+    DotMoveSystem.CharacterMover.prototype.updateChangeDirection = function () {
+        if (!this._reserveChangeDirection)
+            return;
+        const direction = this._lastDirection;
+        if (direction !== this._character.direction()) {
+            this._changeDirectionCount++;
+            if (this._changeDirectionCount >= 3) {
+                this._reserveChangeDirection = false;
+                const deg = DotMoveSystem.DotMoveUtils.direction2deg(direction);
+                const direction4 = DotMoveSystem.DotMoveUtils.deg2direction4(deg, this._character.direction());
+                this.setDirection8(direction);
+                this.setDirection(direction4);
+                this._reserveSetDirection = null;
             }
         }
-    }
-};
-
-Game_CharacterBase.prototype.cancelAcceleration = function() {
-    this._acceleration = 0;
-};
-
-
-Game_Player.prototype.distancePerFrame = function() {
-    if (this.isInVehicle()) return this.originDistancePerFrame();
-    return Game_CharacterBase.prototype.distancePerFrame.call(this);
-};
-
-Game_Player.prototype.isNeedUpdateAcceleration = function() {
-    if (this.isInVehicle()) return false;
-    return Game_CharacterBase.prototype.isNeedUpdateAcceleration.call(this);
-};
-
-
-Game_Follower.prototype.distancePerFrame = function() {
-    if ($gamePlayer.isInVehicle()) return this.originDistancePerFrame();
-    return Game_CharacterBase.prototype.distancePerFrame.call(this);
-};
-
-Game_Follower.prototype.isNeedUpdateAcceleration = function() {
-    if ($gamePlayer.isInVehicle()) return false;
-    return Game_CharacterBase.prototype.isNeedUpdateAcceleration.call(this);
-};
-
-Game_Follower.prototype.changeFollowerSpeed = function(precedingCharacterFar) {
-    if ($gamePlayer.distancePerFrame()) {
-        this.setDpf(this.calcFollowerDpf(precedingCharacterFar));
-    } else {
-        this.setDpf(null);
-        this.setMoveSpeed(this.calcFollowerSpeed(precedingCharacterFar));
-    }
-};
-
-Game_Follower.prototype.calcFollowerDpf = function(precedingCharacterFar) {
-    if (precedingCharacterFar >= 2) {
-        return $gamePlayer.distancePerFrame() * 2;
-    } else if (precedingCharacterFar >= 1.5) {
-        return $gamePlayer.distancePerFrame();
-    } else if (precedingCharacterFar >= 1) {
-        return $gamePlayer.distancePerFrame() / 2;
-    } else {
+    };
+    DotMoveSystem.CharacterMover.prototype.setDirection8 = function (direction8) {
+        this._direction8 = direction8;
+    };
+    DotMoveSystem.CharacterMover.prototype.direction8 = function () {
+        return this._direction8;
+    };
+    const _CharacterMover_dotMoveByDeg = DotMoveSystem.CharacterMover.prototype.dotMoveByDeg;
+    DotMoveSystem.CharacterMover.prototype.dotMoveByDeg = function (deg, opt = { changeDir: true }) {
+        if (opt.changeDir) {
+            const direction = DotMoveSystem.DotMoveUtils.deg2direction(deg);
+            this.changeDirectionWhenDotMove(direction);
+        }
+        _CharacterMover_dotMoveByDeg.call(this, deg);
+    };
+    const _CharacterMover_dotMoveByDirection = DotMoveSystem.CharacterMover.prototype.dotMoveByDirection;
+    DotMoveSystem.CharacterMover.prototype.dotMoveByDirection = function (direction, opt = {}) {
+        const changeDir = opt.changeDir == null ? true : opt.changeDir;
+        if (changeDir) {
+            this.changeDirectionWhenDotMove(direction);
+        }
+        _CharacterMover_dotMoveByDirection.call(this, direction);
+    };
+    DotMoveSystem.CharacterMover.prototype.changeDirectionWhenDotMove = function (direction) {
+        if (this._lastDirection !== direction) {
+            this._lastDirection = direction;
+            this._changeDirectionCount = 0;
+            this._reserveChangeDirection = true;
+            this.setDirection8(direction);
+            const deg = DotMoveSystem.DotMoveUtils.direction2deg(direction);
+            const direction4 = DotMoveSystem.DotMoveUtils.deg2direction4(deg, this._character.direction());
+            this.setDirection(direction4);
+        }
+    };
+    Game_CharacterBase.prototype.originDistancePerFrame = Game_CharacterBase.prototype.distancePerFrame;
+    Game_CharacterBase.prototype.distancePerFrame = function () {
+        if (this._dpf == null)
+            return this.originDistancePerFrame();
+        if (this.isNeedUpdateAcceleration() && this._moverData.targetCount > 1)
+            return this.originDistancePerFrame();
+        return this._currentDpf;
+    };
+    Game_CharacterBase.prototype.updateCurrentDpf = function () {
+        const dpf = this.realDpf();
+        if (this.isNeedUpdateAcceleration()) {
+            const acc = 1 + this._acceleration / this._maxAcceleration * this._accelerationPlus;
+            this._currentDpf = dpf * acc;
+        }
+        else {
+            this._currentDpf = dpf;
+        }
+    };
+    Game_CharacterBase.prototype.setDpf = function (dpf) {
+        this._dpf = dpf;
+    };
+    Game_CharacterBase.prototype.setAcc = function (maxAcc, accPlus) {
+        this._maxAcceleration = maxAcc;
+        this._accelerationPlus = accPlus;
+    };
+    Game_CharacterBase.prototype.setInertia = function (inertia) {
+        this._inertia = inertia;
+    };
+    Game_CharacterBase.prototype.isNeedUpdateAcceleration = function () {
+        return this._dpf != null && this._maxAcceleration !== 0 && this._accelerationPlus !== 0;
+    };
+    Game_CharacterBase.prototype.updateAcceleration = function () {
+        if ($gameMap.isEventRunning()) {
+            this.cancelAcceleration();
+        }
+        else {
+            if (this.isMoved()) {
+                if (this._acceleration < this._maxAcceleration) {
+                    this._acceleration++;
+                }
+            }
+            else {
+                if (this._acceleration > 0) {
+                    this._acceleration -= this._inertia;
+                    if (this._acceleration < 0)
+                        this._acceleration = 0;
+                    this.mover().dotMoveByDirection(this.mover().direction8(), { changeDir: false });
+                }
+            }
+        }
+    };
+    Game_CharacterBase.prototype.cancelAcceleration = function () {
+        this._acceleration = 0;
+    };
+    Game_CharacterBase.prototype.realDpf = function () {
+        if (this._dpf == null)
+            return 0;
+        return this._dpf;
+    };
+    Game_Player.prototype.distancePerFrame = function () {
+        if (this.isInVehicle())
+            return this.originDistancePerFrame();
+        return Game_CharacterBase.prototype.distancePerFrame.call(this);
+    };
+    Game_Player.prototype.isNeedUpdateAcceleration = function () {
+        if (this.isInVehicle())
+            return false;
+        return Game_CharacterBase.prototype.isNeedUpdateAcceleration.call(this);
+    };
+    Game_Player.prototype.realDpf = function () {
+        if (this._dpf == null)
+            return 0;
+        if (this.isDashing())
+            return this._dpf * 2;
+        return this._dpf;
+    };
+    Game_Follower.prototype.distancePerFrame = function () {
+        if ($gamePlayer.isInVehicle())
+            return this.originDistancePerFrame();
+        return Game_CharacterBase.prototype.distancePerFrame.call(this);
+    };
+    Game_Follower.prototype.isNeedUpdateAcceleration = function () {
+        if ($gamePlayer.isInVehicle())
+            return false;
+        return Game_CharacterBase.prototype.isNeedUpdateAcceleration.call(this);
+    };
+    Game_Follower.prototype.changeFollowerSpeed = function (precedingCharacterFar) {
+        if ($gamePlayer.distancePerFrame()) {
+            this.setDpf(this.calcFollowerDpf(precedingCharacterFar));
+        }
+        else {
+            this.setDpf(null);
+            this.setMoveSpeed(this.calcFollowerSpeed(precedingCharacterFar));
+        }
+    };
+    Game_Follower.prototype.calcFollowerDpf = function (precedingCharacterFar) {
+        if (precedingCharacterFar >= 2) {
+            return $gamePlayer.distancePerFrame() * 2;
+        }
+        else if (precedingCharacterFar >= 1.5) {
+            return $gamePlayer.distancePerFrame();
+        }
+        else if (precedingCharacterFar >= 1) {
+            return $gamePlayer.distancePerFrame() / 2;
+        }
+        else {
+            return 0;
+        }
+    };
+    const _Scene_Map_callMenu = Scene_Map.prototype.callMenu;
+    Scene_Map.prototype.callMenu = function () {
+        _Scene_Map_callMenu.call(this);
+        $gamePlayer.cancelAcceleration();
+    };
+    /*
+     * ● イベントを押す
+     */
+    const _PlayerMover_moveProcess = DotMoveSystem.PlayerMover.prototype.moveProcess;
+    DotMoveSystem.PlayerMover.prototype.moveProcess = function () {
+        // プレイヤー移動の前にイベントを動かし、その後でプレイヤーを動かす
+        this.eventPushProcess();
+        _PlayerMover_moveProcess.call(this);
+    };
+    DotMoveSystem.PlayerMover.prototype.eventPushProcess = function () {
+        const pos = this._character.positionPoint();
+        const dpf = this._character.distancePerFrame();
+        const margin = dpf / 2;
+        const dir = this._character.direction();
+        for (const result of this.checkHitCharactersStepDir(pos.x, pos.y, dir)) {
+            if (!(result.targetObject instanceof Game_Event))
+                continue;
+            const event = result.targetObject;
+            if (!event.event().meta.PushableEvent)
+                continue;
+            if (!(result.collisionLengthX() >= margin && result.collisionLengthY() >= margin))
+                continue;
+            event.mover().dotMoveByDirection(dir);
+        }
+    };
+    /*
+     * ● イベントと既に衝突している場合、そのイベントはすり抜けられるようにする
+     */
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkEventsPrepare = function () {
+        const collidedEvents = [];
+        const pos = this._character.positionPoint();
+        const margin = this._character.distancePerFrame();
+        for (const result of this.checkHitCharacters(pos.x, pos.y, this._character.direction())) {
+            if (!(result.targetObject instanceof Game_Event))
+                continue;
+            const event = result.targetObject;
+            if (event.isNormalPriority() && !event.isThrough()) {
+                if (result.collisionLengthX() >= margin && result.collisionLengthY() >= margin)
+                    collidedEvents.push(event);
+            }
+        }
+        return collidedEvents.map(event => event.eventId());
+    };
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkEventsFromTargetCharacters = function (x, y, d, targetCharacter) {
+        let notCollisionEventIds = [];
+        if (PP.ThroughIfCollided) {
+            notCollisionEventIds = this.checkEventsPrepare();
+        }
+        const collisionResults = [];
+        for (const character of targetCharacter) {
+            if (!(character instanceof Game_Event))
+                continue;
+            if (character.isNormalPriority() && !character.isThrough() && !notCollisionEventIds.includes(character.eventId())) {
+                const result = this.checkCharacter(x, y, d, character, { overComplementMode: true });
+                if (result)
+                    collisionResults.push(result);
+            }
+        }
+        return collisionResults;
+    };
+    DotMoveSystem.FollowerCollisionChecker.prototype.checkEventsPrepare = function () {
+        return [];
+    };
+    /*
+     * ● 当たり判定付きジャンプ
+     */
+    DotMoveSystem.CharacterMover.prototype.dotMoveByDistance = function (direction, distance, opt = {}) {
+        this._controller.dotMoveByDistance(direction, distance);
+    };
+    Game_CharacterBase.prototype.smartJump = function (xPlus, yPlus, baseJumpPeak = 10) {
+        this._jumpXPlus = xPlus;
+        this._jumpYPlus = yPlus;
+        if (Math.abs(xPlus) > Math.abs(yPlus)) {
+            if (xPlus !== 0) {
+                this.setDirection(xPlus < 0 ? 4 : 6);
+            }
+        }
+        else {
+            if (yPlus !== 0) {
+                this.setDirection(yPlus < 0 ? 8 : 2);
+            }
+        }
+        const distance = Math.round(Math.sqrt(xPlus ** 2 + yPlus ** 2));
+        this._jumpPeak = baseJumpPeak + distance - this._moveSpeed;
+        this._jumpCount = this._jumpPeak * 2;
+        this.resetStopCount();
+        this.straighten();
+    };
+    Game_CharacterBase.prototype.smartJumpAbs = function (x, y, baseJumpPeak = 10) {
+        const xPlus = x - this._realX;
+        const yPlus = y - this._realY;
+        this.smartJump(xPlus, yPlus, baseJumpPeak);
+    };
+    Game_CharacterBase.prototype.isSmartJumping = function () {
+        return this._jumpXPlus != 0 && this._jumpYPlus != 0;
+    };
+    const _Game_CharacterBase_updateJump = Game_CharacterBase.prototype.updateJump;
+    Game_CharacterBase.prototype.updateJump = function () {
+        if (!this.isSmartJumping())
+            _Game_CharacterBase_updateJump.call(this);
+    };
+    Game_CharacterBase.prototype.updateSmartJump = function () {
+        this._jumpCount--;
+        const x = this._realX + this._jumpXPlus / (this._jumpPeak * 2);
+        const y = this._realY + this._jumpYPlus / (this._jumpPeak * 2);
+        const dis = new Point(x - this._realX, y - this._realY);
+        this.mover().dotMoveByDistance(this.direction(), dis);
+        if (this._jumpCount === 0) {
+            this._jumpXPlus = 0;
+            this._jumpYPlus = 0;
+            this.setPosition(this._realX, this._realY);
+        }
+    };
+    /*
+     * ● 半マス通行判定設定
+     */
+    DotMoveSystem.CharacterCollisionChecker.prototype.getMassRects = function (x, y) {
+        switch (this.getMassCollisionType(x, y)) {
+            case 1:
+                return [new Rectangle(x, y, 1, 0.5)];
+            case 2:
+                return [new Rectangle(x + 0.5, y, 0.5, 1)];
+            case 3:
+                return [new Rectangle(x, y + 0.5, 1, 0.5)];
+            case 4:
+                return [new Rectangle(x, y, 0.5, 1)];
+            case 5:
+                return [new Rectangle(x + 0.5, y, 0.5, 0.5)];
+            case 6:
+                return [new Rectangle(x + 0.5, y + 0.5, 0.5, 0.5)];
+            case 7:
+                return [new Rectangle(x, y + 0.5, 0.5, 0.5)];
+            case 8:
+                return [new Rectangle(x, y, 0.5, 0.5)];
+            case 9:
+                return [new Rectangle(x, y, 0.5, 1), new Rectangle(x + 0.5, y + 0.5, 0.5, 0.5)];
+            case 10:
+                return [new Rectangle(x, y, 0.5, 1), new Rectangle(x + 0.5, y, 0.5, 0.5)];
+            case 11:
+                return [new Rectangle(x + 0.5, y, 0.5, 1), new Rectangle(x, y, 0.5, 0.5)];
+            case 12:
+                return [new Rectangle(x + 0.5, y, 0.5, 1), new Rectangle(x, y + 0.5, 0.5, 0.5)];
+        }
+        return [new Rectangle(x, y, 1, 1)];
+    };
+    DotMoveSystem.CharacterCollisionChecker.prototype.getMassCollisionType = function (x, y) {
+        const regionId = $gameMap.regionId(x, y);
+        const terrainTag = $gameMap.terrainTag(x, y);
+        if (regionId > 0) {
+            switch (regionId) {
+                case PP.HalfCollisionMassInfo.UpCollisionRegionId:
+                    return 1;
+                case PP.HalfCollisionMassInfo.RightCollisionRegionId:
+                    return 2;
+                case PP.HalfCollisionMassInfo.DownCollisionRegionId:
+                    return 3;
+                case PP.HalfCollisionMassInfo.LeftCollisionRegionId:
+                    return 4;
+                case PP.HalfCollisionMassInfo.UpRightCollisionRegionId:
+                    return 5;
+                case PP.HalfCollisionMassInfo.RightDownCollisionRegionId:
+                    return 6;
+                case PP.HalfCollisionMassInfo.DownLeftCollisionRegionId:
+                    return 7;
+                case PP.HalfCollisionMassInfo.LeftUpCollisionRegionId:
+                    return 8;
+                case PP.HalfCollisionMassInfo.UpRightOpenCollisionRegionId:
+                    return 9;
+                case PP.HalfCollisionMassInfo.RightDownOpenCollisionRegionId:
+                    return 10;
+                case PP.HalfCollisionMassInfo.DownLeftOpenCollisionRegionId:
+                    return 11;
+                case PP.HalfCollisionMassInfo.LeftUpOpenCollisionRegionId:
+                    return 12;
+                case PP.TriangleCollisionMassInfo.LeftUpTriangleRegionId:
+                    return LEFT_UP_TRIANGLE_ID;
+                case PP.TriangleCollisionMassInfo.DownLeftTriangleRegionId:
+                    return DOWN_LEFT_TRIANGLE_ID;
+                case PP.TriangleCollisionMassInfo.RightDownTriangleRegionId:
+                    return RIGHT_DOWN_TRIANGLE_ID;
+                case PP.TriangleCollisionMassInfo.UpRightTriangleRegionId:
+                    return UP_RIGHT_TRIANGLE_ID;
+            }
+        }
+        if (terrainTag > 0) {
+            switch (terrainTag) {
+                case PP.HalfCollisionMassInfo.UpCollisionTerrainTagId:
+                    return 1;
+                case PP.HalfCollisionMassInfo.RightCollisionTerrainTagId:
+                    return 2;
+                case PP.HalfCollisionMassInfo.DownCollisionTerrainTagId:
+                    return 3;
+                case PP.HalfCollisionMassInfo.LeftCollisionTerrainTagId:
+                    return 4;
+                case PP.HalfCollisionMassInfo.UpRightCollisionTerrainTagId:
+                    return 5;
+                case PP.HalfCollisionMassInfo.RightDownCollisionTerrainTagId:
+                    return 6;
+                case PP.HalfCollisionMassInfo.DownLeftCollisionTerrainTagId:
+                    return 7;
+                case PP.HalfCollisionMassInfo.LeftUpCollisionTerrainTagId:
+                    return 8;
+                case PP.HalfCollisionMassInfo.UpRightOpenCollisionTerrainTagId:
+                    return 9;
+                case PP.HalfCollisionMassInfo.RightDownOpenCollisionTerrainTagId:
+                    return 10;
+                case PP.HalfCollisionMassInfo.DownLeftOpenCollisionTerrainTagId:
+                    return 11;
+                case PP.HalfCollisionMassInfo.LeftUpOpenCollisionTerrainTagId:
+                    return 12;
+                case PP.TriangleCollisionMassInfo.LeftUpTriangleTerrainTagId:
+                    return LEFT_UP_TRIANGLE_ID;
+                case PP.TriangleCollisionMassInfo.DownLeftTriangleTerrainTagId:
+                    return DOWN_LEFT_TRIANGLE_ID;
+                case PP.TriangleCollisionMassInfo.RightDownTriangleTerrainTagId:
+                    return RIGHT_DOWN_TRIANGLE_ID;
+                case PP.TriangleCollisionMassInfo.UpRightTriangleTerrainTagId:
+                    return UP_RIGHT_TRIANGLE_ID;
+            }
+        }
         return 0;
-    }
-};
-
-
-const _Scene_Map_callMenu = Scene_Map.prototype.callMenu;
-Scene_Map.prototype.callMenu = function() {
-    _Scene_Map_callMenu.call(this);
-    $gamePlayer.cancelAcceleration();
-};
-
-/*
- * ● イベントを押す
- */
-const _PlayerMover_moveProcess = PlayerMover.prototype.moveProcess;
-PlayerMover.prototype.moveProcess = function() {
-    // プレイヤー移動の前にイベントを動かし、その後でプレイヤーを動かす
-    this.eventPushProcess();
-    _PlayerMover_moveProcess.call(this);
-};
-
-PlayerMover.prototype.eventPushProcess = function() {
-    const x = this._character._realX;
-    const y = this._character._realY;
-    const dpf = this._character.distancePerFrame();
-    const margin = dpf / 2;
-    const dir = this._character.direction();
-    for (const result of this.checkHitCharactersStepDir(x, y, dir, Game_Event)) {
-        const event = result.collisionObject;
-        if (!event.event().meta.PushableEvent) continue;
-        if (!(result.collisionLengthX() >= margin && result.collisionLengthY() >= margin)) continue;
-        event.mover().dotMoveByDirection(dir);
-    }
-};
-
-/*
- * ● イベントと既に衝突している場合、そのイベントはすり抜けられるようにする
- */
-CharacterCollisionChecker.prototype.checkEventsPrepare = function(notCollisionEventIds) {
-    const collidedEvents = [];
-    const x = this._character._realX;
-    const y = this._character._realY;
-    const margin = this._character.distancePerFrame();
-    for (const result of this.checkHitCharacters(x, y, this._character.direction(), Game_Event)) {
-        const event = result.collisionObject;
-        if (event.isNormalPriority() && !event.isThrough() && !notCollisionEventIds.includes(event.eventId())) {
-            if (result.collisionLengthX() >= margin && result.collisionLengthY() >= margin) collidedEvents.push(event);
+    };
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionMass = function (subjectRect, d, ix, iy) {
+        const results = [];
+        const pos = this._character.positionPoint();
+        const massRects = this.getMassRects(ix, iy);
+        if (!this.checkPassMass(ix, iy, d)) {
+            for (const massRect of massRects) {
+                const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+                if (result)
+                    results.push(result);
+            }
         }
-    }
-    return collidedEvents.map(event => event.eventId());
-};
-
-const _CharacterCollisionChecker_checkEvents = CharacterCollisionChecker.prototype.checkEvents;
-CharacterCollisionChecker.prototype.checkEvents = function(x, y, d, notCollisionEventIds = []) {
-    if (PP.ThroughIfCollided) {
-        const collidedEventIds = this.checkEventsPrepare(notCollisionEventIds);
-        notCollisionEventIds = notCollisionEventIds.concat(collidedEventIds);
-    }
-    return _CharacterCollisionChecker_checkEvents.call(this, x, y, d, notCollisionEventIds)
-};
-
-FollowerCollisionChecker.prototype.checkEventsPrepare = function(notCollisionEventIds) {
-    return [];
-};
-
-/*
- * ● 当たり判定付きジャンプ
- */
-Game_CharacterBase.prototype.smartJump = function(xPlus, yPlus, baseJumpPeak = 10) {
-    this._jumpXPlus = xPlus;
-    this._jumpYPlus = yPlus;
-    if (Math.abs(xPlus) > Math.abs(yPlus)) {
-        if (xPlus !== 0) {
-            this.setDirection(xPlus < 0 ? 4 : 6);
+        return results;
+    };
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkPassMass = function (x, y, d) {
+        const x2 = $gameMap.roundX(x);
+        const y2 = $gameMap.roundY(y);
+        if (!$gameMap.isValid(x2, y2)) {
+            return false;
         }
-    } else {
-        if (yPlus !== 0) {
-            this.setDirection(yPlus < 0 ? 8 : 2);
+        if (this._character.isThrough() || this._character.isDebugThrough()) {
+            return true;
         }
-    }
-    const distance = Math.round(Math.sqrt(xPlus**2 + yPlus**2));
-    this._jumpPeak = baseJumpPeak + distance - this._moveSpeed;
-    this._jumpCount = this._jumpPeak * 2;
-    this.resetStopCount();
-    this.straighten();
-};
-
-Game_CharacterBase.prototype.smartJumpAbs = function(x, y, baseJumpPeak = 10) {
-    const xPlus = x - this._realX;
-    const yPlus = y - this._realY;
-    this.smartJump(xPlus, yPlus, baseJumpPeak);
-};
-
-
-Game_CharacterBase.prototype.isSmartJumping = function() {
-    return this._jumpXPlus != null && this._jumpYPlus != null;
-};
-
-const _Game_CharacterBase_updateJump = Game_CharacterBase.prototype.updateJump;
-Game_CharacterBase.prototype.updateJump = function() {
-    if (!this.isSmartJumping()) _Game_CharacterBase_updateJump.call(this);
-};
-
-Game_CharacterBase.prototype.updateSmartJump = function() {
-    this._jumpCount--;
-    const x = this._realX + this._jumpXPlus / (this._jumpPeak * 2);
-    const y = this._realY + this._jumpYPlus / (this._jumpPeak * 2);
-    const dis = { x: x - this._realX, y: y - this._realY };
-    this.mover()._controller.dotMoveByDistance(this.direction(), dis);
-    if (this._jumpCount === 0) {
-        this._jumpXPlus = null;
-        this._jumpYPlus = null;
-        this.setPosition(this._realX, this._realY);
-    }
-};
-
-
-/*
- * ● 半マス通行判定設定
- */
-CharacterCollisionChecker.prototype.getMassRects = function(x, y) {
-    switch (this.getMassCollisionType(x, y)) {
-    case 1:
-        return [{ x: x, y: y, width: 1, height: 0.5 }];
-    case 2:
-        return [{ x: x + 0.5, y: y, width: 0.5, height: 1 }];
-    case 3:
-        return [{ x: x, y: y + 0.5, width: 1, height: 0.5 }];
-    case 4:
-        return [{ x: x, y: y, width: 0.5, height: 1 }];
-    case 5:
-        return [{ x: x + 0.5, y: y, width: 0.5, height: 0.5 }];
-    case 6:
-        return [{ x: x + 0.5, y: y + 0.5, width: 0.5, height: 0.5 }];
-    case 7:
-        return [{ x: x, y: y + 0.5, width: 0.5, height: 0.5 }];
-    case 8:
-        return [{ x: x, y: y, width: 0.5, height: 0.5 }];
-    case 9:
-        return [{ x: x, y: y, width: 0.5, height: 1 }, { x: x + 0.5, y: y + 0.5, width: 0.5, height: 0.5 }];
-    case 10:
-        return [{ x: x, y: y, width: 0.5, height: 1 }, { x: x + 0.5, y: y, width: 0.5, height: 0.5 }];
-    case 11:
-        return [{ x: x + 0.5, y: y, width: 0.5, height: 1 }, { x: x, y: y, width: 0.5, height: 0.5 }];
-    case 12:
-        return [{ x: x + 0.5, y: y, width: 0.5, height: 1 }, { x: x, y: y + 0.5, width: 0.5, height: 0.5 }];
-    }
-    return [{ x: x, y: y, width: 1, height: 1 }];
-};
-
-CharacterCollisionChecker.prototype.getMassCollisionType = function(x, y) {
-    const regionId = $gameMap.regionId(x, y);
-    const terrainTag = $gameMap.terrainTag(x, y);
-    if (regionId > 0) {
-        switch (regionId) {
-        case PP.HalfCollisionMassInfo.UpCollisionRegionId:
-            return 1;
-        case PP.HalfCollisionMassInfo.RightCollisionRegionId:
-            return 2;
-        case PP.HalfCollisionMassInfo.DownCollisionRegionId:
-            return 3;
-        case PP.HalfCollisionMassInfo.LeftCollisionRegionId:
-            return 4;
-        case PP.HalfCollisionMassInfo.UpRightCollisionRegionId:
-            return 5;
-        case PP.HalfCollisionMassInfo.RightDownCollisionRegionId:
-            return 6;
-        case PP.HalfCollisionMassInfo.DownLeftCollisionRegionId:
-            return 7;
-        case PP.HalfCollisionMassInfo.LeftUpCollisionRegionId:
-            return 8;
-        case PP.HalfCollisionMassInfo.UpRightOpenCollisionRegionId:
-            return 9;
-        case PP.HalfCollisionMassInfo.RightDownOpenCollisionRegionId:
-            return 10;
-        case PP.HalfCollisionMassInfo.DownLeftOpenCollisionRegionId:
-            return 11;
-        case PP.HalfCollisionMassInfo.LeftUpOpenCollisionRegionId:
-            return 12;
-        case PP.TriangleCollisionMassInfo.LeftUpTriangleRegionId:
-            return LEFT_UP_TRIANGLE_ID;
-        case PP.TriangleCollisionMassInfo.DownLeftTriangleRegionId:
-            return DOWN_LEFT_TRIANGLE_ID;
-        case PP.TriangleCollisionMassInfo.RightDownTriangleRegionId:
-            return RIGHT_DOWN_TRIANGLE_ID;
-        case PP.TriangleCollisionMassInfo.UpRightTriangleRegionId:
-            return UP_RIGHT_TRIANGLE_ID;
+        if (this.getMassCollisionType(x2, y2) >= 1 && this.getMassCollisionType(x2, y2) <= END_TRIANGLE_ID) {
+            return false;
         }
-    }
-    if (terrainTag > 0) {
-        switch (terrainTag) {
-        case PP.HalfCollisionMassInfo.UpCollisionTerrainTagId:
-            return 1;
-        case PP.HalfCollisionMassInfo.RightCollisionTerrainTagId:
-            return 2;
-        case PP.HalfCollisionMassInfo.DownCollisionTerrainTagId:
-            return 3;
-        case PP.HalfCollisionMassInfo.LeftCollisionTerrainTagId:
-            return 4;
-        case PP.HalfCollisionMassInfo.UpRightCollisionTerrainTagId:
-            return 5;
-        case PP.HalfCollisionMassInfo.RightDownCollisionTerrainTagId:
-            return 6;
-        case PP.HalfCollisionMassInfo.DownLeftCollisionTerrainTagId:
-            return 7;
-        case PP.HalfCollisionMassInfo.LeftUpCollisionTerrainTagId:
-            return 8;
-        case PP.HalfCollisionMassInfo.UpRightOpenCollisionTerrainTagId:
-            return 9;
-        case PP.HalfCollisionMassInfo.RightDownOpenCollisionTerrainTagId:
-            return 10;
-        case PP.HalfCollisionMassInfo.DownLeftOpenCollisionTerrainTagId:
-            return 11;
-        case PP.HalfCollisionMassInfo.LeftUpOpenCollisionTerrainTagId:
-            return 12;
-        case PP.TriangleCollisionMassInfo.LeftUpTriangleTerrainTagId:
-            return LEFT_UP_TRIANGLE_ID;
-        case PP.TriangleCollisionMassInfo.DownLeftTriangleTerrainTagId:
-            return DOWN_LEFT_TRIANGLE_ID;
-        case PP.TriangleCollisionMassInfo.RightDownTriangleTerrainTagId:
-            return RIGHT_DOWN_TRIANGLE_ID;
-        case PP.TriangleCollisionMassInfo.UpRightTriangleTerrainTagId:
-            return UP_RIGHT_TRIANGLE_ID;
+        const prevPoint = DotMoveSystem.DotMoveUtils.prevPointWithDirection(new Point(x2, y2), d);
+        if (this.getMassCollisionType(prevPoint.x, prevPoint.y) >= 1 && this.getMassCollisionType(prevPoint.x, prevPoint.y) <= END_TRIANGLE_ID) {
+            return true;
         }
-    }
-    return 0;
-};
-
-CharacterCollisionChecker.prototype.checkCollisionMass = function(targetRect, d, ix, iy) {
-    const results = [];
-    const massRects = this.getMassRects(ix, iy);
-    if (!this.checkPassMass(ix, iy, d)) {
-        for (const massRect of massRects) {
-            const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
-            if (result) results.push(result);
+        if (this.isMassCollisionNoTarget(x, y, d))
+            return true;
+        if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
+            return false;
         }
-    }
-    return results;
-}
-
-CharacterCollisionChecker.prototype.checkPassMass = function(x, y, d) {
-    const x2 = $gameMap.roundX(x);
-    const y2 = $gameMap.roundY(y);
-    if (!$gameMap.isValid(x2, y2)) {
-        return false;
-    }
-    if (this._character.isThrough() || this._character.isDebugThrough()) {
         return true;
-    }
-
-    if (this.getMassCollisionType(x2, y2) >= 1 && this.getMassCollisionType(x2, y2) <= END_TRIANGLE_ID) {
-        return false;
-    }
-    const prevPoint = DotMoveUtils.prevPointWithDirection({ x: x2, y: y2 }, d);
-    if (this.getMassCollisionType(prevPoint.x, prevPoint.y) >= 1 && this.getMassCollisionType(prevPoint.x, prevPoint.y) <= END_TRIANGLE_ID) {
-        return true;
-    }
-
-    if (this.isMassCollisionNoTarget(x, y, d)) return true;
-    if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
-        return false;
-    }
-    return true;
-};
-
-const _CharacterCollisionChecker_checkCollisionXCliff = CharacterCollisionChecker.prototype.checkCollisionXCliff;
-CharacterCollisionChecker.prototype.checkCollisionXCliff = function(targetRect, x1, x2, iy, d) {
-    if (this.getMassCollisionType(x1, iy) >= 1 && this.getMassCollisionType(x1, iy) <= END_TRIANGLE_ID && this.getMassCollisionType(x2, iy) >= 1 && this.getMassCollisionType(x2, iy) <= END_TRIANGLE_ID) {
+    };
+    const _CharacterCollisionChecker_checkCollisionXCliff = DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionXCliff;
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionXCliff = function (subjectRect, x1, x2, iy, d) {
+        if (this.getMassCollisionType(x1, iy) >= 1 && this.getMassCollisionType(x1, iy) <= END_TRIANGLE_ID && this.getMassCollisionType(x2, iy) >= 1 && this.getMassCollisionType(x2, iy) <= END_TRIANGLE_ID) {
+            return [];
+        }
+        return _CharacterCollisionChecker_checkCollisionXCliff.call(this, subjectRect, x1, x2, iy, d);
+    };
+    const _CharacterCollisionChecker_checkCollisionYCliff = DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionYCliff;
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionYCliff = function (subjectRect, y1, y2, ix, d) {
+        if (this.getMassCollisionType(ix, y1) >= 1 && this.getMassCollisionType(ix, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(ix, y2) >= 1 && this.getMassCollisionType(ix, y2) <= END_TRIANGLE_ID) {
+            return [];
+        }
+        return _CharacterCollisionChecker_checkCollisionYCliff.call(this, subjectRect, y1, y2, ix, d);
+    };
+    /*
+     * ● 三角マス通行判定設定
+     */
+    Object.defineProperty(DotMoveSystem.CollisionResult, "triangleType", {
+        get: function () {
+            return this._triangleType;
+        },
+        set: function (_triangleType) {
+            this._triangleType = _triangleType;
+        },
+        configurable: true
+    });
+    DotMoveSystem.CharacterCollisionChecker.prototype.calcMassTriangle = function (id, characterRect, direction, ix, iy) {
+        switch (id) {
+            case LEFT_UP_TRIANGLE_ID:
+                if (direction === 8) {
+                    const dx = characterRect.x - ix;
+                    const h = 1 - dx;
+                    return new Rectangle(ix, iy, 1, h);
+                }
+                else if (direction === 4) {
+                    const dy = characterRect.y - iy;
+                    let w = 1 - dy;
+                    return new Rectangle(ix, iy, w, 1);
+                }
+                break;
+            case DOWN_LEFT_TRIANGLE_ID:
+                if (direction === 2) {
+                    const dx = characterRect.x - ix;
+                    const h = 1 - dx;
+                    return new Rectangle(ix, iy + (1 - h), 1, h);
+                }
+                else if (direction === 4) {
+                    const dy = (characterRect.y + characterRect.height) - iy;
+                    const w = dy;
+                    return new Rectangle(ix, iy, w, 1);
+                }
+                break;
+            case RIGHT_DOWN_TRIANGLE_ID:
+                if (direction === 6) {
+                    const dy = (characterRect.y + characterRect.height) - iy;
+                    const w = dy;
+                    return new Rectangle(ix + (1 - w), iy, w, 1);
+                }
+                else if (direction === 2) {
+                    const dx = (characterRect.x + characterRect.width) - ix;
+                    const h = dx;
+                    return new Rectangle(ix, iy + (1 - h), 1, h);
+                }
+                break;
+            case UP_RIGHT_TRIANGLE_ID:
+                if (direction === 8) {
+                    const dx = (characterRect.x + characterRect.width) - ix;
+                    const h = dx;
+                    return new Rectangle(ix, iy, 1, h);
+                }
+                else if (direction === 6) {
+                    const dy = characterRect.y - iy;
+                    const w = 1 - dy;
+                    return new Rectangle(ix + (1 - w), iy, w, 1);
+                }
+                break;
+        }
+        throw new Error(`Calc triangle failed. (id=${id}, direction=${direction})`);
+    };
+    const _CharacterCollisionChecker_checkCollisionCliff = DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionCliff;
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionCliff = function (subjectRect, x1, y1, x2, y2, d) {
+        for (let ix = x1; ix < x2; ix++) {
+            for (let iy = y1; iy < y2; iy++) {
+                const id = $gameMap.regionId(ix, iy);
+                if (id >= START_TRIANGLE_ID && id <= END_TRIANGLE_ID)
+                    return [];
+            }
+        }
+        return _CharacterCollisionChecker_checkCollisionCliff.call(this, subjectRect, x1, y1, x2, y2, d);
+    };
+    const _CharacterCollisionChecker_checkCollisionMass = DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionMass;
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionMass = function (subjectRect, d, ix, iy) {
+        const id = this.getMassCollisionType(ix, iy);
+        if (this.checkPassMass(ix, iy, d))
+            return [];
+        if (id === LEFT_UP_TRIANGLE_ID) {
+            return this.checkCollisionMassLeftUp(subjectRect, d, ix, iy);
+        }
+        else if (id === DOWN_LEFT_TRIANGLE_ID) {
+            return this.checkCollisionMassDownLeft(subjectRect, d, ix, iy);
+        }
+        else if (id === RIGHT_DOWN_TRIANGLE_ID) {
+            return this.checkCollisionMassRightDown(subjectRect, d, ix, iy);
+        }
+        else if (id === UP_RIGHT_TRIANGLE_ID) {
+            return this.checkCollisionMassUpRight(subjectRect, d, ix, iy);
+        }
+        else {
+            return _CharacterCollisionChecker_checkCollisionMass.call(this, subjectRect, d, ix, iy);
+        }
+    };
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionMassLeftUp = function (subjectRect, d, ix, iy) {
+        const massRect = new Rectangle(ix, iy, 1, 1);
+        const pos = this._character.positionPoint();
+        const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+        if (!result)
+            return [];
+        if (d === 8) {
+            if (pos.x < ix) {
+                result.triangleType = 1;
+                return [result];
+            }
+            else {
+                const rect = this.calcMassTriangle(LEFT_UP_TRIANGLE_ID, subjectRect, d, ix, iy);
+                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                if (!result2)
+                    return [];
+                result2.triangleType = 1;
+                return [result2];
+            }
+        }
+        else if (d === 6) {
+            if (pos.x < ix) {
+                return [result];
+            }
+            else {
+                return [];
+            }
+        }
+        else if (d === 2) {
+            if (pos.y < iy) {
+                return [result];
+            }
+            else {
+                return [];
+            }
+        }
+        else if (d === 4) {
+            if (pos.y < iy) {
+                result.triangleType = 1;
+                return [result];
+            }
+            else {
+                const rect = this.calcMassTriangle(LEFT_UP_TRIANGLE_ID, subjectRect, d, ix, iy);
+                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                if (!result2)
+                    return [];
+                result2.triangleType = 1;
+                return [result2];
+            }
+        }
         return [];
-    }
-    return _CharacterCollisionChecker_checkCollisionXCliff.call(this, targetRect, x1, x2, iy, d);
-};
-
-const _CharacterCollisionChecker_checkCollisionYCliff = CharacterCollisionChecker.prototype.checkCollisionYCliff;
-CharacterCollisionChecker.prototype.checkCollisionYCliff = function(targetRect, y1, y2, ix, d) {
-    if (this.getMassCollisionType(ix, y1) >= 1 && this.getMassCollisionType(ix, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(ix, y2) >= 1 && this.getMassCollisionType(ix, y2) <= END_TRIANGLE_ID) {
+    };
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionMassDownLeft = function (subjectRect, d, ix, iy) {
+        const massRect = new Rectangle(ix, iy, 1, 1);
+        const pos = this._character.positionPoint();
+        const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+        if (!result)
+            return [];
+        if (d === 8) {
+            if (pos.y + this._character.height() < iy + 1) {
+                return [];
+            }
+            else {
+                return [result];
+            }
+        }
+        else if (d === 6) {
+            if (pos.x < ix) {
+                return [result];
+            }
+            else {
+                return [];
+            }
+        }
+        else if (d === 2) {
+            if (pos.x < ix) {
+                result.triangleType = 2;
+                return [result];
+            }
+            else {
+                const rect = this.calcMassTriangle(DOWN_LEFT_TRIANGLE_ID, subjectRect, d, ix, iy);
+                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                if (!result2)
+                    return [];
+                result2.triangleType = 2;
+                return [result2];
+            }
+        }
+        else if (d === 4) {
+            if (pos.y + this._character.height() > iy + 1) {
+                result.triangleType = 2;
+                return [result];
+            }
+            else {
+                const rect = this.calcMassTriangle(DOWN_LEFT_TRIANGLE_ID, subjectRect, d, ix, iy);
+                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                if (!result2)
+                    return [];
+                result2.triangleType = 2;
+                return [result2];
+            }
+        }
         return [];
-    }
-    return _CharacterCollisionChecker_checkCollisionYCliff.call(this, targetRect, y1, y2, ix, d);
-};
-
-/*
- * ● 三角マス通行判定設定
- */
-Object.defineProperty(CollisionResult, "triangleType", {
-    get: function() {
-        return this._triangleType;
-    },
-    set: function(_triangleType) {
-        this._triangleType = _triangleType;
-    },
-    configurable: true
-});
-
-DotMoveUtils.calcMassTriangle = function(id, characterRect, direction, ix, iy) {
-    switch (id) {
-    case LEFT_UP_TRIANGLE_ID:
-        if (direction === 8) {
-            const dx = characterRect.x - ix;
-            const h = 1 - dx;
-            return new Rectangle(ix, iy, 1, h);
-        } else if (direction === 4) {
-            const dy = characterRect.y - iy;
-            let w = 1 - dy;
-            return new Rectangle(ix, iy, w, 1);
-        }
-        break;
-    case DOWN_LEFT_TRIANGLE_ID:
-        if (direction === 2) {
-            const dx = characterRect.x - ix;
-            const h = 1 - dx;
-            return new Rectangle(ix, iy + (1 - h), 1, h);
-        } else if (direction === 4) {
-            const dy = (characterRect.y + characterRect.height) - iy;
-            const w = dy;
-            return new Rectangle(ix, iy, w, 1);
-        }
-        break;
-    case RIGHT_DOWN_TRIANGLE_ID:
-        if (direction === 6) {
-            const dy = (characterRect.y + characterRect.height) - iy;
-            const w = dy;
-            return new Rectangle(ix + (1 - w), iy, w, 1);
-        } else if (direction === 2) {
-            const dx = (characterRect.x + characterRect.width) - ix;
-            const h = dx;
-            return new Rectangle(ix, iy + (1 - h), 1, h);
-        }
-        break;
-    case UP_RIGHT_TRIANGLE_ID:
-        if (direction === 8) {
-            const dx = (characterRect.x + characterRect.width) - ix;
-            const h = dx;
-            return new Rectangle(ix, iy, 1, h);
-        } else if (direction === 6) {
-            const dy = characterRect.y - iy;
-            const w = 1 - dy;
-            return new Rectangle(ix + (1 - w), iy, w, 1);
-        }
-        break;
-    }
-    throw new Error(`Calc triangle failed. (id=${id}, direction=${direction})`);
-};
-
-const _CharacterCollisionChecker_checkCollisionCliff = CharacterCollisionChecker.prototype.checkCollisionCliff;
-CharacterCollisionChecker.prototype.checkCollisionCliff = function(targetRect, x1, y1, x2, y2, d) {
-    for (let ix = x1; ix < x2; ix++) {
-        for (let iy = y1; iy < y2; iy++) {
-            const id = $gameMap.regionId(ix, iy);
-            if (id >= START_TRIANGLE_ID && id <= END_TRIANGLE_ID) return [];
-        }
-    }
-    return _CharacterCollisionChecker_checkCollisionCliff.call(this, targetRect, x1, y1, x2, y2, d);
-};
-
-const _CharacterCollisionChecker_checkCollisionMass = CharacterCollisionChecker.prototype.checkCollisionMass;
-CharacterCollisionChecker.prototype.checkCollisionMass = function(targetRect, d, ix, iy) {
-    const id = this.getMassCollisionType(ix, iy);
-
-    if (this.checkPassMass(ix, iy, d)) return [];
-
-    if (id === LEFT_UP_TRIANGLE_ID) {
-        return this.checkCollisionMassLeftUp(targetRect, d, ix, iy);
-    } else if (id === DOWN_LEFT_TRIANGLE_ID) {
-        return this.checkCollisionMassDownLeft(targetRect, d, ix, iy);
-    } else if (id === RIGHT_DOWN_TRIANGLE_ID) {
-        return this.checkCollisionMassRightDown(targetRect, d, ix, iy);
-    } else if (id === UP_RIGHT_TRIANGLE_ID) {
-        return this.checkCollisionMassUpRight(targetRect, d, ix, iy);
-    } else {
-        return _CharacterCollisionChecker_checkCollisionMass.call(this, targetRect, d, ix, iy);
-    }
-};
-
-CharacterCollisionChecker.prototype.checkCollisionMassLeftUp = function(targetRect, d, ix, iy) {
-    const massRect = new Rectangle(ix, iy, 1, 1);
-    const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
-    if (!result) return [];
-    const pos = this._character.positionPoint();
-    if (d === 8) {
-        if (pos.x < ix) {
-            result.triangleType = 1;
-            return [result];
-        } else {
-            const rect = DotMoveUtils.calcMassTriangle(LEFT_UP_TRIANGLE_ID, targetRect, d, ix, iy);
-            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
-            if (!result2) return [];
-            result2.triangleType = 1;
-            return [result2];
-        }
-    } else if (d === 6) {
-        if (pos.x < ix) {
-            return [result];
-        } else {
+    };
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionMassRightDown = function (subjectRect, d, ix, iy) {
+        const massRect = new Rectangle(ix, iy, 1, 1);
+        const pos = this._character.positionPoint();
+        const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+        if (!result)
             return [];
+        if (d === 8) {
+            if (pos.y + this._character.height() < iy + 1) {
+                return [];
+            }
+            else {
+                return [result];
+            }
         }
-    } else if (d === 2) {
-        if (pos.y < iy) {
-            return [result];
-        } else {
+        else if (d === 6) {
+            if (pos.y + this._character.height() > iy + 1) {
+                result.triangleType = 3;
+                return [result];
+            }
+            else {
+                const rect = this.calcMassTriangle(RIGHT_DOWN_TRIANGLE_ID, subjectRect, d, ix, iy);
+                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                if (!result2)
+                    return [];
+                result2.triangleType = 3;
+                return [result2];
+            }
+        }
+        else if (d === 2) {
+            if (pos.x + this._character.width() > ix + 1) {
+                result.triangleType = 3;
+                return [result];
+            }
+            else {
+                const rect = this.calcMassTriangle(RIGHT_DOWN_TRIANGLE_ID, subjectRect, d, ix, iy);
+                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                if (!result2)
+                    return [];
+                result2.triangleType = 3;
+                return [result2];
+            }
+        }
+        else if (d === 4) {
+            if (pos.x + this._character.width() > ix + 1) {
+                return [result];
+            }
+            else {
+                return [];
+            }
+        }
+        return [];
+    };
+    DotMoveSystem.CharacterCollisionChecker.prototype.checkCollisionMassUpRight = function (subjectRect, d, ix, iy) {
+        const massRect = new Rectangle(ix, iy, 1, 1);
+        const pos = this._character.positionPoint();
+        const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+        if (!result)
             return [];
+        if (d === 8) {
+            if (pos.x + this._character.width() >= ix + 1) {
+                result.triangleType = 4;
+                return [result];
+            }
+            else {
+                const rect = this.calcMassTriangle(UP_RIGHT_TRIANGLE_ID, subjectRect, d, ix, iy);
+                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                if (!result2)
+                    return [];
+                result2.triangleType = 4;
+                return [result2];
+            }
         }
-    } else if (d === 4) {
-        if (pos.y < iy) {
-            result.triangleType = 1;
-            return [result];
-        } else {
-            const rect = DotMoveUtils.calcMassTriangle(LEFT_UP_TRIANGLE_ID, targetRect, d, ix, iy);
-            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
-            if (!result2) return [];
-            result2.triangleType = 1;
-            return [result2];
+        else if (d === 6) {
+            if (pos.y < iy) {
+                result.triangleType = 4;
+                return [result];
+            }
+            else {
+                const rect = this.calcMassTriangle(UP_RIGHT_TRIANGLE_ID, subjectRect, d, ix, iy);
+                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                if (!result2)
+                    return [];
+                result2.triangleType = 4;
+                return [result2];
+            }
         }
-    }
-};
-
-CharacterCollisionChecker.prototype.checkCollisionMassDownLeft = function(targetRect, d, ix, iy) {
-    const massRect = new Rectangle(ix, iy, 1, 1);
-    const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
-    if (!result) return [];
-    const pos = this._character.positionPoint();
-    if (d === 8) {
-        if (pos.y + this._character.height() < iy + 1) {
-            return [];
-        } else {
-            return [result];
+        else if (d === 2) {
+            if (pos.y > iy) {
+                return [];
+            }
+            else {
+                return [result];
+            }
         }
-    } else if (d === 6) {
-        if (pos.x < ix) {
-            return [result];
-        } else {
-            return [];
+        else if (d === 4) {
+            if (pos.x + this._character.width() > ix + 1) {
+                return [result];
+            }
+            else {
+                return [];
+            }
         }
-    } else if (d === 2) {
-        if (pos.x < ix) {
-            result.triangleType = 2;
-            return [result];
-        } else {
-            const rect = DotMoveUtils.calcMassTriangle(DOWN_LEFT_TRIANGLE_ID, targetRect, d, ix, iy);
-            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
-            if (!result2) return [];
-            result2.triangleType = 2;
-            return [result2];
+        return [];
+    };
+    DotMoveSystem.CharacterController.prototype.calcUp = function (dis) {
+        const pos = this._character.positionPoint();
+        const collisionResults = this.checkCollision(pos.x, pos.y + dis.y, 8);
+        if (collisionResults.length >= 1) {
+            if (collisionResults.every(res => res.triangleType === 1)) {
+                let dis2 = this.calcDistance(45);
+                return this.calcUpRightWithSlide(dis2);
+            }
+            else if (collisionResults.every(res => res.triangleType === 4)) {
+                let dis2 = this.calcDistance(315);
+                return this.calcLeftUpWithSlide(dis2);
+            }
         }
-    } else if (d === 4) {
-        if (pos.y + this._character.height() > iy + 1) {
-            result.triangleType = 2;
-            return [result];
-        } else {
-            const rect = DotMoveUtils.calcMassTriangle(DOWN_LEFT_TRIANGLE_ID, targetRect, d, ix, iy);
-            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
-            if (!result2) return [];
-            result2.triangleType = 2;
-            return [result2];
+        if (this.canSlide(collisionResults, 4)) {
+            return this.calcLeftUpWithSlide(dis);
         }
-    }
-};
-
-CharacterCollisionChecker.prototype.checkCollisionMassRightDown = function(targetRect, d, ix, iy) {
-    const massRect = new Rectangle(ix, iy, 1, 1);
-    const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
-    if (!result) return [];
-    const pos = this._character.positionPoint();
-    if (d === 8) {
-        if (pos.y + this._character.height() < iy + 1) {
-            return [];
-        } else {
-            return [result];
+        else if (this.canSlide(collisionResults, 6)) {
+            return this.calcUpRightWithSlide(dis);
         }
-    } else if (d === 6) {
-        if (pos.y + this._character.height() > iy + 1) {
-            result.triangleType = 3;
-            return [result];
-        } else {
-            const rect = DotMoveUtils.calcMassTriangle(RIGHT_DOWN_TRIANGLE_ID, targetRect, d, ix, iy);
-            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
-            if (!result2) return [];
-            result2.triangleType = 3;
-            return [result2];
+        if (dis.x < 0) {
+            return this.calcLeftUpWithoutSlide(dis);
         }
-    } else if (d === 2) {
-        if (pos.x + this._character.width() > ix + 1) {
-            result.triangleType = 3;
-            return [result];
-        } else {
-            const rect = DotMoveUtils.calcMassTriangle(RIGHT_DOWN_TRIANGLE_ID, targetRect, d, ix, iy);
-            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
-            if (!result2) return [];
-            result2.triangleType = 3;
-            return [result2];
+        else {
+            return this.calcUpRightWithoutSlide(dis);
         }
-    } else if (d === 4) {
-        if (pos.x + this._character.width() > ix + 1) {
-            return [result];
-        } else {
-            return [];
+    };
+    DotMoveSystem.CharacterController.prototype.calcRight = function (dis) {
+        const pos = this._character.positionPoint();
+        const collisionResults = this.checkCollision(pos.x + dis.x, pos.y, 6);
+        if (collisionResults.length >= 1) {
+            if (collisionResults.every(res => res.triangleType === 4)) {
+                let dis2 = this.calcDistance(135);
+                return this.calcRightDownWithSlide(dis2);
+            }
+            else if (collisionResults.every(res => res.triangleType === 3)) {
+                let dis2 = this.calcDistance(45);
+                return this.calcUpRightWithSlide(dis2);
+            }
         }
-    }
-};
-
-CharacterCollisionChecker.prototype.checkCollisionMassUpRight = function(targetRect, d, ix, iy) {
-    const massRect = new Rectangle(ix, iy, 1, 1);
-    const result = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, massRect);
-    if (!result) return [];
-    const pos = this._character.positionPoint();
-    if (d === 8) {
-        if (pos.x + this._character.width() >= ix + 1) {
-            result.triangleType = 4;
-            return [result];
-        } else {
-            const rect = DotMoveUtils.calcMassTriangle(UP_RIGHT_TRIANGLE_ID, targetRect, d, ix, iy);
-            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
-            if (!result2) return [];
-            result2.triangleType = 4;
-            return [result2];
+        if (this.canSlide(collisionResults, 8)) {
+            return this.calcUpRightWithSlide(dis);
         }
-    } else if (d === 6) {
-        if (pos.y < iy) {
-            result.triangleType = 4;
-            return [result];
-        } else {
-            const rect = DotMoveUtils.calcMassTriangle(UP_RIGHT_TRIANGLE_ID, targetRect, d, ix, iy);
-            const result2 = this.checkCollidedRectOverComplement(this._character._realX, this._character._realY, d, targetRect, rect);
-            if (!result2) return [];
-            result2.triangleType = 4;
-            return [result2];
+        else if (this.canSlide(collisionResults, 2)) {
+            return this.calcRightDownWithSlide(dis);
         }
-    } else if (d === 2) {
-        if (pos.y > iy) {
-            return [];
-        } else {
-            return [result];
+        if (dis.y < 0) {
+            return this.calcUpRightWithoutSlide(dis);
         }
-    } else if (d === 4) {
-        if (pos.x + this._character.width() > ix + 1) {
-            return [result];
-        } else {
-            return [];
+        else {
+            return this.calcRightDownWithoutSlide(dis);
         }
-    }
-};
-
-CharacterController.prototype.calcUp = function(dis) {
-    const target = this._character.collisionRect();
-    const collisionResults = this.checkCollision(target.x, target.y + dis.y, 8);
-
-    if (collisionResults.length >= 1) {
-        if (collisionResults.every(res => res.triangleType === 1)) {
-            let dis2 = this.calcDistance(45);
-            return this.calcUpRightWithSlide(dis2);
-        } else if (collisionResults.every(res => res.triangleType === 4)) {
-            let dis2 = this.calcDistance(315);
-            return this.calcLeftUpWithSlide(dis2);
+    };
+    DotMoveSystem.CharacterController.prototype.calcDown = function (dis) {
+        const pos = this._character.positionPoint();
+        const collisionResults = this.checkCollision(pos.x, pos.y + dis.y, 2);
+        if (collisionResults.length >= 1) {
+            if (collisionResults.every(res => res.triangleType === 2)) {
+                let dis2 = this.calcDistance(135);
+                return this.calcRightDownWithSlide(dis2);
+            }
+            else if (collisionResults.every(res => res.triangleType === 3)) {
+                let dis2 = this.calcDistance(225);
+                return this.calcDownLeftWithSlide(dis2);
+            }
         }
-    }
-
-    if (this.canSlide(collisionResults, 4)) {
-        return this.calcLeftUpWithSlide(dis);
-    } else if (this.canSlide(collisionResults, 6)) {
-        return this.calcUpRightWithSlide(dis);
-    }
-    if (dis.x < 0) {
-        return this.calcLeftUpWithoutSlide(dis);
-    } else {
-        return this.calcUpRightWithoutSlide(dis);
-    }
-};
-
-CharacterController.prototype.calcRight = function(dis) {
-    const target = this._character.collisionRect();
-    const collisionResults = this.checkCollision(target.x + dis.x, target.y, 6);
-
-    if (collisionResults.length >= 1) {
-        if (collisionResults.every(res => res.triangleType === 4)) {
-            let dis2 = this.calcDistance(135);
-            return this.calcRightDownWithSlide(dis2);
-        } else if (collisionResults.every(res => res.triangleType === 3)) {
-            let dis2 = this.calcDistance(45);
-            return this.calcUpRightWithSlide(dis2);
+        if (this.canSlide(collisionResults, 4)) {
+            return this.calcDownLeftWithSlide(dis);
         }
-    }
-
-    if (this.canSlide(collisionResults, 8)) {
-        return this.calcUpRightWithSlide(dis);
-    } else if (this.canSlide(collisionResults, 2)) {
-        return this.calcRightDownWithSlide(dis);
-    }
-    if (dis.y < 0) {
-        return this.calcUpRightWithoutSlide(dis);
-    } else {
-        return this.calcRightDownWithoutSlide(dis);
-    }
-};
-
-CharacterController.prototype.calcDown = function(dis) {
-    const target = this._character.collisionRect();
-    const collisionResults = this.checkCollision(target.x, target.y + dis.y, 2);
-
-    if (collisionResults.length >= 1) {
-        if (collisionResults.every(res => res.triangleType === 2)) {
-            let dis2 = this.calcDistance(135);
-            return this.calcRightDownWithSlide(dis2);
-        } else if (collisionResults.every(res => res.triangleType === 3)) {
-            let dis2 = this.calcDistance(225);
-            return this.calcDownLeftWithSlide(dis2);
+        else if (this.canSlide(collisionResults, 6)) {
+            return this.calcRightDownWithSlide(dis);
         }
-    }
-
-    if (this.canSlide(collisionResults, 4)) {
-        return this.calcDownLeftWithSlide(dis);
-    } else if (this.canSlide(collisionResults, 6)) {
-        return this.calcRightDownWithSlide(dis);
-    }
-    if (dis.x < 0) {
-        return this.calcDownLeftWithoutSlide(dis);
-    } else {
-        return this.calcRightDownWithoutSlide(dis);
-    }
-};
-
-CharacterController.prototype.calcLeft = function(dis) {
-    const target = this._character.collisionRect();
-    const collisionResults = this.checkCollision(target.x + dis.x, target.y, 4);
-
-    if (collisionResults.length >= 1) {
-        if (collisionResults.every(res => res.triangleType === 1)) {
-            let dis2 = this.calcDistance(225);
-            return this.calcDownLeftWithSlide(dis2);
-        } else if (collisionResults.every(res => res.triangleType === 2)) {
-            let dis2 = this.calcDistance(315);
-            return this.calcLeftUpWithSlide(dis2);
+        if (dis.x < 0) {
+            return this.calcDownLeftWithoutSlide(dis);
         }
-    }
-
-    if (this.canSlide(collisionResults, 8)) {
-        return this.calcLeftUpWithSlide(dis);
-    } else if (this.canSlide(collisionResults, 2)) {
-        return this.calcDownLeftWithSlide(dis);
-    }
-    if (dis.y < 0) {
-        return this.calcLeftUpWithoutSlide(dis);
-    } else {
-        return this.calcDownLeftWithoutSlide(dis);
-    }
-};
-
-})();
+        else {
+            return this.calcRightDownWithoutSlide(dis);
+        }
+    };
+    DotMoveSystem.CharacterController.prototype.calcLeft = function (dis) {
+        const pos = this._character.positionPoint();
+        const collisionResults = this.checkCollision(pos.x + dis.x, pos.y, 4);
+        if (collisionResults.length >= 1) {
+            if (collisionResults.every(res => res.triangleType === 1)) {
+                let dis2 = this.calcDistance(225);
+                return this.calcDownLeftWithSlide(dis2);
+            }
+            else if (collisionResults.every(res => res.triangleType === 2)) {
+                let dis2 = this.calcDistance(315);
+                return this.calcLeftUpWithSlide(dis2);
+            }
+        }
+        if (this.canSlide(collisionResults, 8)) {
+            return this.calcLeftUpWithSlide(dis);
+        }
+        else if (this.canSlide(collisionResults, 2)) {
+            return this.calcDownLeftWithSlide(dis);
+        }
+        if (dis.y < 0) {
+            return this.calcLeftUpWithoutSlide(dis);
+        }
+        else {
+            return this.calcDownLeftWithoutSlide(dis);
+        }
+    };
+})(DotMoveSystem || (DotMoveSystem = {}));
