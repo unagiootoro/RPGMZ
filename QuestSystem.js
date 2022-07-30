@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Quest system v1.5.3
+@plugindesc Quest system v1.5.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -971,7 +971,7 @@ Specifies the icon for the hidden quest command.
 
 /*:ja
 @target MV MZ
-@plugindesc クエストシステム v1.5.3
+@plugindesc クエストシステム v1.5.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -3557,7 +3557,12 @@ DataManager.makeSaveContents = function() {
 const _DataManager_extractSaveContents = DataManager.extractSaveContents;
 DataManager.extractSaveContents = function(contents) {
     _DataManager_extractSaveContents.call(this, contents);
-    if (contents.questSaveDatas) $questSaveDatas = contents.questSaveDatas;
+    if (!contents.questSaveDatas) return;
+    $questSaveDatas = $dataQuests.map(questData => {
+        const savedQuestSaveData = contents.questSaveDatas.find(saveData => saveData.variableId() === questData.variableId);
+        if (savedQuestSaveData) return savedQuestSaveData;
+        return new QuestSaveData(questData.variableId);
+    });
 };
 
 
