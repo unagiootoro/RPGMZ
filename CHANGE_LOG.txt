@@ -142,6 +142,8 @@ EquipOptimizeOrClearSelect.js
         ・新規作成
 
 FormationSystem.js
+    2022/08/08 v1.3.0
+        ・陣形メニューの背景に戦闘背景を使用可能にする機能を追加
     2022/04/16 v1.2.0
         ・シフトボタンの画像を変更できるように修正
 

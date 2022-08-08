@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc formation system v1.2.0
+@plugindesc formation system v1.3.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -91,6 +91,15 @@ Specifies the number of formations that can be set.
 @desc
 Set to true to enable formation changes during battle.
 
+@param UseBattleBackgroundInMenu
+@text Use battle background in menu
+@on valid
+@off invalid
+@type boolean
+@default true
+@desc
+If set to true, the battle background will be displayed on the formation edit screen of the menu.
+
 @param EnabledFormationMenuSwitchId
 @text formation menu display switch
 @type switch
@@ -111,6 +120,20 @@ Specifies the SE to play when changing formation slots.
 @default {"FileName": "Decision5", "Volume": "90", "Pitch": "100", "Pan": "0"}
 @desc
 Specifies the SE to play when the formation used is changed.
+
+@param MenuFormationXOfs
+@text Menu formation X coordinate offset
+@type number
+@default 0
+@desc
+Specifies the X coordinate offset to the start of the formation in the menu.
+
+@param MenuFormationYOfs
+@text Menu formation Y coordinate offset
+@type number
+@default 80
+@desc
+Specifies the Y coordinate offset to the formation start in the menu.
 
 @param BattleFormationXOfs
 @text Combat formation X coordinate offset
@@ -357,7 +380,7 @@ Specifies the text to display in the empty slot.
 
 /*:ja
 @target MZ
-@plugindesc 陣形システム v1.2.0
+@plugindesc 陣形システム v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/FormationSystem.js
 @help
@@ -451,6 +474,15 @@ Specifies the text to display in the empty slot.
 @desc
 trueを設定すると、戦闘中の陣形変更を有効化します。
 
+@param UseBattleBackgroundInMenu
+@text メニューで戦闘背景を使用
+@on 有効
+@off 無効
+@type boolean
+@default true
+@desc
+trueを設定すると、メニューの陣形編集画面で戦闘背景を表示します。
+
 @param EnabledFormationMenuSwitchId
 @text 陣形メニュー表示スイッチ
 @type switch
@@ -471,6 +503,20 @@ trueを設定すると、戦闘中の陣形変更を有効化します。
 @default {"FileName":"Decision5","Volume":"90","Pitch":"100","Pan":"0"}
 @desc
 使用する陣形を変更したときに再生するSEを指定します。
+
+@param MenuFormationXOfs
+@text メニュー陣形X座標オフセット
+@type number
+@default 0
+@desc
+メニューでの陣形の開始地点までのX座標オフセットを指定します。
+
+@param MenuFormationYOfs
+@text メニュー陣形Y座標オフセット
+@type number
+@default 80
+@desc
+メニューでの陣形の開始地点までのY座標オフセットを指定します。
 
 @param BattleFormationXOfs
 @text 戦闘陣形X座標オフセット
@@ -1063,6 +1109,9 @@ const params = PluginParamsParser.parse(PluginManager.parameters(FormationSystem
 const FormationDatas = params.FormationDatas;
 const NumEquipFormationSlots = params.NumEquipFormationSlots;
 const EnabledBattleFormationChange = params.EnabledBattleFormationChange;
+const UseBattleBackgroundInMenu = params.UseBattleBackgroundInMenu != null ? params.UseBattleBackgroundInMenu : true;
+const MenuFormationXOfs = params.MenuFormationXOfs != null ? params.MenuFormationXOfs : 0;
+const MenuFormationYOfs = params.MenuFormationYOfs != null ? params.MenuFormationYOfs : 80;
 const BattleFormationXOfs = params.BattleFormationXOfs;
 const BattleFormationYOfs = params.BattleFormationYOfs;
 const EnabledFormationMenuSwitchId = params.EnabledFormationMenuSwitchId;
@@ -1130,10 +1179,33 @@ class Scene_Formation extends Scene_MenuBase {
         this.createAllWindow();
     }
 
+    isReady() {
+        if (UseBattleBackgroundInMenu) {
+            if (!this._back1Sprite.bitmap.isReady()) return false;
+            if (!this._back2Sprite.bitmap.isReady()) return false;
+        }
+        return true;
+    }
+
     start() {
         super.start();
+        if (UseBattleBackgroundInMenu) {
+            this._back1Sprite.adjustPosition();
+            this._back2Sprite.adjustPosition();
+        }
         this._equipFormationListWindow.activate();
-        this.changeFormation(true);
+        this._equipFormationListWindow.select($gameParty.currentFormationSlot());
+    }
+
+    createBackground() {
+        if (UseBattleBackgroundInMenu) {
+            this._back1Sprite = new Sprite_Battleback(0);
+            this._back2Sprite = new Sprite_Battleback(1);
+            this.addChild(this._back1Sprite);
+            this.addChild(this._back2Sprite);
+        } else {
+            super.createBackground();
+        }
     }
 
     createButtons() {
@@ -1482,8 +1554,8 @@ class ActorPosition {
     update(mode) {
         this._mover.update();
         if (mode === "menu") {
-            this._sprite._homeX = this._point.x;
-            this._sprite._homeY = this._point.y;
+            this._sprite._homeX = this._point.x + MenuFormationXOfs;
+            this._sprite._homeY = this._point.y + MenuFormationYOfs;
         } else if (mode === "battle") {
             this._sprite._homeX = this._point.x + BattleFormationXOfs;
             this._sprite._homeY = this._point.y + BattleFormationYOfs;
@@ -1562,13 +1634,16 @@ class FormationController {
 class Window_FormationDetail extends Window_Selectable {
     initialize(rect) {
         super.initialize(rect);
-        this._formationData = null;
-        this._actorSprites = [];
+        // 戦闘背景を表示する場合はフォーメーション詳細ウィンドウは表示しない。
+        if (UseBattleBackgroundInMenu) {
+            this.setBackgroundType(2);
+        }
         this.createActorSprites();
         this._formationController = new FormationController(this._actorSprites, "menu");
     }
 
     createActorSprites() {
+        this._actorSprites = [];
         for (let i = 0; i < $gameParty.battleMembers().length; i++) {
             const actor = $gameParty.members()[i];
             const sprite = new Sprite_MenuFormationActor(actor);
@@ -1641,6 +1716,10 @@ Game_Party.prototype.forgetFormation = function(formationId) {
 Game_Party.prototype.currentFormation = function() {
     const formationId = this._equipFormationIds[this._currentFormationSlot];
     return (typeof formationId === "number") ? $dataFormations[formationId] : $dataFormations[0];
+};
+
+Game_Party.prototype.currentFormationSlot = function() {
+    return this._currentFormationSlot;
 };
 
 Game_Party.prototype.equipFormations = function() {
