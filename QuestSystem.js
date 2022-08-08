@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Quest system v1.5.4
+@plugindesc Quest system v1.6.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -971,7 +971,7 @@ Specifies the icon for the hidden quest command.
 
 /*:ja
 @target MV MZ
-@plugindesc クエストシステム v1.5.4
+@plugindesc クエストシステム v1.6.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -1241,6 +1241,15 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @default true
 @desc
 クエストの有効期限の表示有無を指定します。
+
+@param EnabledQuestOrderingCountWindow
+@text クエスト受注数ウィンドウ表示有無
+@type boolean
+@on 表示
+@off 非表示
+@default false
+@desc
+クエスト受注数ウィンドウの表示有無を指定します。
 
 @param QuestOrderSe
 @text クエスト受注SE
@@ -1824,6 +1833,13 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @default 【期間】：
 @desc
 期間のテキストを指定します。
+
+@param OrderingCountText
+@text  受注数テキスト
+@type string
+@default 受注数：
+@desc
+受注数のテキストを指定します。
 */
 
 
@@ -2434,6 +2450,7 @@ const DisplayRewards = params.DisplayRewards;
 const DisplayDifficulty = params.DisplayDifficulty;
 const DisplayPlace = params.DisplayPlace;
 const DisplayTimeLimit = params.DisplayTimeLimit;
+const EnabledQuestOrderingCountWindow = params.EnabledQuestOrderingCountWindow;
 const GoldIcon = params.GoldIcon;
 const ExpIcon = params.ExpIcon;
 const QuestTitleWrap = params.QuestTitleWrap;
@@ -2679,6 +2696,7 @@ class Scene_QuestSystem extends superScene_Message {
     createAllWindow() {
         this.createQuestCommandWindow();
         this.createQuestListWindow();
+        this.createQuestOrderCountWindow();
         this.createQuestDetailWindow();
         this.createQuestOrderWindow();
         this.createQuestOrderFailedWindow();
@@ -2733,6 +2751,14 @@ class Scene_QuestSystem extends superScene_Message {
         this._questListWindow.setHandler("cancel", this.onQuestListCancel.bind(this));
         this._questListWindow.setHandler("select", this.onQuestListSelect.bind(this));
         this.addWindow(this._questListWindow);
+    }
+
+    createQuestOrderCountWindow() {
+        this._questOrderCountWindow = new Window_QuestOrderCount(this.questOrderCountWindowRect());
+        if (EnabledQuestOrderingCountWindow) {
+            this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
+            this.addWindow(this._questOrderCountWindow);
+        }
     }
 
     createQuestDetailWindow() {
@@ -2804,17 +2830,33 @@ class Scene_QuestSystem extends superScene_Message {
         const y = questCommandWindowRect.y + questCommandWindowRect.height;
         const w = WindowSize.CommandWindowWidth;
         const bottom = (this.isBottomButtonMode() ? Graphics.boxHeight - this.buttonAreaHeight() : Graphics.boxHeight);
-        const h = bottom - y;
+        let h = bottom - y;
+        if (EnabledQuestOrderingCountWindow) {
+            h -= this.calcWindowHeight(1, true);
+        }
         return new Rectangle(x, y, w, h);
+    }
+
+    questOrderCountWindowRect() {
+        if (EnabledQuestOrderingCountWindow) {
+            const questListWindowRect = this.questListWindowRect();
+            const x = 0;
+            const y = questListWindowRect.y + questListWindowRect.height;
+            const w = WindowSize.CommandWindowWidth;
+            const h = this.calcWindowHeight(1, true);
+            return new Rectangle(x, y, w, h);
+        }
+        return new Rectangle(0, 0, 0, 0);
     }
 
     questDetailWindowRect() {
         const questCommandWindowRect = this.questCommandWindowRect();
         const questListWindowRect = this.questListWindowRect();
+        const questOrderCountWindowRect = this.questOrderCountWindowRect();
         const x = questListWindowRect.x + questListWindowRect.width;
         const y = questCommandWindowRect.y;
         const w = Graphics.boxWidth - x;
-        const h = questCommandWindowRect.height + questListWindowRect.height;
+        const h = questCommandWindowRect.height + questListWindowRect.height + questOrderCountWindowRect.height;
         return new Rectangle(x, y, w, h);
     }
 
@@ -2910,6 +2952,7 @@ class Scene_QuestSystem extends superScene_Message {
         this.resetQuestList();
         this._questListWindow.select(0);
         this._questDetailWindow.refresh();
+        this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
     }
 
     onQuestOrderFailedOk() {
@@ -2927,6 +2970,7 @@ class Scene_QuestSystem extends superScene_Message {
         this.change_QuestReportWindow_To_QuestGetRewardWindow();
         this._questGetRewardWindow.setQuestData(questData);
         this._questGetRewardWindow.refresh();
+        this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
     }
 
     onQuestReportCancel() {
@@ -2949,6 +2993,7 @@ class Scene_QuestSystem extends superScene_Message {
         this.resetQuestList();
         this._questListWindow.select(0);
         this._questDetailWindow.refresh();
+        this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
     }
 
     onQuestCancelCancel() {
@@ -3171,6 +3216,25 @@ class Window_QuestList extends Window_Command_MZMV {
     }
 }
 
+class Window_QuestOrderCount extends Window_Selectable_MZMV {
+    initialize(rect) {
+        super.initialize(rect);
+        this._numOrderingQuests = 0;
+        this.deactivate();
+    }
+
+    setNumOrderingQuests(numOrderingQuests) {
+        this._numOrderingQuests = numOrderingQuests;
+        this.refresh();
+    }
+
+    drawAllItems() {
+        const rect = this.itemLineRect(0);
+        this.drawText(Text.OrderingCountText, rect.x, rect.y, rect.width);
+        this.drawText(`${this._numOrderingQuests}/${MaxOrderingQuests}`, rect.x, rect.y, rect.width, "right");
+    }
+}
+
 class Window_QuestDetail extends Window_Selectable_MZMV {
     initialize(rect) {
         super.initialize(rect);
@@ -3183,7 +3247,7 @@ class Window_QuestDetail extends Window_Selectable_MZMV {
         this._questData = questData;
     }
 
-    // undraw: Unraw window
+    // undraw: Undraw window
     // draw: Draw window
     setDrawState(drawState) {
         this._drawState = drawState;
