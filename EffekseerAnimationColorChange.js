@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Effekseerアニメーションカラー変更 v1.0.0
+@plugindesc Effekseerアニメーションカラー変更 v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EffekseerAnimationColorChange.js
 @help
@@ -110,6 +110,16 @@ Spriteset_Base.prototype.getBackSprite = function() {
     return null;
 };
 
+// エフェクト表示に使用するスプライトを生成する。
+// このスプライトはコンテナとしてのみ使用するためサイズの設定は不要であるが、
+// MVアニメーションを画面全体に表示する際にサイズを参照するため設定している。
+Spriteset_Base.prototype.createEffectsSprite = function() {
+    this._effectsSprite = new Sprite();
+    this._effectsSprite.setFrame(0, 0, Graphics.width, Graphics.height);
+    this._baseSprite.addChild(this._effectsSprite);
+    this._effectsContainer = this._effectsSprite;
+};
+
 Spriteset_Base.prototype.parseAnimationNameColor = function(animation) {
     const matchData = animation.name.match(/\<color\:(.+?)\>/);
     if (!matchData) return null;
@@ -133,15 +143,13 @@ Spriteset_Map.prototype.createTilemap = function() {
     tilemap.horizontalWrap = $gameMap.isLoopHorizontal();
     tilemap.verticalWrap = $gameMap.isLoopVertical();
     this._baseSprite.addChild(tilemap);
-    this._effectsSprite = new Sprite();
-    this._baseSprite.addChild(this._effectsSprite);
-    this._effectsContainer = this._effectsSprite;
+    this.createEffectsSprite();
     this._tilemap = tilemap;
     this.loadTileset();
 };
 
 Spriteset_Map.prototype.getBackSprite = function() {
-    return this._tilemap;
+    return this._tilemap._lowerLayer;
 };
 
 
@@ -165,9 +173,7 @@ Spriteset_Battle.prototype.createBattleField = function() {
     this._battleField.y = y - this.battleFieldOffsetY();
     this._battleContainerSprite.addChild(this._battleField);
     this._baseSprite.addChild(this._battleContainerSprite);
-    this._effectsSprite = new Sprite();
-    this._baseSprite.addChild(this._effectsSprite);
-    this._effectsContainer = this._effectsSprite;
+    this.createEffectsSprite();
 };
 
 Spriteset_Battle.prototype.getBackSprite = function() {
