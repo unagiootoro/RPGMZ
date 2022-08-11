@@ -37,6 +37,10 @@ CharacterMoveMotionEx.js
     2022/05/29 v1.0.0
         ・新規作成
 
+ContinuousAnimation.js
+    2022/08/11 v1.0.0
+        ・新規作成
+
 DotMoveSystem.js
     2022/07/28 v2.0.0
         ・TypeScript対応
@@ -106,7 +110,6 @@ DotMoveSystem.js
         ・イベントサイズによってイベント起動位置がずれる不具合を修正
 
 DotMoveSystem_FunctionEx.js
-DotMoveSystem.js
     2022/07/28 v2.0.0
         ・DotMoveSystem.js本体のv2.0.0に対応
     2022/05/29 v1.4.0
