@@ -189,6 +189,10 @@ SawTransition.js
     2021/08/08 v1.0.0
         ・新規作成
 
+ScrollFix.js
+    2022/08/11 v1.0.0
+        ・新規作成
+
 SelfVariable.js
     2022/07/17 v1.0.0
         ・新規作成
