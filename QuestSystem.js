@@ -1,6 +1,7 @@
+"use strict";
 /*:
 @target MV MZ
-@plugindesc Quest system v1.6.0
+@plugindesc Quest system v1.7.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -75,7 +76,13 @@ failedQuest: Show failed quests
 expiredQuest: Show expired quests
 hiddenQuest: Show hidden quests
 
-[Use plugin commands from scripts]
+■ Page break for quest details
+If the detailed description of the quest cannot be displayed on one page, the page will automatically break.
+If you want to manually break the page, in the quest detailed description
+<newpage>
+You can display the following content on a separate page by entering .
+
+【Use plugin commands from scripts】
 The functionality of plugin commands can also be used from scripts.
 The MV version does not support the plug-in command itself, so
 If you want to use the function in the plugin command, you need to use this script.
@@ -272,6 +279,15 @@ Specify whether to display the request location of the quest.
 @desc
 Specify whether to display the expiration date of the quest.
 
+@param EnabledQuestOrderingCountWindow
+@text Whether or not to display the number of quest orders window
+@type boolean
+@on display
+@off hidden
+@default true
+@desc
+Specifies whether or not to display the Quest Order Quantity window.
+
 @param QuestOrderSe
 @text Quest Order SE
 @type struct<QuestOrderSe>
@@ -338,12 +354,10 @@ Set the presence or absence of line breaks in the quest title.
 @param MaxOrderingQuests
 @text Maximum number of quests that can be ordered
 @type number
-@default 0
+@default 3
 @desc
 Specify the number of quests that can be ordered at one time. If it is 0, you can receive infinite orders.
 */
-
-
 /*~struct~QuestData:
 @param VariableId
 @text variable ID
@@ -417,12 +431,26 @@ Specifies information when the quest is hidden.
 @desc
 (This is an older parameter but is left for compatibility.) Specifies information when the quest is hidden.
 
-@param CommonEventId
-@text Common event ID
+@param QuestOrderCommonEventId
+@text Common event ID that activates when accepting a quest
 @type common_event
 @default 0
 @desc
-Specify the common event ID that starts immediately after the quest report is completed. If it is 0, it will not start.
+Specify the common event ID that will be activated immediately after accepting the quest. If it is 0, it will not start.
+
+@param CommonEventId
+@text Common event ID that starts when the quest report is completed
+@type common_event
+@default 0
+@desc
+Specify the common event ID that will be triggered immediately after completing the quest report. If it is 0, it will not start.
+
+@param QuestCancelCommonEventId
+@text Common event ID that activates when the quest is canceled
+@type common_event
+@default 0
+@desc
+Specify the common event ID that will be triggered immediately after completing the quest report. If it is 0, it will not start.
 
 @param Priority
 @text Priority
@@ -431,8 +459,6 @@ Specify the common event ID that starts immediately after the quest report is co
 @desc
 Specify the display priority of the quest. The higher the value, the higher the priority.
 */
-
-
 /*~struct~Reward:
 @param Type
 @text Reward type
@@ -488,8 +514,6 @@ Specifies the text to display if the reward type is arbitrary.
 @desc
 Specifies the icon to display when the reward type is arbitrary.
 */
-
-
 /*~struct~QuestOrderSe:
 @param FileName
 @text Order SE
@@ -520,8 +544,6 @@ Specify the pitch of the SE to play when the quest is ordered.
 @desc
 Specify the pan of the SE to be played when the quest is ordered.
 */
-
-
 /*~struct~QuestReportMe:
 @param FileName
 @text Report ME
@@ -552,8 +574,6 @@ Specifies the pitch of the ME to play when reporting a quest.
 @desc
 Specifies the ME pan to play when reporting a quest.
 */
-
-
 /*~struct~BackgroundImage:
 @param FileName1
 @text filename 1
@@ -583,8 +603,6 @@ Specifies the X coordinate offset of the image to add to the background image.
 @desc
 Specifies the Y coordinate offset of the image to add to the background image.
 */
-
-
 /*~struct~WindowSize:
 @param CommandWindowWidth
 @text command window width
@@ -614,8 +632,6 @@ Specifies the width of the dialog window.
 @desc
 Specifies the width of the reward acquisition window.
 */
-
-
 /*~struct~Text:
 @param MenuQuestSystemText
 @text Menu display text
@@ -855,8 +871,6 @@ Specify the text of the location.
 @desc
 Specify the text of the period.
 */
-
-
 /*~struct~TextColor:
 @param NotOrderedStateColor
 @text Unordered text color
@@ -900,8 +914,6 @@ Specifies the color of the text in the failed state.
 @desc
 Specifies the color of the expired text.
 */
-
-
 /*~struct~CommandIcon:
 @param AllCommandIcon
 @text All quest display command icon
@@ -966,12 +978,9 @@ Specifies the command icon for expired quests.
 @desc
 Specifies the icon for the hidden quest command.
 */
-
-
-
 /*:ja
 @target MV MZ
-@plugindesc クエストシステム v1.6.0
+@plugindesc クエストシステム v1.7.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/QuestSystem.js
 @help
@@ -989,21 +998,21 @@ Specifies the icon for the hidden quest command.
 その状態は変数によって管理します。
 変数の値が持つ意味は以下の通りです。
 0: クエスト未登録
-　　　登録されておらず、一覧に表示されないクエスト
+   登録されておらず、一覧に表示されないクエスト
 1: クエスト未受注
-　　　未受注のクエスト
+   未受注のクエスト
 2: クエスト進行中
-　　　受注を行い、進行中のクエスト
+   受注を行い、進行中のクエスト
 3: クエスト報告可能
-　　　依頼を達成し、報告可能となったクエスト
+   依頼を達成し、報告可能となったクエスト
 4: クエスト報告済み
-　　　報告を行ったクエスト
+   報告を行ったクエスト
 5: クエスト失敗
-　　　失敗したクエスト報酬
+   失敗したクエスト報酬
 6: クエスト期限切れ
-　　　期限切れとなったクエスト
+   期限切れとなったクエスト
 7: 隠しクエスト
-　　　概要のみ分かる隠しクエスト
+   概要のみ分かる隠しクエスト
 
 ■クエストプラグインが行う状態管理について
 クエストプラグインでは、次の状態管理のみを行います。
@@ -1024,15 +1033,15 @@ Specifies the icon for the hidden quest command.
 
 この二つは主に次のように使い分けることを想定しています。
 プラグインコマンド：依頼所のような施設を作り、
-　　　　　　　　　　そこでクエストの受注と報告を行う。
+          そこでクエストの受注と報告を行う。
 メニュー：各クエストの状況を確認する。
 
 ■クエストコマンド
 クエストコマンドは、クエストの分類、およびクエストの受注と報告を行う
 コマンドを管理するために使用します。
 ※プラグインコマンドとメニューで設定するクエストコマンドは
-　デフォルトで設定されているため、
-　基本的な使い方をするのであれば特に変更の必要はありません。
+ デフォルトで設定されているため、
+ 基本的な使い方をするのであれば特に変更の必要はありません。
 
 クエストコマンドには以下の種類があります。
 all: 全てのクエストを表示する
@@ -1044,6 +1053,12 @@ reportedQuest: 報告済みのクエストを表示する
 failedQuest: 失敗したクエストを表示する
 expiredQuest: 期限切れのクエストを表示する
 hiddenQuest: 隠しクエストを表示する
+
+■ クエスト詳細説明の改ページ
+クエストの詳細説明が1ページに表示しきれない場合は自動的に改ページを行います。
+もし手動で改ページを行いたい場合は、クエスト詳細説明で
+<newpage>
+と記載することで、以降の内容を別ページに表示することができます。
 
 【スクリプトからプラグインコマンドを使用する】
 プラグインコマンドの機能はスクリプトからでも使用することができます。
@@ -1247,7 +1262,7 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @type boolean
 @on 表示
 @off 非表示
-@default false
+@default true
 @desc
 クエスト受注数ウィンドウの表示有無を指定します。
 
@@ -1317,12 +1332,10 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @param MaxOrderingQuests
 @text 最大受注可能クエスト数
 @type number
-@default 0
+@default 3
 @desc
 一度に受注可能なクエスト数を指定します。0だと無限に受注可能になります。
 */
-
-
 /*~struct~QuestData:ja
 @param VariableId
 @text 変数ID
@@ -1396,8 +1409,22 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 (これは旧版のパラメータですが、互換性のために残しています。)クエストが隠し状態のときの情報を指定します。
 
+@param QuestOrderCommonEventId
+@text クエスト受注時起動コモンイベントID
+@type common_event
+@default 0
+@desc
+クエスト受注直後に起動するコモンイベントIDを指定します。0だと起動しません。
+
 @param CommonEventId
-@text コモンイベントID
+@text クエスト報告完了時起動コモンイベントID
+@type common_event
+@default 0
+@desc
+クエスト報告完了直後に起動するコモンイベントIDを指定します。0だと起動しません。
+
+@param QuestCancelCommonEventId
+@text クエストキャンセル時起動コモンイベントID
 @type common_event
 @default 0
 @desc
@@ -1410,8 +1437,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 クエストの表示優先度を指定します。値が大きいほど優先度は高くなります。
 */
-
-
 /*~struct~Reward:ja
 @param Type
 @text 報酬のタイプ
@@ -1467,8 +1492,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 報酬のタイプが任意の場合に表示するアイコンを指定します。
 */
-
-
 /*~struct~QuestOrderSe:ja
 @param FileName
 @text 受注SE
@@ -1499,8 +1522,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 クエストを受注したときに再生するSEのpanを指定します。
 */
-
-
 /*~struct~QuestReportMe:ja
 @param FileName
 @text 報告ME
@@ -1531,8 +1552,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 クエストを報告したときに再生するMEのpanを指定します。
 */
-
-
 /*~struct~BackgroundImage:ja
 @param FileName1
 @text ファイル名1
@@ -1562,8 +1581,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 背景画像に追加する画像のY座標オフセットを指定します。
 */
-
-
 /*~struct~WindowSize:ja
 @param CommandWindowWidth
 @text コマンドウィンドウ幅
@@ -1593,8 +1610,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 報酬入手ウィンドウの横幅を指定します。
 */
-
-
 /*~struct~Text:ja
 @param MenuQuestSystemText
 @text メニュー表示テキスト
@@ -1841,8 +1856,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 受注数のテキストを指定します。
 */
-
-
 /*~struct~TextColor:ja
 @param NotOrderedStateColor
 @text 未受注テキスト色
@@ -1886,8 +1899,6 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 期限切れの状態のテキストのカラーを指定します。
 */
-
-
 /*~struct~CommandIcon:ja
 @param AllCommandIcon
 @text 全クエスト表示コマンドアイコン
@@ -1952,1768 +1963,1796 @@ QuestSystemAlias.QuestUtils.changeRewards(variableId, rawardDatas)
 @desc
 隠しクエストのコマンドのアイコンを指定します。
 */
-
-const QuestSystemPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
-
-let $dataQuests = null;
-let $questSaveDatas = null;
-
-const QuestSystemAlias = (() => {
-"use strict";
-
-class PluginParamsParser {
-    static parse(params, typeData, predictEnable = true) {
-        return new PluginParamsParser(predictEnable).parse(params, typeData);
-    }
-
-    constructor(predictEnable = true) {
-        this._predictEnable = predictEnable;
-    }
-
-    parse(params, typeData, loopCount = 0) {
-        if (++loopCount > 255) throw new Error("endless loop error");
-        const result = {};
-        for (const name in typeData) {
-            if (params[name] === "" || params[name] === undefined) {
-                result[name] = null;
-            } else {
-                result[name] = this.convertParam(params[name], typeData[name], loopCount);
+const QuestSystemPluginName = document.currentScript ? decodeURIComponent(document.currentScript.src.match(/^.*\/(.+)\.js$/)[1]) : "QuestSystem";
+let $dataQuests;
+let $questSaveDatas;
+var QuestSystem;
+(function (QuestSystem) {
+    class PluginParamsParser {
+        constructor(predictEnable = true) {
+            this._predictEnable = predictEnable;
+        }
+        static parse(params, typeData, predictEnable = true) {
+            return new PluginParamsParser(predictEnable).parse(params, typeData);
+        }
+        parse(params, typeData, loopCount = 0) {
+            if (++loopCount > 255)
+                throw new Error("endless loop error");
+            const result = {};
+            for (const name in typeData) {
+                if (params[name] === "" || params[name] === undefined) {
+                    result[name] = null;
+                }
+                else {
+                    result[name] = this.convertParam(params[name], typeData[name], loopCount);
+                }
+            }
+            if (!this._predictEnable)
+                return result;
+            if (typeof params === "object" && !(params instanceof Array)) {
+                for (const name in params) {
+                    if (result[name])
+                        continue;
+                    const param = params[name];
+                    const type = this.predict(param);
+                    result[name] = this.convertParam(param, type, loopCount);
+                }
+            }
+            return result;
+        }
+        convertParam(param, type, loopCount) {
+            if (typeof type === "string") {
+                return this.cast(param, type);
+            }
+            else if (typeof type === "object" && type instanceof Array) {
+                const aryParam = JSON.parse(param);
+                if (type[0] === "string") {
+                    return aryParam.map((strParam) => this.cast(strParam, type[0]));
+                }
+                else {
+                    return aryParam.map((strParam) => this.parse(JSON.parse(strParam), type[0]), loopCount);
+                }
+            }
+            else if (typeof type === "object") {
+                return this.parse(JSON.parse(param), type, loopCount);
+            }
+            else {
+                throw new Error(`${type} is not string or object`);
             }
         }
-        if (!this._predictEnable) return result;
-        if (typeof params === "object" && !(params instanceof Array)) {
-            for (const name in params) {
-                if (result[name]) continue;
-                const param = params[name];
-                const type = this.predict(param);
-                result[name] = this.convertParam(param, type, loopCount);
+        cast(param, type) {
+            switch (type) {
+                case "any":
+                    if (!this._predictEnable)
+                        throw new Error("Predict mode is disable");
+                    return this.cast(param, this.predict(param));
+                case "string":
+                    return param;
+                case "number":
+                    if (param.match(/^\-?\d+\.\d+$/))
+                        return parseFloat(param);
+                    return parseInt(param);
+                case "boolean":
+                    return param === "true";
+                default:
+                    throw new Error(`Unknow type: ${type}`);
             }
         }
-        return result;
-    }
-
-    convertParam(param, type, loopCount) {
-        if (typeof type === "string") {
-            return this.cast(param, type);
-        } else if (typeof type === "object" && type instanceof Array) {
-            const aryParam = JSON.parse(param);
-            if (type[0] === "string") {
-                return aryParam.map(strParam => this.cast(strParam, type[0]));
-            } else {
-                return aryParam.map(strParam => this.parse(JSON.parse(strParam), type[0]), loopCount);
+        predict(param) {
+            if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
+                return "number";
             }
-        } else if (typeof type === "object") {
-            return this.parse(JSON.parse(param), type, loopCount);
-        } else {
-            throw new Error(`${type} is not string or object`);
-        }
-    }
-
-    cast(param, type) {
-        switch(type) {
-        case "any":
-            if (!this._predictEnable) throw new Error("Predict mode is disable");
-            return this.cast(param, this.predict(param));
-        case "string":
-            return param;
-        case "number":
-            if (param.match(/^\-?\d+\.\d+$/)) return parseFloat(param);
-            return parseInt(param);
-        case "boolean":
-            return param === "true";
-        default:
-            throw new Error(`Unknow type: ${type}`);
-        }
-    }
-
-    predict(param) {
-        if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
-            return "number";
-        } else if (param === "true" || param === "false") {
-            return "boolean";
-        } else {
-            return "string";
-        }
-    }
-}
-
-
-class QuestUtils {
-    static startQuestScene(questCommands, fileName1 = "", fileName2 = "", xOfs = 240, yOfs = 300) {
-        SceneManager.push(Scene_QuestSystem);
-        questCommands = questCommands.length === 0 ? null : questCommands;
-        SceneManager.prepareNextScene(questCommands, { FileName1: fileName1, FileName2: fileName2, XOfs: xOfs, YOfs: yOfs});
-    }
-
-    static getRewards(variableId) {
-        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === variableId);
-        if (!questSaveData) return;
-        questSaveData.getRewards();
-    }
-
-    static changeDetail(variableId, detail) {
-        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === variableId);
-        if (!questSaveData) return;
-        questSaveData.setDetail(detail);
-    }
-
-    // rawardData: { type, itemId, itemCount, gold, exp }
-    static changeRewards(variableId, rawardDatas) {
-        const rewards = rawardDatas.map(rawardData => {
-            return RewardData.fromObject(rawardData);
-        });
-        this.changeRewardsByRewardObject(variableId, rewards);
-    }
-
-    static changeRewardsByRewardObject(variableId, rewards) {
-        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === variableId);
-        if (!questSaveData) return;
-        questSaveData.setRewards(rewards);
-    }
-}
-
-
-class ItemInfo {
-    constructor(type, id) {
-        this._type = type;
-        this._id = id;
-    }
-
-    get type() { return this._type; }
-    set type(_type) { this._type = _type; }
-    get id() { return this._id; }
-    set id(_id) { this._id = _id; }
-
-    itemData() {
-        switch (this._type) {
-        case "item":
-            return $dataItems[this._id];
-        case "weapon":
-            return $dataWeapons[this._id];
-        case "armor":
-            return $dataArmors[this._id];
-        }
-        throw new Error(`${this._type} is not found`);
-    }
-}
-
-class RewardData {
-    static fromObject(rewardObject) {
-        const { type, itemId, itemCount, gold, exp } = rewardObject;
-        if (type === "gold") {
-            return new RewardData("gold", { value: gold });
-        } else if (type === "exp") {
-            return new RewardData("exp", { value: exp });
-        } else if (["item", "weapon", "armor"].includes(type)) {
-            const itemInfo = new ItemInfo(type, itemId);
-            return new RewardData("item", { item: itemInfo, count: itemCount });
-        } else if (type === "any") {
-            return new RewardData("any", { text: rewardObject.text, iconIndex: rewardObject.iconIndex });
-        }
-        throw new Error(`${type} is not found.`);
-    }
-
-    static fromParam(rewardParam) {
-        if (rewardParam.Type === "gold") {
-            return new RewardData("gold", { value: rewardParam.GoldValue });
-        } else if (rewardParam.Type === "exp") {
-            return new RewardData("exp", { value: rewardParam.ExpValue });
-        } else if (["item", "weapon", "armor"].includes(rewardParam.Type)) {
-            const itemInfo = new ItemInfo(rewardParam.Type, rewardParam.ItemId);
-            return new RewardData("item", { item: itemInfo, count: rewardParam.ItemCount });
-        } else if (rewardParam.Type === "any") {
-            return new RewardData("any", { text: rewardParam.Text, iconIndex: rewardParam.IconIndex });
-        }
-        throw new Error(`${rewardParam.Type} is not found.`);
-    }
-
-    constructor(type, params) {
-        this._type = type;
-        this._params = params;
-    }
-
-    get type() { return this._type; }
-    get params() { return this._params };
-
-    getReward() {
-        if (this.type === "gold") {
-            $gameParty.gainGold(this._params.value);
-        } else if (this.type === "exp") {
-            for (const actor of $gameParty.members()) {
-                actor.gainExp(this._params.value);
+            else if (param === "true" || param === "false") {
+                return "boolean";
             }
-        } else if (["item", "weapon", "armor"].includes(this.type)) {
-            $gameParty.gainItem(this._params.item.itemData(), this._params.count);
-        }
-    }
-}
-
-class TextDrawer {
-    constructor(window) {
-        this._window = window;
-    }
-
-    drawIconText(text, iconIndex, x, y, width) {
-        return this.drawIconTextByMode(text, iconIndex, x, y, width, "normal");
-    }
-
-    drawIconTextWrap(text, iconIndex, x, y, width) {
-        return this.drawIconTextByMode(text, iconIndex, x, y, width, "ex");
-    }
-
-    drawTextExWrap(text, x, y, width) {
-        this._window.resetFontSettings();
-        const textState = this._window.createTextState(text, x, y, width);
-        const textArray = textState.text.split("");
-        const outTextArray = [];
-        let begin = 0;
-        let turnPoint = 0;
-        for (let i = 0; i < textArray.length; i++) {
-            outTextArray.push(textArray[i]);
-            const end = begin + turnPoint + 2; // +2 is length and next char.
-            if (textArray[i] === "\n") {
-                begin += turnPoint;
-                turnPoint = 1;
-            } else if (this.isTextTurn(textArray, begin, end, width)) {
-                outTextArray.push("\n");
-                begin += turnPoint;
-                turnPoint = 0;
-            } else {
-                turnPoint++;
+            else {
+                return "string";
             }
         }
-        textState.text = outTextArray.join("");
-        this._window.processAllText(textState);
-        return textState.text.split("\n").length;
     }
-
-    isTextTurn(array, begin, end, width) {
-        const text = array.slice(begin, end).join("");
-        if (this._window.textWidth(text) >= width) return true;
-        return false;
-    }
-
-    drawIconTextByMode(text, iconIndex, x, y, width, mode) {
-        const iconY = y + (this._window.lineHeight() - ImageManager.iconHeight) / 2;
-        const textMargin = ImageManager.iconWidth + 4;
-        const itemWidth = Math.max(0, width - textMargin);
-        this._window.resetTextColor();
-        this._window.drawIcon(iconIndex, x, iconY);
-        if (mode === "normal") {
-            this._window.drawText(text, x + textMargin, y, itemWidth);
-            return 1;
-        } else if (mode === "ex") {
-            return this.drawTextExWrap(text, x + textMargin, y, itemWidth);
+    class QuestUtils {
+        static startQuestScene(questCommands, fileName1 = "", fileName2 = "", xOfs = 240, yOfs = 300) {
+            SceneManager.push(Scene_QuestSystem);
+            const questCommandsParam = questCommands.length === 0 ? null : questCommands;
+            SceneManager.prepareNextScene(questCommandsParam, { FileName1: fileName1, FileName2: fileName2, XOfs: xOfs, YOfs: yOfs });
+        }
+        static getRewards(variableId) {
+            const questData = $dataQuests.find(data => data.variableId === variableId);
+            if (!questData)
+                return;
+            questData.getRewards();
+        }
+        static changeDetail(variableId, detail) {
+            const questData = $dataQuests.find(data => data.variableId === variableId);
+            if (!questData)
+                return;
+            questData.detail = detail;
+        }
+        // rawardData: { type, itemId, itemCount, gold, exp }
+        static changeRewards(variableId, rawardDatas) {
+            const rewards = rawardDatas.map((rawardData) => {
+                return RewardData.fromObject(rawardData);
+            });
+            this.changeRewardsByRewardObject(variableId, rewards);
+        }
+        static changeRewardsByRewardObject(variableId, rewards) {
+            const questData = $dataQuests.find(data => data.variableId === variableId);
+            if (!questData)
+                return;
+            questData.rewards = rewards;
         }
     }
-}
-
-class RewardWindowDrawer {
-    constructor(window, reward) {
-        this._window = window;
-        this._reward = reward;
-        this._textDrawer = new TextDrawer(window);
-    }
-
-    drawRewardToWindow(x, y, width) {
-        if (this._reward.type === "gold") {
-            const text = `${this._reward.params.value}${TextManager.currencyUnit}`;
-            this._textDrawer.drawIconText(text, GoldIcon, x, y, width);
-        } else if (this._reward.type === "item") {
-            this._window.drawItemName(this._reward.params.item.itemData(), x, y, width);
-            const strItemCount = `×${this._reward.params.count}`;
-            this._window.drawText(strItemCount, x, y, width, "right");
-        } else if (this._reward.type === "exp") {
-            const text = `${TextManager.exp}＋${this._reward.params.value}`;
-            this._textDrawer.drawIconText(text, ExpIcon, x, y, width);
-        } else if (this._reward.type === "any") {
-            this._textDrawer.drawIconText(this._reward.params.text, this._reward.params.iconIndex, x, y, width);
+    QuestSystem.QuestUtils = QuestUtils;
+    class ItemInfo {
+        constructor(type, id) {
+            this._type = type;
+            this._id = id;
+        }
+        get type() { return this._type; }
+        set type(_type) { this._type = _type; }
+        get id() { return this._id; }
+        set id(_id) { this._id = _id; }
+        itemData() {
+            switch (this._type) {
+                case "item":
+                    return $dataItems[this._id];
+                case "weapon":
+                    return $dataWeapons[this._id];
+                case "armor":
+                    return $dataArmors[this._id];
+            }
+            throw new Error(`${this._type} is not found`);
         }
     }
-}
-
-class QuestData {
-    static fromParam(questDataParam) {
-        const variableId = questDataParam.VariableId;
-        const title = questDataParam.Title;
-        const iconIndex = questDataParam.IconIndex;
-        const requester = questDataParam.Requester;
-        const rewards = questDataParam.Rewards.map(rewardParam => {
-            return RewardData.fromParam(rewardParam);
-        });
-        const difficulty = questDataParam.Difficulty;
-        const place = questDataParam.Place;
-        const timeLimit = questDataParam.TimeLimit;
-        let detail;
-        if (questDataParam.DetailNote == null || questDataParam.DetailNote === "") {
-            detail = questDataParam.Detail;
-        } else {
-            detail = JSON.parse(questDataParam.DetailNote);
+    QuestSystem.ItemInfo = ItemInfo;
+    class RewardData {
+        constructor(type, params) {
+            this._type = type;
+            this._params = params;
         }
-        let hiddenDetail;
-        if (questDataParam.HiddenDetailNote == null || questDataParam.HiddenDetailNote === "") {
-            hiddenDetail = questDataParam.HiddenDetail;
-        } else {
-            hiddenDetail = JSON.parse(questDataParam.HiddenDetailNote);
+        static fromObject(rewardObject) {
+            const { type, itemId, itemCount, gold, exp } = rewardObject;
+            if (type === "gold") {
+                return new RewardData("gold", { value: gold });
+            }
+            else if (type === "exp") {
+                return new RewardData("exp", { value: exp });
+            }
+            else if (["item", "weapon", "armor"].includes(type)) {
+                const itemInfo = new ItemInfo(type, itemId);
+                return new RewardData("item", { item: itemInfo, count: itemCount });
+            }
+            else if (type === "any") {
+                return new RewardData("any", { text: rewardObject.text, iconIndex: rewardObject.iconIndex });
+            }
+            throw new Error(`${type} is not found.`);
         }
-        const commonEventId = questDataParam.CommonEventId;
-        const priority = questDataParam.Priority;
-        return new QuestData(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, commonEventId, priority);
-    }
-
-    constructor(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, commonEventId, priority) {
-        this._variableId = variableId;
-        this._title = title;
-        this._iconIndex = iconIndex;
-        this._requester = requester;
-        this._rewards = rewards;
-        this._difficulty = difficulty;
-        this._place = place;
-        this._timeLimit = timeLimit;
-        this._detail = detail;
-        this._hiddenDetail = hiddenDetail;
-        this._commonEventId = commonEventId;
-        this._priority = (priority != null ? priority : 0);
-    }
-
-    get variableId() { return this._variableId; }
-    get title() { return this._title; }
-    get iconIndex() { return this._iconIndex; }
-    get requester() { return this._requester; }
-    get rewards() { return this._rewards; }
-    get difficulty() { return this._difficulty; }
-    get place() { return this._place; }
-    get timeLimit() { return this._timeLimit; }
-    get detail() { return this._detail; }
-    get hiddenDetail() { return this._hiddenDetail; }
-    get commonEventId() { return this._commonEventId; }
-    get priority() { return this._priority; }
-
-    set rewards(_rewards) { this._rewards = _rewards; }
-    set detail(_detail) { this._detail = _detail; }
-
-    state() {
-        const data = STATE_LIST.find(data => data.value === $gameVariables.value(this._variableId));
-        return data ? data.state : "none";
-    }
-
-    setState(state) {
-        const data = STATE_LIST.find(data => data.state === state);
-        if (data) $gameVariables.setValue(this._variableId, data.value);
-    }
-
-    stateText() {
-        const data = STATE_LIST.find(data => data.state === this.state());
-        return data.text;
-    }
-
-    stateTextColor() {
-        const data = STATE_LIST.find(data => data.state === this.state());
-        return data.color;
-    }
-}
-
-// Parse plugin parameters.
-const typeDefine = {
-    MenuCommands: ["string"],
-    QuestDatas: [{
-        Rewards: [{}],
-    }],
-    QuestOrderSe: {},
-    QuestReportMe: {},
-    MenuBackgroundImage: {},
-    WindowSize: {},
-    Text: {},
-    TextColor: {},
-    CommandIcon: {},
-};
-
-
-class QuestSaveData {
-    constructor(variableId) {
-        this._variableId = variableId;
-        this._detail = null;
-        this._rewards = null;
-    }
-
-    variableId() {
-        return this._variableId;
-    }
-
-    title() {
-        return this.questData().title;
-    }
-
-    iconIndex() {
-        return this.questData().iconIndex;
-    }
-
-    requester() {
-        return this.questData().requester;
-    }
-
-    rewards() {
-        if (this._rewards == null) return this.questData().rewards;
-        return this._rewards;
-    }
-
-    difficulty() {
-        return this.questData().difficulty;
-    }
-
-    place() {
-        return this.questData().place;
-    }
-
-    timeLimit() {
-        return this.questData().timeLimit;
-    }
-
-    detail() {
-        if (this._detail == null) return this.questData().detail;
-        return this._detail;
-    }
-
-    hiddenDetail() {
-        return this.questData().hiddenDetail;
-    }
-
-    commonEventId() {
-        return this.questData().commonEventId;
-    }
-
-    priority() {
-        return this.questData().priority;
-    }
-
-    setDetail(detail) {
-        this._detail = detail;
-    }
-
-    setRewards(rewards) {
-        this._rewards = rewards;
-    }
-
-    questData() {
-        const questData = $dataQuests.find(data => data.variableId === this._variableId);
-        if (questData == null) throw new Error(`variableId: ${this._variableId} is invalid.`);
-        return questData;
-    }
-
-    getRewards() {
-        for (const reward of this.rewards()) {
-            reward.getReward();
+        static fromParam(rewardParam) {
+            if (rewardParam.Type === "gold") {
+                return new RewardData("gold", { value: rewardParam.GoldValue });
+            }
+            else if (rewardParam.Type === "exp") {
+                return new RewardData("exp", { value: rewardParam.ExpValue });
+            }
+            else if (["item", "weapon", "armor"].includes(rewardParam.Type)) {
+                const itemInfo = new ItemInfo(rewardParam.Type, rewardParam.ItemId);
+                return new RewardData("item", { item: itemInfo, count: rewardParam.ItemCount });
+            }
+            else if (rewardParam.Type === "any") {
+                return new RewardData("any", { text: rewardParam.Text, iconIndex: rewardParam.IconIndex });
+            }
+            throw new Error(`${rewardParam.Type} is not found.`);
+        }
+        get type() { return this._type; }
+        get params() { return this._params; }
+        ;
+        getReward() {
+            if (this.type === "gold") {
+                $gameParty.gainGold(this._params.value);
+            }
+            else if (this.type === "exp") {
+                for (const actor of $gameParty.members()) {
+                    actor.gainExp(this._params.value);
+                }
+            }
+            else if (["item", "weapon", "armor"].includes(this.type)) {
+                $gameParty.gainItem(this._params.item.itemData(), this._params.count);
+            }
         }
     }
-}
-
-
-class QuestState {
-    get state() { return this._state; }
-    get value() { return this._value; }
-    get text() { return this._text; }
-    get color() { return this._color; }
-
-    constructor(state, value, text, color = null) {
-        this._state = state;
-        this._value = value;
-        this._text = text;
-        this._color = color;
-    }
-}
-
-
-class QuestCommand {
-    get state() { return this._state; }
-    get text() { return this._text; }
-    get iconIndex() { return this._iconIndex; }
-
-    constructor(state, text, iconIndex) {
-        this._state = state;
-        this._text = text;
-        this._iconIndex = iconIndex;
-    }
-}
-
-
-const params = PluginParamsParser.parse(PluginManager.parameters(QuestSystemPluginName), typeDefine);
-
-$dataQuests = params.QuestDatas.map(questDataParam => {
-    return QuestData.fromParam(questDataParam);
-});
-
-const EnabledQuestMenu = params.EnabledQuestMenu;
-const EnabledQuestMenuSwitchId = params.EnabledQuestMenuSwitchId;
-const MenuCommands = params.MenuCommands;
-const DisplayRequestor = params.DisplayRequestor;
-const DisplayRewards = params.DisplayRewards;
-const DisplayDifficulty = params.DisplayDifficulty;
-const DisplayPlace = params.DisplayPlace;
-const DisplayTimeLimit = params.DisplayTimeLimit;
-const EnabledQuestOrderingCountWindow = params.EnabledQuestOrderingCountWindow;
-const GoldIcon = params.GoldIcon;
-const ExpIcon = params.ExpIcon;
-const QuestTitleWrap = params.QuestTitleWrap;
-const MaxOrderingQuests = params.MaxOrderingQuests;
-
-const QuestOrderSe = params.QuestOrderSe;
-const QuestReportMe = params.QuestReportMe;
-const MenuBackgroundImage = params.MenuBackgroundImage;
-const WindowSize = params.WindowSize;
-const Text = params.Text;
-const TextColor = params.TextColor;
-const CommandIcon = params.CommandIcon;
-
-const STATE_LIST = [
-    new QuestState("none", 0, ""),
-    new QuestState("notOrdered", 1, Text.NotOrderedStateText, TextColor.NotOrderedStateColor),
-    new QuestState("ordering", 2, Text.OrderingStateText, TextColor.OrderingStateColor),
-    new QuestState("reportable", 3, Text.ReportableStateText, TextColor.ReportableStateColor),
-    new QuestState("reported", 4, Text.ReportedStateText, TextColor.ReportedStateColor),
-    new QuestState("failed", 5, Text.FailedStateText, TextColor.FailedStateColor),
-    new QuestState("expired", 6, Text.ExpiredStateText, TextColor.ExpiredStateColor),
-    new QuestState("hidden", 7, "", "ffffff"),
-];
-
-const COMMAND_TABLE = {
-    "all": new QuestCommand(null, Text.AllCommandText, CommandIcon.AllCommandIcon),
-    "questOrder": new QuestCommand(["notOrdered"], Text.QuestOrderCommandText, CommandIcon.AllCommandIcon),
-    "orderingQuest": new QuestCommand(["ordering", "reportable"], Text.OrderingQuestCommandText, CommandIcon.OrderingQuestCommandIcon),
-    "questCancel": new QuestCommand(["ordering"], Text.QuestCancelCommandText, CommandIcon.QuestCancelCommandIcon),
-    "questReport": new QuestCommand(["reportable"], Text.QuestReportCommandText, CommandIcon.QuestReportCommandIcon),
-    "reportedQuest": new QuestCommand(["reported"], Text.ReportedQuestCommandText, CommandIcon.ReportedQuestCommandIcon),
-    "failedQuest": new QuestCommand(["failed"], Text.FailedQuestCommandText, CommandIcon.FailedQuestCommandIcon),
-    "expiredQuest": new QuestCommand(["expired"], Text.ExpiredQuestCommandText, CommandIcon.ExpiredQuestCommandIcon),
-    "hiddenQuest": new QuestCommand(["hidden"], Text.HiddenQuestCommandText, CommandIcon.HiddenQuestCommandIcon),
-};
-
-
-// MV compatible
-if (Utils.RPGMAKER_NAME === "MV") {
-    ImageManager.iconWidth = 32;
-    ImageManager.iconHeight = 32;
-    ImageManager.faceWidth = 144;
-    ImageManager.faceHeight = 144;
-
-    Window_Base.prototype.drawRect = function(x, y, width, height) {
-        const outlineColor = this.contents.outlineColor;
-        const mainColor = this.contents.textColor;
-        this.contents.fillRect(x, y, width, height, outlineColor);
-        this.contents.fillRect(x + 1, y + 1, width - 2, height - 2, mainColor);
-    };
-    
-    Window_Base.prototype.itemPadding = function() {
-        return 8;
-    };
-    
-    Window_Selectable.prototype.itemRectWithPadding = function(index) {
-        const rect = this.itemRect(index);
-        const padding = this.itemPadding();
-        rect.x += padding;
-        rect.width -= padding * 2;
-        return rect;
-    };
-    
-    Window_Selectable.prototype.itemLineRect = function(index) {
-        const rect = this.itemRectWithPadding(index);
-        const padding = (rect.height - this.lineHeight()) / 2;
-        rect.y += padding;
-        rect.height -= padding * 2;
-        return rect;
-    };
-    
-    Window_Base.prototype.createTextState = function(text, x, y, width) {
-        const textState = { index: 0, x: x, y: y, left: x };
-        textState.text = this.convertEscapeCharacters(text);
-        textState.height = this.calcTextHeight(textState, false);
-        return textState;
-    };
-
-    Window_Base.prototype.processAllText = function(textState) {
-        while (textState.index < textState.text.length) {
-            this.processCharacter(textState);
+    QuestSystem.RewardData = RewardData;
+    class TextDrawer {
+        constructor(window) {
+            this._window = window;
         }
-        return textState;
+        drawIconText(text, iconIndex, x, y, width) {
+            return this.drawIconTextByMode(text, iconIndex, x, y, width, "normal");
+        }
+        drawIconTextWrap(text, iconIndex, x, y, width) {
+            return this.drawIconTextByMode(text, iconIndex, x, y, width, "ex");
+        }
+        drawTextExWrap(text, x, y, width) {
+            this._window.resetFontSettings();
+            const textState = this._window.createTextState(text, x, y, width);
+            const textArray = textState.text.split("");
+            const outTextArray = [];
+            let begin = 0;
+            let turnPoint = 0;
+            for (let i = 0; i < textArray.length; i++) {
+                outTextArray.push(textArray[i]);
+                const end = begin + turnPoint + 2; // +2 is length and next char.
+                if (textArray[i] === "\n") {
+                    begin += turnPoint;
+                    turnPoint = 1;
+                }
+                else if (this.isTextTurn(textArray, begin, end, width)) {
+                    outTextArray.push("\n");
+                    begin += turnPoint;
+                    turnPoint = 0;
+                }
+                else {
+                    turnPoint++;
+                }
+            }
+            textState.text = outTextArray.join("");
+            this._window.processAllText(textState);
+            return textState.text.split("\n").length;
+        }
+        isTextTurn(array, begin, end, width) {
+            const text = array.slice(begin, end).join("");
+            if (this._window.textWidth(text) >= width)
+                return true;
+            return false;
+        }
+        drawIconTextByMode(text, iconIndex, x, y, width, mode) {
+            const iconY = y + (this._window.lineHeight() - ImageManager.iconHeight) / 2;
+            const textMargin = ImageManager.iconWidth + 4;
+            const itemWidth = Math.max(0, width - textMargin);
+            this._window.resetTextColor();
+            this._window.drawIcon(iconIndex, x, iconY);
+            if (mode === "normal") {
+                this._window.drawText(text, x + textMargin, y, itemWidth);
+                return 1;
+            }
+            else if (mode === "ex") {
+                return this.drawTextExWrap(text, x + textMargin, y, itemWidth);
+            }
+            else {
+                throw new Error(`mode(${mode}) is invalid.`);
+            }
+        }
+    }
+    QuestSystem.TextDrawer = TextDrawer;
+    class RewardWindowDrawer {
+        constructor(window, reward) {
+            this._window = window;
+            this._reward = reward;
+            this._textDrawer = new TextDrawer(window);
+        }
+        drawRewardToWindow(x, y, width) {
+            if (this._reward.type === "gold") {
+                const text = `${this._reward.params.value}${TextManager.currencyUnit}`;
+                this._textDrawer.drawIconText(text, GoldIcon, x, y, width);
+            }
+            else if (this._reward.type === "item") {
+                this._window.drawItemName(this._reward.params.item.itemData(), x, y, width);
+                const strItemCount = `×${this._reward.params.count}`;
+                this._window.drawText(strItemCount, x, y, width, "right");
+            }
+            else if (this._reward.type === "exp") {
+                const text = `${TextManager.exp}＋${this._reward.params.value}`;
+                this._textDrawer.drawIconText(text, ExpIcon, x, y, width);
+            }
+            else if (this._reward.type === "any") {
+                this._textDrawer.drawIconText(this._reward.params.text, this._reward.params.iconIndex, x, y, width);
+            }
+        }
+    }
+    QuestSystem.RewardWindowDrawer = RewardWindowDrawer;
+    class QuestData {
+        constructor(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, questOrderCommonEventId, questReportCommonEventId, questCancelCommonEventId, priority) {
+            this._variableId = variableId;
+            this._title = title;
+            this._iconIndex = iconIndex;
+            this._requester = requester;
+            this._rewards = rewards;
+            this._difficulty = difficulty;
+            this._place = place;
+            this._timeLimit = timeLimit;
+            this._detail = detail;
+            this._hiddenDetail = hiddenDetail;
+            this._questOrderCommonEventId = questOrderCommonEventId;
+            this._questReportCommonEventId = questReportCommonEventId;
+            this._questCancelCommonEventId = questCancelCommonEventId;
+            this._priority = (priority != null ? priority : 0);
+        }
+        static fromParam(questDataParam) {
+            const variableId = questDataParam.VariableId;
+            const title = questDataParam.Title;
+            const iconIndex = questDataParam.IconIndex;
+            const requester = questDataParam.Requester;
+            const rewards = questDataParam.Rewards.map((rewardParam) => {
+                return RewardData.fromParam(rewardParam);
+            });
+            const difficulty = questDataParam.Difficulty;
+            const place = questDataParam.Place;
+            const timeLimit = questDataParam.TimeLimit;
+            let detail;
+            if (questDataParam.DetailNote == null || questDataParam.DetailNote === "") {
+                detail = questDataParam.Detail;
+            }
+            else {
+                detail = JSON.parse(questDataParam.DetailNote);
+            }
+            let hiddenDetail;
+            if (questDataParam.HiddenDetailNote == null || questDataParam.HiddenDetailNote === "") {
+                hiddenDetail = questDataParam.HiddenDetail;
+            }
+            else {
+                hiddenDetail = JSON.parse(questDataParam.HiddenDetailNote);
+            }
+            const questOrderCommonEventId = questDataParam.QuestOrderCommonEventId;
+            const questReportCommonEventId = questDataParam.CommonEventId;
+            const questCancelCommonEventId = questDataParam.QuestCancelCommonEventId;
+            const priority = questDataParam.Priority;
+            return new QuestData(variableId, title, iconIndex, requester, rewards, difficulty, place, timeLimit, detail, hiddenDetail, questOrderCommonEventId, questReportCommonEventId, questCancelCommonEventId, priority);
+        }
+        get variableId() { return this._variableId; }
+        get title() { return this._title; }
+        get iconIndex() { return this._iconIndex; }
+        get requester() { return this._requester; }
+        get rewards() { return this._rewards; }
+        get difficulty() { return this._difficulty; }
+        get place() { return this._place; }
+        get timeLimit() { return this._timeLimit; }
+        get detail() { return this._detail; }
+        get hiddenDetail() { return this._hiddenDetail; }
+        get questOrderCommonEventId() { return this._questOrderCommonEventId; }
+        get questReportCommonEventId() { return this._questReportCommonEventId; }
+        get questCancelCommonEventId() { return this._questCancelCommonEventId; }
+        get priority() { return this._priority; }
+        set rewards(_rewards) {
+            this._rewards = _rewards;
+            const saveData = this.findSaveData();
+            saveData.setRewards(_rewards);
+        }
+        set detail(_detail) {
+            this._detail = _detail;
+            const saveData = this.findSaveData();
+            saveData.setDetail(_detail);
+        }
+        state() {
+            const data = STATE_LIST.find(data => data.value === $gameVariables.value(this._variableId));
+            return data ? data.state : "none";
+        }
+        setState(state) {
+            const data = STATE_LIST.find(data => data.state === state);
+            if (data)
+                $gameVariables.setValue(this._variableId, data.value);
+        }
+        stateText() {
+            const data = STATE_LIST.find(data => data.state === this.state());
+            return data.text;
+        }
+        stateTextColor() {
+            const data = STATE_LIST.find(data => data.state === this.state());
+            return data.color;
+        }
+        getRewards() {
+            for (const reward of this.rewards) {
+                reward.getReward();
+            }
+        }
+        findSaveData() {
+            return $questSaveDatas.find(svdata => svdata.variableId() === this._variableId);
+        }
+        loadSaveData() {
+            const saveData = this.findSaveData();
+            if (!saveData)
+                return;
+            const svRewards = saveData.rewards();
+            const svDetail = saveData.detail();
+            if (svRewards)
+                this._rewards = svRewards;
+            if (svDetail)
+                this._detail = svDetail;
+        }
+    }
+    QuestSystem.QuestData = QuestData;
+    // Parse plugin parameters.
+    const typeDefine = {
+        MenuCommands: ["string"],
+        QuestDatas: [{
+                Rewards: [{}],
+            }],
+        QuestOrderSe: {},
+        QuestReportMe: {},
+        MenuBackgroundImage: {},
+        WindowSize: {},
+        Text: {},
+        TextColor: {},
+        CommandIcon: {},
     };
-
-    Object.defineProperty(Window.prototype, "innerWidth", {
-        get: function() {
-            return Math.max(0, this._width - this._padding * 2);
-        },
-        configurable: true
+    class QuestSaveData {
+        constructor(variableId) {
+            this._variableId = variableId;
+            this._detail = null;
+            this._rewards = null;
+        }
+        variableId() {
+            return this._variableId;
+        }
+        rewards() {
+            return this._rewards;
+        }
+        detail() {
+            return this._detail;
+        }
+        setDetail(detail) {
+            this._detail = detail;
+        }
+        setRewards(rewards) {
+            this._rewards = rewards;
+        }
+    }
+    QuestSystem.QuestSaveData = QuestSaveData;
+    class QuestState {
+        constructor(state, value, text, color = null) {
+            this._state = state;
+            this._value = value;
+            this._text = text;
+            this._color = color;
+        }
+        get state() { return this._state; }
+        get value() { return this._value; }
+        get text() { return this._text; }
+        get color() { return this._color; }
+    }
+    QuestSystem.QuestState = QuestState;
+    class QuestCommand {
+        constructor(state, text, iconIndex) {
+            this._state = state;
+            this._text = text;
+            this._iconIndex = iconIndex;
+        }
+        get state() { return this._state; }
+        get text() { return this._text; }
+        get iconIndex() { return this._iconIndex; }
+    }
+    QuestSystem.QuestCommand = QuestCommand;
+    const params = PluginParamsParser.parse(PluginManager.parameters(QuestSystemPluginName), typeDefine);
+    $dataQuests = params.QuestDatas.map((questDataParam) => {
+        return QuestData.fromParam(questDataParam);
     });
-
-    Object.defineProperty(Window.prototype, "innerHeight", {
-        get: function() {
-            return Math.max(0, this._height - this._padding * 2);
-        },
-        configurable: true
-    });
-
-    Scene_Base.prototype.calcWindowHeight = function(numLines, selectable) {
-        if (selectable) {
-            return Window_Selectable.prototype.fittingHeight(numLines);
-        } else {
-            return Window_Base.prototype.fittingHeight(numLines);
-        }
+    const EnabledQuestMenu = params.EnabledQuestMenu;
+    const EnabledQuestMenuSwitchId = params.EnabledQuestMenuSwitchId;
+    const MenuCommands = params.MenuCommands;
+    const DisplayRequestor = params.DisplayRequestor;
+    const DisplayRewards = params.DisplayRewards;
+    const DisplayDifficulty = params.DisplayDifficulty;
+    const DisplayPlace = params.DisplayPlace;
+    const DisplayTimeLimit = params.DisplayTimeLimit;
+    const EnabledQuestOrderingCountWindow = params.EnabledQuestOrderingCountWindow;
+    const GoldIcon = params.GoldIcon;
+    const ExpIcon = params.ExpIcon;
+    const QuestTitleWrap = params.QuestTitleWrap;
+    const MaxOrderingQuests = params.MaxOrderingQuests;
+    const QuestOrderSe = params.QuestOrderSe;
+    const QuestReportMe = params.QuestReportMe;
+    const MenuBackgroundImage = params.MenuBackgroundImage;
+    const WindowSize = params.WindowSize;
+    const Text = params.Text;
+    const TextColor = params.TextColor;
+    const CommandIcon = params.CommandIcon;
+    const STATE_LIST = [
+        new QuestState("none", 0, ""),
+        new QuestState("notOrdered", 1, Text.NotOrderedStateText, TextColor.NotOrderedStateColor),
+        new QuestState("ordering", 2, Text.OrderingStateText, TextColor.OrderingStateColor),
+        new QuestState("reportable", 3, Text.ReportableStateText, TextColor.ReportableStateColor),
+        new QuestState("reported", 4, Text.ReportedStateText, TextColor.ReportedStateColor),
+        new QuestState("failed", 5, Text.FailedStateText, TextColor.FailedStateColor),
+        new QuestState("expired", 6, Text.ExpiredStateText, TextColor.ExpiredStateColor),
+        new QuestState("hidden", 7, "", "#ffffff"),
+    ];
+    const COMMAND_TABLE = {
+        "all": new QuestCommand(null, Text.AllCommandText, CommandIcon.AllCommandIcon),
+        "questOrder": new QuestCommand(["notOrdered"], Text.QuestOrderCommandText, CommandIcon.AllCommandIcon),
+        "orderingQuest": new QuestCommand(["ordering", "reportable"], Text.OrderingQuestCommandText, CommandIcon.OrderingQuestCommandIcon),
+        "questCancel": new QuestCommand(["ordering"], Text.QuestCancelCommandText, CommandIcon.QuestCancelCommandIcon),
+        "questReport": new QuestCommand(["reportable"], Text.QuestReportCommandText, CommandIcon.QuestReportCommandIcon),
+        "reportedQuest": new QuestCommand(["reported"], Text.ReportedQuestCommandText, CommandIcon.ReportedQuestCommandIcon),
+        "failedQuest": new QuestCommand(["failed"], Text.FailedQuestCommandText, CommandIcon.FailedQuestCommandIcon),
+        "expiredQuest": new QuestCommand(["expired"], Text.ExpiredQuestCommandText, CommandIcon.ExpiredQuestCommandIcon),
+        "hiddenQuest": new QuestCommand(["hidden"], Text.HiddenQuestCommandText, CommandIcon.HiddenQuestCommandIcon),
     };
-}
-
-class Window_Selectable_MZMV extends Window_Selectable {
-    initialize(rect) {
-        if (Utils.RPGMAKER_NAME === "MZ") {
-            super.initialize(rect);
-        } else {
-            super.initialize(rect.x, rect.y, rect.width, rect.height);
-        }
-    }
-}
-
-class Window_Command_MZMV extends Window_Command {
-    initialize(rect) {
-        if (Utils.RPGMAKER_NAME === "MZ") {
-            super.initialize(rect);
-        } else {
-            this._windowRect = rect;
-            super.initialize(rect.x, rect.y);
-        }
-    }
-
-    windowWidth() {
-        return this._windowRect.width;
-    }
-
-    windowHeight() {
-        return this._windowRect.height;
-    }
-}
-
-let superScene_Message;
-if (Utils.RPGMAKER_NAME === "MZ") {
-    superScene_Message = Scene_Message;
-} else {
-    function Scene_Message_MV() {
-        this.initialize(...arguments);
-    }
-
-    Scene_Message_MV.prototype = Object.create(Scene_Base.prototype);
-    Scene_Message_MV.prototype.constructor = Scene_Message_MV;
-    
-    Scene_Message_MV.prototype.initialize = function() {
-        Scene_Base.prototype.initialize.call(this);
-    };
-    
-    Scene_Message_MV.prototype.isMessageWindowClosing = function() {
-        return this._messageWindow.isClosing();
-    };
-    
-    Scene_Message_MV.prototype.createAllWindows = function() {
-        this.createMessageWindow();
-    };
-    
-    Scene_Message_MV.prototype.createMessageWindow = function() {
-        const rect = this.messageWindowRect();
-        this._messageWindow = new Window_Message(rect);
-        this.addWindow(this._messageWindow);
-    };
-    
-    Scene_Message_MV.prototype.messageWindowRect = function() {
-        const ww = Graphics.boxWidth;
-        const wh = this.calcWindowHeight(4, false) + 8;
-        const wx = (Graphics.boxWidth - ww) / 2;
-        const wy = 0;
-        return new Rectangle(wx, wy, ww, wh);
-    };
-
-    superScene_Message = Scene_Message_MV;
-}
-
-class Scene_QuestSystem extends superScene_Message {
-    prepare(commandList, backgroundImage) {
-        this._commandList = commandList;
-        this._backgroundImage = backgroundImage;
-    }
-
-    create() {
-        super.create();
-        this.createBackground();
-        this.createWindowLayer();
-        this.createAllWindow();
-        this.createButtons();
-        this._interpreter = new Game_Interpreter();
-        this._eventState = "none";
-    }
-
-    // Ported from Scene_MenuBase
-    createButtons() {
-        if (ConfigManager.touchUI) {
-            if (this.needsCancelButton()) {
-                this.createCancelButton();
-            }
-        }
-    }
-
-    // Ported from Scene_MenuBase
-    needsCancelButton() {
-        return true;
-    }
-
-    // Ported from Scene_MenuBase
-    createCancelButton() {
-        this._cancelButton = new Sprite_Button("cancel");
-        this._cancelButton.x = Graphics.boxWidth - this._cancelButton.width - 4;
-        this._cancelButton.y = this.buttonY();
-        this.addWindow(this._cancelButton);
-    }
-
-    // Ported from Scene_MenuBase
-    setBackgroundOpacity(opacity) {
-        this._backgroundSprite.opacity = opacity;
-    }
-
-    createBackground() {
-        this._backgroundSprite = new Sprite();
-        if (this._backgroundImage.FileName1) {
-            const bitmap1 = ImageManager.loadBitmap("img/", this._backgroundImage.FileName1);
-            this._backgroundSprite.bitmap = bitmap1;
-            if (this._backgroundImage.FileName2) {
-                const bitmap2 = ImageManager.loadBitmap("img/", this._backgroundImage.FileName2);
-                const sprite = new Sprite(bitmap2);
-                sprite.x = this._backgroundImage.XOfs;
-                sprite.y = this._backgroundImage.YOfs;
-                this._backgroundSprite.addChild(sprite);
-            }
-            this.addChild(this._backgroundSprite);
-        } else {
-            this._backgroundFilter = new PIXI.filters.BlurFilter();
-            this._backgroundSprite.bitmap = SceneManager.backgroundBitmap();
-            this._backgroundSprite.filters = [this._backgroundFilter];
-            this.addChild(this._backgroundSprite);
-            this.setBackgroundOpacity(192);
-        }
-    }
-
-    createAllWindow() {
-        this.createQuestCommandWindow();
-        this.createQuestListWindow();
-        this.createQuestOrderCountWindow();
-        this.createQuestDetailWindow();
-        this.createQuestOrderWindow();
-        this.createQuestOrderFailedWindow();
-        this.createQuestReportWindow();
-        this.createQuestGetRewardWindow();
-        this.createQuestCancelWindow();
-        super.createAllWindows();
-    }
-
-    start() {
-        super.start();
-        this._questCommandWindow.activate();
-        this._questCommandWindow.select(0);
-        this._questDetailWindow.setDrawState("undraw");
-        this._questCommandWindow.refresh();
-        this.resetQuestList();
-    }
-
-    update() {
-        super.update();
-        this.updateEvent();
-    }
-
-    updateEvent() {
-        if (this._eventState === "start") {
-            this._questListWindow.deactivate();
-            this._eventState = "running";
-        } else if (this._eventState === "running") {
-            if (this._interpreter.isRunning()) this._interpreter.update();
-            if (!this._interpreter.isRunning() && !$gameMessage.isBusy()) this._eventState = "end";
-        } else if (this._eventState === "end") {
-            this._eventState = "none";
-            this._interpreter.clear();
-            this.resetQuestList();
-            this._questListWindow.activate();
-            this._questListWindow.select(0);
-            this._questDetailWindow.refresh();
-        }
-    }
-
-    createQuestCommandWindow() {
-        this._questCommandWindow = new Window_QuestCommand(this.questCommandWindowRect(), this._commandList);
-        this._questCommandWindow.setHandler("ok", this.onQuestCommandOk.bind(this));
-        this._questCommandWindow.setHandler("cancel", this.onQuestCommandCancel.bind(this));
-        this._questCommandWindow.setHandler("select", this.onQuestCommandSelect.bind(this));
-        this.addWindow(this._questCommandWindow);
-    }
-
-    createQuestListWindow() {
-        this._questListWindow = new Window_QuestList(this.questListWindowRect());
-        this._questListWindow.setHandler("ok", this.onQuestListOk.bind(this));
-        this._questListWindow.setHandler("cancel", this.onQuestListCancel.bind(this));
-        this._questListWindow.setHandler("select", this.onQuestListSelect.bind(this));
-        this.addWindow(this._questListWindow);
-    }
-
-    createQuestOrderCountWindow() {
-        this._questOrderCountWindow = new Window_QuestOrderCount(this.questOrderCountWindowRect());
-        if (EnabledQuestOrderingCountWindow) {
-            this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
-            this.addWindow(this._questOrderCountWindow);
-        }
-    }
-
-    createQuestDetailWindow() {
-        this._questDetailWindow = new Window_QuestDetail(this.questDetailWindowRect());
-        this.addWindow(this._questDetailWindow);
-    }
-
-    createQuestOrderWindow() {
-        this._questOrderWindow = new Window_QuestOrder(this.questOrderWindowRect());
-        this._questOrderWindow.setHandler("yes", this.onQuestOrderOk.bind(this));
-        this._questOrderWindow.setHandler("no", this.onQuestOrderCancel.bind(this));
-        this._questOrderWindow.setHandler("cancel", this.onQuestOrderCancel.bind(this));
-        this.addWindow(this._questOrderWindow);
-    }
-
-    createQuestOrderFailedWindow() {
-        this._questOrderFailedWindow = new Window_QuestOrderFailed(this.questOrderFailedWindowRect());
-        this._questOrderFailedWindow.setHandler("ok", this.onQuestOrderFailedOk.bind(this));
-        this._questOrderFailedWindow.refresh();
-        this.addWindow(this._questOrderFailedWindow);
-    }
-
-    createQuestReportWindow() {
-        this._questReportWindow = new Window_QuestReport(this.questReportWindowRect());
-        this._questReportWindow.setHandler("yes", this.onQuestReportOk.bind(this));
-        this._questReportWindow.setHandler("no", this.onQuestReportCancel.bind(this));
-        this._questReportWindow.setHandler("cancel", this.onQuestReportCancel.bind(this));
-        this.addWindow(this._questReportWindow);
-    }
-
-    createQuestGetRewardWindow() {
-        this._questGetRewardWindow = new Window_QuestGetReward(this.questGetRewardWindowRect());
-        this._questGetRewardWindow.setHandler("ok", this.onQuestGetRewardOk.bind(this));
-        this.addWindow(this._questGetRewardWindow);
-    }
-
-    createQuestCancelWindow() {
-        this._questCancelWindow = new Window_QuestCancel(this.questCancelWindowRect());
-        this._questCancelWindow.setHandler("yes", this.onQuestCancelOk.bind(this));
-        this._questCancelWindow.setHandler("no", this.onQuestCancelCancel.bind(this));
-        this._questCancelWindow.setHandler("cancel", this.onQuestCancelCancel.bind(this));
-        this.addWindow(this._questCancelWindow);
-    }
-
     // MV compatible
-    isBottomButtonMode() {
-        if (Utils.RPGMAKER_NAME === "MZ") return super.isBottomButtonMode();
-        return false;
+    if (Utils.RPGMAKER_NAME === "MV") {
+        ImageManager.iconWidth = 32;
+        ImageManager.iconHeight = 32;
+        ImageManager.faceWidth = 144;
+        ImageManager.faceHeight = 144;
+        Window_Base.prototype.drawRect = function (x, y, width, height) {
+            const outlineColor = this.contents.outlineColor;
+            const mainColor = this.contents.textColor;
+            this.contents.fillRect(x, y, width, height, outlineColor);
+            this.contents.fillRect(x + 1, y + 1, width - 2, height - 2, mainColor);
+        };
+        Window_Base.prototype.itemPadding = function () {
+            return 8;
+        };
+        Window_Selectable.prototype.itemRectWithPadding = function (index) {
+            const rect = this.itemRect(index);
+            const padding = this.itemPadding();
+            rect.x += padding;
+            rect.width -= padding * 2;
+            return rect;
+        };
+        Window_Selectable.prototype.itemLineRect = function (index) {
+            const rect = this.itemRectWithPadding(index);
+            const padding = (rect.height - this.lineHeight()) / 2;
+            rect.y += padding;
+            rect.height -= padding * 2;
+            return rect;
+        };
+        Window_Base.prototype.createTextState = function (text, x, y, width) {
+            const textState = { index: 0, x: x, y: y, left: x };
+            textState.text = this.convertEscapeCharacters(text);
+            // @ts-ignore // MV Compatible
+            textState.height = this.calcTextHeight(textState, false);
+            return textState;
+        };
+        Window_Base.prototype.processAllText = function (textState) {
+            while (textState.index < textState.text.length) {
+                this.processCharacter(textState);
+            }
+            return textState;
+        };
+        Object.defineProperty(Window.prototype, "innerWidth", {
+            get: function () {
+                return Math.max(0, this._width - this._padding * 2);
+            },
+            configurable: true
+        });
+        Object.defineProperty(Window.prototype, "innerHeight", {
+            get: function () {
+                return Math.max(0, this._height - this._padding * 2);
+            },
+            configurable: true
+        });
+        Scene_Base.prototype.calcWindowHeight = function (numLines, selectable) {
+            if (selectable) {
+                return Window_Selectable.prototype.fittingHeight(numLines);
+            }
+            else {
+                return Window_Base.prototype.fittingHeight(numLines);
+            }
+        };
     }
-
-    buttonAreaHeight() {
-        if (Utils.RPGMAKER_NAME === "MZ") return super.buttonAreaHeight();
-        return 0;
-    }
-
-    // Window rectangle
-    questCommandWindowRect() {
-        const x = 0;
-        let y = 0;
-        if (!this.isBottomButtonMode()) y += this.buttonAreaHeight();
-        const w = WindowSize.CommandWindowWidth;
-        const h = WindowSize.CommandWindowHeight;
-        return new Rectangle(x, y, w, h);
-    }
-
-    questListWindowRect() {
-        const questCommandWindowRect = this.questCommandWindowRect();
-        const x = 0;
-        const y = questCommandWindowRect.y + questCommandWindowRect.height;
-        const w = WindowSize.CommandWindowWidth;
-        const bottom = (this.isBottomButtonMode() ? Graphics.boxHeight - this.buttonAreaHeight() : Graphics.boxHeight);
-        let h = bottom - y;
-        if (EnabledQuestOrderingCountWindow) {
-            h -= this.calcWindowHeight(1, true);
+    class Window_Selectable_MZMV extends Window_Selectable {
+        initialize(rect) {
+            if (Utils.RPGMAKER_NAME === "MZ") {
+                super.initialize(rect);
+            }
+            else {
+                // @ts-ignore // MV Compatible
+                super.initialize(rect.x, rect.y, rect.width, rect.height);
+            }
         }
-        return new Rectangle(x, y, w, h);
     }
-
-    questOrderCountWindowRect() {
-        if (EnabledQuestOrderingCountWindow) {
-            const questListWindowRect = this.questListWindowRect();
+    QuestSystem.Window_Selectable_MZMV = Window_Selectable_MZMV;
+    class Window_Command_MZMV extends Window_Command {
+        initialize(rect) {
+            if (Utils.RPGMAKER_NAME === "MZ") {
+                super.initialize(rect);
+            }
+            else {
+                // @ts-ignore // MV Compatible
+                this._windowRect = rect;
+                // @ts-ignore // MV Compatible
+                super.initialize(rect.x, rect.y);
+            }
+        }
+        windowWidth() {
+            // @ts-ignore // MV Compatible
+            return this._windowRect.width;
+        }
+        windowHeight() {
+            // @ts-ignore // MV Compatible
+            return this._windowRect.height;
+        }
+    }
+    QuestSystem.Window_Command_MZMV = Window_Command_MZMV;
+    let superScene_Message;
+    if (Utils.RPGMAKER_NAME === "MZ") {
+        superScene_Message = Scene_Message;
+    }
+    else {
+        function Scene_Message_MV() {
+            this.initialize(...arguments);
+        }
+        Scene_Message_MV.prototype = Object.create(Scene_Base.prototype);
+        Scene_Message_MV.prototype.constructor = Scene_Message_MV;
+        Scene_Message_MV.prototype.initialize = function () {
+            Scene_Base.prototype.initialize.call(this);
+        };
+        Scene_Message_MV.prototype.isMessageWindowClosing = function () {
+            return this._messageWindow.isClosing();
+        };
+        Scene_Message_MV.prototype.createAllWindows = function () {
+            this.createMessageWindow();
+        };
+        Scene_Message_MV.prototype.createMessageWindow = function () {
+            const rect = this.messageWindowRect();
+            this._messageWindow = new Window_Message(rect);
+            this.addWindow(this._messageWindow);
+        };
+        Scene_Message_MV.prototype.messageWindowRect = function () {
+            const ww = Graphics.boxWidth;
+            const wh = this.calcWindowHeight(4, false) + 8;
+            const wx = (Graphics.boxWidth - ww) / 2;
+            const wy = 0;
+            return new Rectangle(wx, wy, ww, wh);
+        };
+        superScene_Message = Scene_Message_MV;
+    }
+    class Scene_QuestSystem extends superScene_Message {
+        prepare(commandList, backgroundImage) {
+            this._commandList = commandList;
+            this._backgroundImage = backgroundImage;
+        }
+        create() {
+            super.create();
+            this.createBackground();
+            this.createWindowLayer();
+            this.createAllWindow();
+            this.createButtons();
+            this._interpreter = new Game_Interpreter();
+            this._eventState = "none";
+        }
+        // Ported from Scene_MenuBase
+        createButtons() {
+            if (ConfigManager.touchUI) {
+                if (this.needsCancelButton()) {
+                    this.createCancelButton();
+                }
+            }
+        }
+        // Ported from Scene_MenuBase
+        needsCancelButton() {
+            return true;
+        }
+        // Ported from Scene_MenuBase
+        createCancelButton() {
+            this._cancelButton = new Sprite_Button("cancel");
+            this._cancelButton.x = Graphics.boxWidth - this._cancelButton.width - 4;
+            this._cancelButton.y = this.buttonY();
+            this.addWindow(this._cancelButton);
+        }
+        // Ported from Scene_MenuBase
+        setBackgroundOpacity(opacity) {
+            this._backgroundSprite.opacity = opacity;
+        }
+        createBackground() {
+            this._backgroundSprite = new Sprite();
+            if (this._backgroundImage.FileName1) {
+                const bitmap1 = ImageManager.loadBitmap("img/", this._backgroundImage.FileName1);
+                this._backgroundSprite.bitmap = bitmap1;
+                if (this._backgroundImage.FileName2) {
+                    const bitmap2 = ImageManager.loadBitmap("img/", this._backgroundImage.FileName2);
+                    const sprite = new Sprite(bitmap2);
+                    sprite.x = this._backgroundImage.XOfs;
+                    sprite.y = this._backgroundImage.YOfs;
+                    this._backgroundSprite.addChild(sprite);
+                }
+                this.addChild(this._backgroundSprite);
+            }
+            else {
+                this._backgroundFilter = new PIXI.filters.BlurFilter();
+                this._backgroundSprite.bitmap = SceneManager.backgroundBitmap();
+                this._backgroundSprite.filters = [this._backgroundFilter];
+                this.addChild(this._backgroundSprite);
+                this.setBackgroundOpacity(192);
+            }
+        }
+        createAllWindow() {
+            this.createQuestCommandWindow();
+            this.createQuestListWindow();
+            this.createQuestOrderCountWindow();
+            this.createQuestDetailWindow();
+            this.createQuestOrderWindow();
+            this.createQuestOrderFailedWindow();
+            this.createQuestReportWindow();
+            this.createQuestGetRewardWindow();
+            this.createQuestCancelWindow();
+            super.createAllWindows();
+        }
+        start() {
+            super.start();
+            this._questCommandWindow.activate();
+            this._questCommandWindow.select(0);
+            this._questDetailWindow.setDrawState("undraw");
+            this._questCommandWindow.refresh();
+            this.resetQuestList();
+        }
+        update() {
+            super.update();
+            this.updateEvent();
+        }
+        updateEvent() {
+            if (this._eventState === "start") {
+                this._questListWindow.deactivate();
+                this._eventState = "running";
+            }
+            else if (this._eventState === "running") {
+                if (this._interpreter.isRunning())
+                    this._interpreter.update();
+                if (!this._interpreter.isRunning() && !$gameMessage.isBusy())
+                    this._eventState = "end";
+            }
+            else if (this._eventState === "end") {
+                this._eventState = "none";
+                this._interpreter.clear();
+                this.resetQuestList();
+                this._questListWindow.activate();
+                this._questListWindow.select(0);
+                this._questDetailWindow.refresh();
+            }
+        }
+        createQuestCommandWindow() {
+            this._questCommandWindow = new Window_QuestCommand(this.questCommandWindowRect());
+            this._questCommandWindow.setCommandList(this._commandList);
+            this._questCommandWindow.setHandler("ok", this.onQuestCommandOk.bind(this));
+            this._questCommandWindow.setHandler("cancel", this.onQuestCommandCancel.bind(this));
+            this._questCommandWindow.setHandler("select", this.onQuestCommandSelect.bind(this));
+            this.addWindow(this._questCommandWindow);
+        }
+        createQuestListWindow() {
+            this._questListWindow = new Window_QuestList(this.questListWindowRect());
+            this._questListWindow.setHandler("ok", this.onQuestListOk.bind(this));
+            this._questListWindow.setHandler("cancel", this.onQuestListCancel.bind(this));
+            this._questListWindow.setHandler("select", this.onQuestListSelect.bind(this));
+            this.addWindow(this._questListWindow);
+        }
+        createQuestOrderCountWindow() {
+            this._questOrderCountWindow = new Window_QuestOrderCount(this.questOrderCountWindowRect());
+            if (EnabledQuestOrderingCountWindow) {
+                this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
+                this.addWindow(this._questOrderCountWindow);
+            }
+        }
+        createQuestDetailWindow() {
+            this._questDetailWindow = new Window_QuestDetail(this.questDetailWindowRect());
+            this._questDetailWindow.activate();
+            this.addWindow(this._questDetailWindow);
+        }
+        createQuestOrderWindow() {
+            this._questOrderWindow = new Window_QuestOrder(this.questOrderWindowRect());
+            this._questOrderWindow.setHandler("yes", this.onQuestOrderOk.bind(this));
+            this._questOrderWindow.setHandler("no", this.onQuestOrderCancel.bind(this));
+            this._questOrderWindow.setHandler("cancel", this.onQuestOrderCancel.bind(this));
+            this.addWindow(this._questOrderWindow);
+        }
+        createQuestOrderFailedWindow() {
+            this._questOrderFailedWindow = new Window_QuestOrderFailed(this.questOrderFailedWindowRect());
+            this._questOrderFailedWindow.setHandler("ok", this.onQuestOrderFailedOk.bind(this));
+            this._questOrderFailedWindow.refresh();
+            this.addWindow(this._questOrderFailedWindow);
+        }
+        createQuestReportWindow() {
+            this._questReportWindow = new Window_QuestReport(this.questReportWindowRect());
+            this._questReportWindow.setHandler("yes", this.onQuestReportOk.bind(this));
+            this._questReportWindow.setHandler("no", this.onQuestReportCancel.bind(this));
+            this._questReportWindow.setHandler("cancel", this.onQuestReportCancel.bind(this));
+            this.addWindow(this._questReportWindow);
+        }
+        createQuestGetRewardWindow() {
+            this._questGetRewardWindow = new Window_QuestGetReward(this.questGetRewardWindowRect());
+            this._questGetRewardWindow.setHandler("ok", this.onQuestGetRewardOk.bind(this));
+            this.addWindow(this._questGetRewardWindow);
+        }
+        createQuestCancelWindow() {
+            this._questCancelWindow = new Window_QuestCancel(this.questCancelWindowRect());
+            this._questCancelWindow.setHandler("yes", this.onQuestCancelOk.bind(this));
+            this._questCancelWindow.setHandler("no", this.onQuestCancelCancel.bind(this));
+            this._questCancelWindow.setHandler("cancel", this.onQuestCancelCancel.bind(this));
+            this.addWindow(this._questCancelWindow);
+        }
+        // MV compatible
+        isBottomButtonMode() {
+            if (Utils.RPGMAKER_NAME === "MZ")
+                return super.isBottomButtonMode();
+            return false;
+        }
+        buttonAreaHeight() {
+            if (Utils.RPGMAKER_NAME === "MZ")
+                return super.buttonAreaHeight();
+            return 0;
+        }
+        // Window rectangle
+        questCommandWindowRect() {
             const x = 0;
-            const y = questListWindowRect.y + questListWindowRect.height;
+            let y = 0;
+            if (!this.isBottomButtonMode())
+                y += this.buttonAreaHeight();
             const w = WindowSize.CommandWindowWidth;
-            const h = this.calcWindowHeight(1, true);
+            const h = WindowSize.CommandWindowHeight;
             return new Rectangle(x, y, w, h);
         }
-        return new Rectangle(0, 0, 0, 0);
-    }
-
-    questDetailWindowRect() {
-        const questCommandWindowRect = this.questCommandWindowRect();
-        const questListWindowRect = this.questListWindowRect();
-        const questOrderCountWindowRect = this.questOrderCountWindowRect();
-        const x = questListWindowRect.x + questListWindowRect.width;
-        const y = questCommandWindowRect.y;
-        const w = Graphics.boxWidth - x;
-        const h = questCommandWindowRect.height + questListWindowRect.height + questOrderCountWindowRect.height;
-        return new Rectangle(x, y, w, h);
-    }
-
-    questOrderWindowRect() {
-        const w = WindowSize.DialogWindowWidth;
-        const h = (Utils.RPGMAKER_NAME === "MZ" ? 160 : 150);
-        const x = Graphics.boxWidth / 2 - w / 2;
-        const y = Graphics.boxHeight / 2 - h / 2;
-        return new Rectangle(x, y, w, h);
-    }
-
-    questOrderFailedWindowRect() {
-        const w = WindowSize.DialogWindowWidth;
-        const h = 70;
-        const x = Graphics.boxWidth / 2 - w / 2;
-        const y = Graphics.boxHeight / 2 - h / 2;
-        return new Rectangle(x, y, w, h);
-    }
-
-    questReportWindowRect() {
-        return this.questOrderWindowRect();
-    }
-
-    questGetRewardWindowRect() {
-        const x = 0;
-        const y = 0;
-        const w = WindowSize.GetRewardWindowWidth;
-        const h = Graphics.boxHeight;
-        return new Rectangle(x, y, w, h);
-    }
-
-    questCancelWindowRect() {
-        return this.questOrderWindowRect();
-    }
-
-    // Define window handlers
-    onQuestCommandOk() {
-        this.change_QuestCommandWindow_To_QuestListWindow();
-        this.onQuestListSelect();
-    }
-
-    onQuestCommandCancel() {
-        this.popScene();
-    }
-
-    onQuestCommandSelect() {
-        this.resetQuestList();
-    }
-
-    onQuestListOk() {
-        switch(this._questCommandWindow.currentSymbol()) {
-        case "questOrder":
-            if (MaxOrderingQuests === 0 || this.numOrderingQuests() < MaxOrderingQuests) {
-                this.change_QuestListWindow_To_QuestOrderWindow();
-                SoundManager.playOk();
-            } else {
-                this.change_QuestListWindow_To_QuestOrderFailedWindow();
-                SoundManager.playBuzzer();
+        questListWindowRect() {
+            const questCommandWindowRect = this.questCommandWindowRect();
+            const x = 0;
+            const y = questCommandWindowRect.y + questCommandWindowRect.height;
+            const w = WindowSize.CommandWindowWidth;
+            const bottom = (this.isBottomButtonMode() ? Graphics.boxHeight - this.buttonAreaHeight() : Graphics.boxHeight);
+            let h = bottom - y;
+            if (EnabledQuestOrderingCountWindow) {
+                h -= this.calcWindowHeight(1, true);
             }
-            break;
-        case "questCancel":
-            this.change_QuestListWindow_To_QuestCancelWindow();
-            SoundManager.playOk();
-            break;
-        case "questReport":
-            this.change_QuestListWindow_To_QuestReportWindow();
-            SoundManager.playOk();
-            break;
-        default:
+            return new Rectangle(x, y, w, h);
+        }
+        questOrderCountWindowRect() {
+            if (EnabledQuestOrderingCountWindow) {
+                const questListWindowRect = this.questListWindowRect();
+                const x = 0;
+                const y = questListWindowRect.y + questListWindowRect.height;
+                const w = WindowSize.CommandWindowWidth;
+                const h = this.calcWindowHeight(1, true);
+                return new Rectangle(x, y, w, h);
+            }
+            return new Rectangle(0, 0, 0, 0);
+        }
+        questDetailWindowRect() {
+            const questCommandWindowRect = this.questCommandWindowRect();
+            const questListWindowRect = this.questListWindowRect();
+            const questOrderCountWindowRect = this.questOrderCountWindowRect();
+            const x = questListWindowRect.x + questListWindowRect.width;
+            const y = questCommandWindowRect.y;
+            const w = Graphics.boxWidth - x;
+            const h = questCommandWindowRect.height + questListWindowRect.height + questOrderCountWindowRect.height;
+            return new Rectangle(x, y, w, h);
+        }
+        questOrderWindowRect() {
+            const w = WindowSize.DialogWindowWidth;
+            const h = (Utils.RPGMAKER_NAME === "MZ" ? 160 : 150);
+            const x = Graphics.boxWidth / 2 - w / 2;
+            const y = Graphics.boxHeight / 2 - h / 2;
+            return new Rectangle(x, y, w, h);
+        }
+        questOrderFailedWindowRect() {
+            const w = WindowSize.DialogWindowWidth;
+            const h = 70;
+            const x = Graphics.boxWidth / 2 - w / 2;
+            const y = Graphics.boxHeight / 2 - h / 2;
+            return new Rectangle(x, y, w, h);
+        }
+        questReportWindowRect() {
+            return this.questOrderWindowRect();
+        }
+        questGetRewardWindowRect() {
+            const x = 0;
+            const y = 0;
+            const w = WindowSize.GetRewardWindowWidth;
+            const h = Graphics.boxHeight;
+            return new Rectangle(x, y, w, h);
+        }
+        questCancelWindowRect() {
+            return this.questOrderWindowRect();
+        }
+        // Define window handlers
+        onQuestCommandOk() {
+            this.change_QuestCommandWindow_To_QuestListWindow();
+            this.onQuestListSelect();
+        }
+        onQuestCommandCancel() {
+            this.popScene();
+        }
+        onQuestCommandSelect() {
+            this.resetQuestList();
+        }
+        onQuestListOk() {
+            switch (this._questCommandWindow.currentSymbol()) {
+                case "questOrder":
+                    if (MaxOrderingQuests === 0 || this.numOrderingQuests() < MaxOrderingQuests) {
+                        this.change_QuestListWindow_To_QuestOrderWindow();
+                        SoundManager.playOk();
+                    }
+                    else {
+                        this.change_QuestListWindow_To_QuestOrderFailedWindow();
+                        SoundManager.playBuzzer();
+                    }
+                    break;
+                case "questCancel":
+                    this.change_QuestListWindow_To_QuestCancelWindow();
+                    SoundManager.playOk();
+                    break;
+                case "questReport":
+                    this.change_QuestListWindow_To_QuestReportWindow();
+                    SoundManager.playOk();
+                    break;
+                default:
+                    this._questListWindow.activate();
+                    break;
+            }
+        }
+        onQuestListCancel() {
+            this.change_QuestListWindow_To_QuestCommandWindow();
+        }
+        onQuestListSelect() {
+            if (this._questListWindow.currentSymbol()) {
+                this._questDetailWindow.setQuestData(this._questListWindow.questData());
+            }
+            else {
+                this._questDetailWindow.setQuestData(null);
+            }
+            this._questDetailWindow.setDrawState("draw");
+            this._questDetailWindow.refresh();
+        }
+        onQuestOrderOk() {
+            const questData = this._questListWindow.questData();
+            questData.setState("ordering");
+            this.change_QuestOrderWindow_To_QuestListWindow();
+            this.resetQuestList();
+            this._questListWindow.select(0);
+            this._questDetailWindow.refresh();
+            this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
+            this._eventState = "start";
+            this.startCommonEvent(questData.questOrderCommonEventId);
+        }
+        onQuestOrderFailedOk() {
+            this.change_QuestOrderFailedWindow_To_QuestListWindow();
+        }
+        onQuestOrderCancel() {
+            this.change_QuestOrderWindow_To_QuestListWindow();
+        }
+        onQuestReportOk() {
+            const questData = this._questListWindow.questData();
+            questData.setState("reported");
+            this._questDetailWindow.refresh();
+            this.change_QuestReportWindow_To_QuestGetRewardWindow();
+            this._questGetRewardWindow.setQuestData(questData);
+            this._questGetRewardWindow.refresh();
+            this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
+        }
+        onQuestReportCancel() {
+            this.change_QuestReportWindow_To_QuestListWindow();
+        }
+        onQuestGetRewardOk() {
+            const questData = this._questListWindow.questData();
+            questData.getRewards();
+            this.change_QuestGetRewardWindow_To_QuestListWindow();
+            this._eventState = "start";
+            this.startCommonEvent(questData.questReportCommonEventId);
+        }
+        onQuestCancelOk() {
+            const questData = this._questListWindow.questData();
+            questData.setState("notOrdered");
+            this.change_QuestCancelWindow_To_QuestListWindow();
+            this.resetQuestList();
+            this._questListWindow.select(0);
+            this._questDetailWindow.refresh();
+            this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
+            this._eventState = "start";
+            this.startCommonEvent(questData.questCancelCommonEventId);
+        }
+        onQuestCancelCancel() {
+            this.change_QuestCancelWindow_To_QuestListWindow();
+        }
+        // Change window
+        change_QuestCommandWindow_To_QuestListWindow() {
+            this._questCommandWindow.deactivate();
+            this._questListWindow.show();
             this._questListWindow.activate();
-            break;
+            this._questListWindow.select(0);
         }
-    }
-
-    onQuestListCancel() {
-        this.change_QuestListWindow_To_QuestCommandWindow();
-    }
-
-    onQuestListSelect() {
-        if (this._questListWindow.currentSymbol()) {
-            this._questDetailWindow.setQuestData(this._questListWindow.questData());
-        } else {
+        change_QuestListWindow_To_QuestCommandWindow() {
             this._questDetailWindow.setQuestData(null);
+            this._questDetailWindow.setDrawState("undraw");
+            this._questDetailWindow.refresh();
+            this._questListWindow.deactivate();
+            this._questListWindow.select(-1);
+            this._questCommandWindow.activate();
         }
-        this._questDetailWindow.setDrawState("draw");
-        this._questDetailWindow.refresh();
+        change_QuestListWindow_To_QuestOrderWindow() {
+            this._questListWindow.deactivate();
+            this._questOrderWindow.show();
+            this._questOrderWindow.open();
+            this._questOrderWindow.activate();
+            this._questOrderWindow.select(0);
+        }
+        change_QuestListWindow_To_QuestOrderFailedWindow() {
+            this._questListWindow.deactivate();
+            this._questOrderFailedWindow.show();
+            this._questOrderFailedWindow.open();
+            this._questOrderFailedWindow.activate();
+        }
+        change_QuestListWindow_To_QuestReportWindow() {
+            this._questListWindow.deactivate();
+            this._questReportWindow.show();
+            this._questReportWindow.open();
+            this._questReportWindow.activate();
+            this._questReportWindow.select(0);
+        }
+        change_QuestOrderWindow_To_QuestListWindow() {
+            this._questOrderWindow.close();
+            this._questOrderWindow.deactivate();
+            this._questOrderWindow.select(-1);
+            this._questListWindow.activate();
+        }
+        change_QuestOrderFailedWindow_To_QuestListWindow() {
+            this._questOrderFailedWindow.close();
+            this._questOrderFailedWindow.deactivate();
+            this._questListWindow.activate();
+        }
+        change_QuestReportWindow_To_QuestListWindow() {
+            this._questReportWindow.close();
+            this._questReportWindow.deactivate();
+            this._questReportWindow.select(-1);
+            this._questListWindow.activate();
+        }
+        change_QuestReportWindow_To_QuestGetRewardWindow() {
+            this._questReportWindow.close();
+            this._questReportWindow.deactivate();
+            this._questReportWindow.select(-1);
+            this._questGetRewardWindow.show();
+            this._questGetRewardWindow.open();
+            this._questGetRewardWindow.activate();
+        }
+        change_QuestGetRewardWindow_To_QuestListWindow() {
+            this._questGetRewardWindow.close();
+            this._questGetRewardWindow.deactivate();
+            this._questListWindow.activate();
+        }
+        change_QuestListWindow_To_QuestCancelWindow() {
+            this._questListWindow.deactivate();
+            this._questCancelWindow.show();
+            this._questCancelWindow.open();
+            this._questCancelWindow.activate();
+            this._questCancelWindow.select(-1);
+        }
+        change_QuestCancelWindow_To_QuestListWindow() {
+            this._questCancelWindow.close();
+            this._questCancelWindow.deactivate();
+            this._questCancelWindow.select(-1);
+            this._questListWindow.activate();
+        }
+        // Reset quest list window.
+        resetQuestList() {
+            const questList = this._questCommandWindow.filterQuestList();
+            questList.sort((a, b) => b.priority - a.priority);
+            this._questListWindow.resetQuestList(questList);
+        }
+        // Start common event.
+        startCommonEvent(commonEventId) {
+            // If commonEventId is undefined, do not start common event.;
+            if (!commonEventId || commonEventId === 0)
+                return;
+            const commonEventData = $dataCommonEvents[commonEventId];
+            this._interpreter.setup(commonEventData.list);
+        }
+        // Return ordering quest count.
+        numOrderingQuests() {
+            const orderingQuestCommand = COMMAND_TABLE["orderingQuest"];
+            const orderingQuests = $dataQuests.filter(quest => orderingQuestCommand.state.includes(quest.state()));
+            return orderingQuests.length;
+        }
     }
-
-    onQuestOrderOk() {
-        const questData = this._questListWindow.questData();
-        questData.setState("ordering");
-        this.change_QuestOrderWindow_To_QuestListWindow();
-        this.resetQuestList();
-        this._questListWindow.select(0);
-        this._questDetailWindow.refresh();
-        this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
-    }
-
-    onQuestOrderFailedOk() {
-        this.change_QuestOrderFailedWindow_To_QuestListWindow();
-    }
-
-    onQuestOrderCancel() {
-        this.change_QuestOrderWindow_To_QuestListWindow();
-    }
-
-    onQuestReportOk() {
-        const questData = this._questListWindow.questData();
-        questData.setState("reported");
-        this._questDetailWindow.refresh();
-        this.change_QuestReportWindow_To_QuestGetRewardWindow();
-        this._questGetRewardWindow.setQuestData(questData);
-        this._questGetRewardWindow.refresh();
-        this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
-    }
-
-    onQuestReportCancel() {
-        this.change_QuestReportWindow_To_QuestListWindow();
-    }
-
-    onQuestGetRewardOk() {
-        const questData = this._questListWindow.questData();
-        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === questData.variableId);
-        questSaveData.getRewards();
-        this.change_QuestGetRewardWindow_To_QuestListWindow();
-        this._eventState = "start";
-        this.startCommonEvent(questSaveData.commonEventId());
-    }
-
-    onQuestCancelOk() {
-        const questData = this._questListWindow.questData();
-        questData.setState("notOrdered");
-        this.change_QuestCancelWindow_To_QuestListWindow();
-        this.resetQuestList();
-        this._questListWindow.select(0);
-        this._questDetailWindow.refresh();
-        this._questOrderCountWindow.setNumOrderingQuests(this.numOrderingQuests());
-    }
-
-    onQuestCancelCancel() {
-        this.change_QuestCancelWindow_To_QuestListWindow();
-    }
-
-    // Change window
-    change_QuestCommandWindow_To_QuestListWindow() {
-        this._questCommandWindow.deactivate();
-        this._questListWindow.show();
-        this._questListWindow.activate();
-        this._questListWindow.select(0);
-    }
-
-    change_QuestListWindow_To_QuestCommandWindow() {
-        this._questDetailWindow.setQuestData(null);
-        this._questDetailWindow.setDrawState("undraw");
-        this._questDetailWindow.refresh();
-        this._questListWindow.deactivate();
-        this._questListWindow.select(-1);
-        this._questCommandWindow.activate();
-    }
-
-    change_QuestListWindow_To_QuestOrderWindow() {
-        this._questListWindow.deactivate();
-        this._questOrderWindow.show();
-        this._questOrderWindow.open();
-        this._questOrderWindow.activate();
-        this._questOrderWindow.select(0);
-    }
-
-    change_QuestListWindow_To_QuestOrderFailedWindow() {
-        this._questListWindow.deactivate();
-        this._questOrderFailedWindow.show();
-        this._questOrderFailedWindow.open();
-        this._questOrderFailedWindow.activate();
-    }
-
-    change_QuestListWindow_To_QuestReportWindow() {
-        this._questListWindow.deactivate();
-        this._questReportWindow.show();
-        this._questReportWindow.open();
-        this._questReportWindow.activate();
-        this._questReportWindow.select(0);
-    }
-
-    change_QuestOrderWindow_To_QuestListWindow() {
-        this._questOrderWindow.close();
-        this._questOrderWindow.deactivate();
-        this._questOrderWindow.select(-1);
-        this._questListWindow.activate();
-    }
-
-    change_QuestOrderFailedWindow_To_QuestListWindow() {
-        this._questOrderFailedWindow.close();
-        this._questOrderFailedWindow.deactivate();
-        this._questListWindow.activate();
-    }
-
-    change_QuestReportWindow_To_QuestListWindow() {
-        this._questReportWindow.close();
-        this._questReportWindow.deactivate();
-        this._questReportWindow.select(-1);
-        this._questListWindow.activate();
-    }
-
-    change_QuestReportWindow_To_QuestGetRewardWindow() {
-        this._questReportWindow.close();
-        this._questReportWindow.deactivate();
-        this._questReportWindow.select(-1);
-        this._questGetRewardWindow.show();
-        this._questGetRewardWindow.open();
-        this._questGetRewardWindow.activate();
-    }
-
-    change_QuestGetRewardWindow_To_QuestListWindow() {
-        this._questGetRewardWindow.close();
-        this._questGetRewardWindow.deactivate();
-        this._questListWindow.activate();
-    }
-
-    change_QuestListWindow_To_QuestCancelWindow() {
-        this._questListWindow.deactivate();
-        this._questCancelWindow.show();
-        this._questCancelWindow.open();
-        this._questCancelWindow.activate();
-        this._questCancelWindow.select(-1);
-    }
-
-    change_QuestCancelWindow_To_QuestListWindow() {
-        this._questCancelWindow.close();
-        this._questCancelWindow.deactivate();
-        this._questCancelWindow.select(-1);
-        this._questListWindow.activate();
-    }
-
-    // Reset quest list window.
-    resetQuestList() {
-        const questList = this._questCommandWindow.filterQuestList();
-        questList.sort((a, b) => b.priority - a.priority);
-        this._questListWindow.resetQuestList(questList);
-    }
-
-    // Start common event.
-    startCommonEvent(commonEventId) {
-        // If commonEventId is undefined, do not start common event.;
-        if (!commonEventId || commonEventId === 0) return;
-        const commonEventData = $dataCommonEvents[commonEventId];
-        this._interpreter.setup(commonEventData.list);
-    }
-
-    // Return ordering quest count.
-    numOrderingQuests() {
-        const orderingQuestCommand = COMMAND_TABLE["orderingQuest"];
-        const orderingQuests = $dataQuests.filter(quest => orderingQuestCommand.state.includes(quest.state()));
-        return orderingQuests.length;
-    }
-}
-
-class Window_QuestCommand extends Window_Command_MZMV {
-    initialize(rect, commandList) {
-        this._commandList = commandList;
-        super.initialize(rect);
-        this.deactivate();
-        this.select(-1);
-    }
-
-    select(index) {
-        super.select(index);
-        if (this.active && index >= 0) this.callHandler("select");
-    }
-
-    makeCommandList() {
-        for (const command of this._commandList) {
-            const commandData = COMMAND_TABLE[command];
-            if (commandData) {
-                this.addCommand(commandData.text, command, true, null, commandData.iconIndex);
-            } else {
-                throw new Error(`Unknow quest command ${command}`);
+    QuestSystem.Scene_QuestSystem = Scene_QuestSystem;
+    class Window_QuestCommand extends Window_Command_MZMV {
+        initialize(rect) {
+            this._commandList = [];
+            super.initialize(rect);
+            this.deactivate();
+            this.select(-1);
+        }
+        setCommandList(commandList) {
+            this._commandList = commandList;
+            this.refresh();
+        }
+        select(index) {
+            super.select(index);
+            if (this.active && index >= 0)
+                this.callHandler("select");
+        }
+        makeCommandList() {
+            for (const command of this._commandList) {
+                const commandData = COMMAND_TABLE[command];
+                if (commandData) {
+                    this.addCommand(commandData.text, command, true, null, commandData.iconIndex);
+                }
+                else {
+                    throw new Error(`Unknow quest command ${command}`);
+                }
+            }
+        }
+        filterQuestList() {
+            if (this.currentSymbol() === "all")
+                return $dataQuests.filter(data => data.state() !== "none");
+            const commandData = COMMAND_TABLE[this.currentSymbol()];
+            return $dataQuests.filter(quest => commandData.state.includes(quest.state()));
+        }
+        addCommand(name, symbol, enabled = true, ext = null, iconIndex = 0) {
+            this._list.push({ name, symbol, enabled, ext, iconIndex });
+        }
+        commandIconIndex(index) {
+            return this._list[index].iconIndex;
+        }
+        drawItem(index) {
+            const rect = this.itemLineRect(index);
+            const align = this.itemTextAlign();
+            this.resetTextColor();
+            this.changePaintOpacity(this.isCommandEnabled(index));
+            const iconIndex = this.commandIconIndex(index);
+            if (iconIndex != null && iconIndex > 0) {
+                const textMargin = ImageManager.iconWidth + 4;
+                this.drawIcon(iconIndex, rect.x, rect.y);
+                this.drawText(this.commandName(index), rect.x + textMargin, rect.y, rect.width - textMargin, "left");
+            }
+            else {
+                this.drawText(this.commandName(index), rect.x, rect.y, rect.width, align);
             }
         }
     }
-
-    filterQuestList() {
-        if (this.currentSymbol() === "all") return $dataQuests.filter(data => data.state() !== "none");
-        const commandData = COMMAND_TABLE[this.currentSymbol()];
-        return $dataQuests.filter(quest => commandData.state.includes(quest.state()));
-    }
-
-    addCommand(name, symbol, enabled = true, ext = null, iconIndex = 0) {
-        this._list.push({ name, symbol, enabled, ext, iconIndex });
-    }
-
-    commandIconIndex(index) {
-        return this._list[index].iconIndex;
-    }
-
-    drawItem(index) {
-        const rect = this.itemLineRect(index);
-        const align = this.itemTextAlign();
-        this.resetTextColor();
-        this.changePaintOpacity(this.isCommandEnabled(index));
-        const iconIndex = this.commandIconIndex(index);
-        if (iconIndex != null && iconIndex > 0) {
-            const textMargin = ImageManager.iconWidth + 4;
-            this.drawIcon(iconIndex, rect.x, rect.y);
-            this.drawText(this.commandName(index), rect.x + textMargin, rect.y, rect.width - textMargin, "left");
-        } else {
-            this.drawText(this.commandName(index), rect.x, rect.y, rect.width, align);
+    QuestSystem.Window_QuestCommand = Window_QuestCommand;
+    class Window_QuestList extends Window_Command_MZMV {
+        initialize(rect) {
+            this._questList = [];
+            super.initialize(rect);
+            this.deactivate();
+            this.select(-1);
+        }
+        select(index) {
+            super.select(index);
+            if (this.active && index >= 0)
+                this.callHandler("select");
+        }
+        resetQuestList(questList) {
+            this.clearCommandList();
+            this._questList = questList;
+            this.refresh();
+        }
+        questData() {
+            return this._questList[this.index()];
+        }
+        makeCommandList() {
+            for (let i = 0; i < this._questList.length; i++) {
+                const questData = this._questList[i];
+                const title = (questData.state() === "hidden" ? Text.HiddenTitleText : questData.title);
+                this.addCommand(title, `quest${i}`);
+            }
+        }
+        drawItem(index) {
+            const rect = this.itemLineRect(index);
+            this.resetTextColor();
+            this.changePaintOpacity(this.isCommandEnabled(index));
+            const questData = this._questList[index];
+            if (questData.iconIndex === 0) {
+                this.drawText(this.commandName(index), rect.x, rect.y, rect.width, "left");
+            }
+            else {
+                const textDrawer = new TextDrawer(this);
+                textDrawer.drawIconText(this.commandName(index), questData.iconIndex, rect.x, rect.y, rect.width);
+            }
+        }
+        // Play OK sound on the scene side.
+        playOkSound() {
         }
     }
-}
-
-class Window_QuestList extends Window_Command_MZMV {
-    initialize(rect) {
-        this._questList = [];
-        super.initialize(rect);
-        this.deactivate();
-        this.select(-1);
-    }
-
-    select(index) {
-        super.select(index);
-        if (this.active && index >= 0) this.callHandler("select");
-    }
-
-    resetQuestList(questList) {
-        this.clearCommandList();
-        this._questList = questList;
-        this.refresh();
-    }
-
-    questData() {
-        return this._questList[this.index()];
-    }
-
-    makeCommandList() {
-        for (let i = 0; i < this._questList.length; i++) {
-            const questData = this._questList[i];
-            const title = (questData.state() === "hidden" ? Text.HiddenTitleText : questData.title);
-            this.addCommand(title, `quest${i}`);
+    QuestSystem.Window_QuestList = Window_QuestList;
+    class Window_QuestOrderCount extends Window_Selectable_MZMV {
+        initialize(rect) {
+            super.initialize(rect);
+            this._numOrderingQuests = 0;
+            this.deactivate();
+        }
+        setNumOrderingQuests(numOrderingQuests) {
+            this._numOrderingQuests = numOrderingQuests;
+            this.refresh();
+        }
+        drawAllItems() {
+            const rect = this.itemLineRect(0);
+            this.drawText(Text.OrderingCountText, rect.x, rect.y, rect.width);
+            this.drawText(`${this._numOrderingQuests}/${MaxOrderingQuests}`, rect.x, rect.y, rect.width, "right");
         }
     }
-
-    drawItem(index) {
-        const rect = this.itemLineRect(index);
-        this.resetTextColor();
-        this.changePaintOpacity(this.isCommandEnabled(index));
-        const questData = this._questList[index];
-        if (questData.iconIndex === 0) {
-            this.drawText(this.commandName(index), rect.x, rect.y, rect.width, "left");
-        } else {
-            const textDrawer = new TextDrawer(this);
-            textDrawer.drawIconText(this.commandName(index), questData.iconIndex, rect.x, rect.y, rect.width);
+    QuestSystem.Window_QuestOrderCount = Window_QuestOrderCount;
+    class PageSplitter {
+        constructor(text, height, lineHeight) {
+            this._text = text;
+            this._height = height;
+            this._lineHeight = lineHeight;
+        }
+        doSplit() {
+            const pages = [];
+            const maxPageLines = Math.floor(this._height / this._lineHeight);
+            for (const page of this._text.split("<newpage>\n")) {
+                const lines = page.split("\n");
+                if (lines.length >= maxPageLines) {
+                    for (let i = 0; i < lines.length; i += maxPageLines) {
+                        const buf = [];
+                        for (let j = 0; j < maxPageLines; j++) {
+                            buf.push(lines[i + j]);
+                        }
+                        pages.push(buf.join("\n"));
+                    }
+                }
+                else {
+                    pages.push(page);
+                }
+            }
+            return pages;
         }
     }
-
-    // Play OK sound on the scene side.
-    playOkSound() {
-    }
-}
-
-class Window_QuestOrderCount extends Window_Selectable_MZMV {
-    initialize(rect) {
-        super.initialize(rect);
-        this._numOrderingQuests = 0;
-        this.deactivate();
-    }
-
-    setNumOrderingQuests(numOrderingQuests) {
-        this._numOrderingQuests = numOrderingQuests;
-        this.refresh();
-    }
-
-    drawAllItems() {
-        const rect = this.itemLineRect(0);
-        this.drawText(Text.OrderingCountText, rect.x, rect.y, rect.width);
-        this.drawText(`${this._numOrderingQuests}/${MaxOrderingQuests}`, rect.x, rect.y, rect.width, "right");
-    }
-}
-
-class Window_QuestDetail extends Window_Selectable_MZMV {
-    initialize(rect) {
-        super.initialize(rect);
-        this._questData = null;
-        this._drawState = "undraw";
-        this.deactivate();
-    }
-
-    setQuestData(questData) {
-        this._questData = questData;
-    }
-
-    // undraw: Undraw window
-    // draw: Draw window
-    setDrawState(drawState) {
-        this._drawState = drawState;
-    }
-
-    infoTextWidth() {
-        return 160;
-    }
-
-    messageX() {
-        return this.infoTextWidth() + 16;
-    }
-
-    messageWindth() {
-        return this.width - this.padding * 2 - this.messageX();
-    }
-
-    drawAllItems() {
-        if (this._drawState === "draw" && !this._questData) {
-            this.drawNothingQuest(0);
-        } else if (this._drawState === "draw" && this._questData.state() === "hidden") {
-            this.drawHiddenDetail(0);
-        } else if (this._drawState === "draw") {
-            this.drawQuestData();
+    QuestSystem.PageSplitter = PageSplitter;
+    class Window_QuestDetail extends Window_Selectable_MZMV {
+        initialize(rect) {
+            super.initialize(rect);
+            this._questData = null;
+            this._drawState = "undraw";
+            this._page = 1;
+            this._maxPage = 1;
+            this._drawDetailPrepared = false;
+            this._detailPages = [];
+            this._detailStartYPos = 0; // Arrow spriteの表示のためにクエスト詳細の表示Y座標を保持する。
+            this.leftArrowVisible = false;
+            this.rightArrowVisible = false;
+            this.deactivate();
         }
-    }
-
-    drawQuestData() {
-        let startLine = 0;
-        const titleRows = this.drawTitle(startLine);
-        startLine += titleRows;
-        this.drawHorzLine(this.startY(startLine));
-        startLine += 0.25;
-        if (DisplayRequestor) {
-            this.drawRequester(startLine);
-            startLine += 1;
+        // MV Compatible
+        _createAllParts() {
+            super._createAllParts();
+            if (Utils.RPGMAKER_NAME === "MV") {
+                this._createArrowSprites();
+            }
         }
-        if (DisplayRewards) {
-            this.drawRewards(startLine);
-            startLine += this._questData.rewards.length;
+        _createArrowSprites() {
+            this._leftArrowSprite = new Sprite();
+            this.addChild(this._leftArrowSprite);
+            this._rightArrowSprite = new Sprite();
+            this.addChild(this._rightArrowSprite);
         }
-        if (DisplayDifficulty) {
-            this.drawDifficulty(startLine);
-            startLine += 1;
+        _refreshArrows() {
+            const w = this._width;
+            const h = this._height;
+            const p = 24;
+            const q = p / 2;
+            const sx = 96 + p;
+            const sy = 0 + p;
+            this._leftArrowSprite.bitmap = this._windowskin;
+            this._leftArrowSprite.anchor.x = 0.5;
+            this._leftArrowSprite.anchor.y = 0.5;
+            this._leftArrowSprite.setFrame(sx, sy, q, p * 2);
+            this._leftArrowSprite.move(q, h / 2 - p / 2);
+            this._rightArrowSprite.bitmap = this._windowskin;
+            this._rightArrowSprite.anchor.x = 0.5;
+            this._rightArrowSprite.anchor.y = 0.5;
+            this._rightArrowSprite.setFrame(sx + q + p, sy, q, p * 2);
+            this._rightArrowSprite.move(w - q, h / 2 - p / 2);
         }
-        if (DisplayPlace) {
-            this.drawPlace(startLine);
-            startLine += 1;
+        update() {
+            super.update();
+            this.updateDetailPage();
         }
-        if (DisplayTimeLimit) {
-            this.drawTimeLimit(startLine);
-            startLine += 1;
+        updateDetailPage() {
+            if (Input.isTriggered("left")) {
+                this.pageLeft();
+            }
+            else if (Input.isTriggered("right")) {
+                this.pageRight();
+            }
         }
-        if (!this.isOnlyDisplayDetail()) {
+        _updateArrows() {
+            this._leftArrowSprite.visible = this.isOpen() && this.leftArrowVisible;
+            this._rightArrowSprite.visible = this.isOpen() && this.rightArrowVisible;
+        }
+        updateArrows() {
+            if (this._drawDetailPrepared) {
+                if (this._page === 1) {
+                    this.leftArrowVisible = false;
+                }
+                else {
+                    this.leftArrowVisible = true;
+                }
+                if (this._page === this._maxPage) {
+                    this.rightArrowVisible = false;
+                }
+                else {
+                    this.rightArrowVisible = true;
+                }
+                const w = this._width;
+                const h = this._height - this._detailStartYPos;
+                const p = 24;
+                const q = p / 2;
+                this._leftArrowSprite.move(q, this._detailStartYPos + h / 2 - p / 2);
+                this._rightArrowSprite.move(w - q, this._detailStartYPos + h / 2 - p / 2);
+            }
+            else {
+                this.leftArrowVisible = false;
+                this.rightArrowVisible = false;
+            }
+        }
+        pageLeft() {
+            if (!this.activate)
+                return;
+            if (!this._drawDetailPrepared)
+                return;
+            if (this._page > 1) {
+                this._page--;
+                SoundManager.playCursor();
+                this.refresh();
+            }
+        }
+        pageRight() {
+            if (!this.activate)
+                return;
+            if (!this._drawDetailPrepared)
+                return;
+            if (this._page < this._maxPage) {
+                this._page++;
+                SoundManager.playCursor();
+                this.refresh();
+            }
+        }
+        onTouchOk() {
+            if (!this.isTouchOkEnabled())
+                return;
+            const localPos = this.calcTouchLocalPos();
+            if (!(localPos.x >= 0 && localPos.y >= 0 && localPos.x < this.width && localPos.y < this.height))
+                return;
+            if (localPos.x <= this.width / 2) {
+                this.pageLeft();
+            }
+            else {
+                this.pageRight();
+            }
+        }
+        // MV Compatible
+        onTouch(triggered) {
+            if (!triggered)
+                return;
+            this.onTouchOk();
+        }
+        isTouchOkEnabled() {
+            return this._drawDetailPrepared;
+        }
+        calcTouchLocalPos() {
+            const touchPos = new Point(TouchInput.x, TouchInput.y);
+            const localPos = this.worldTransform.applyInverse(touchPos);
+            return new Point(localPos.x, localPos.y);
+        }
+        setQuestData(questData) {
+            this._questData = questData;
+            this._page = 1;
+        }
+        // undraw: Undraw window
+        // draw: Draw window
+        setDrawState(drawState) {
+            this._drawState = drawState;
+        }
+        infoTextWidth() {
+            return 160;
+        }
+        messageX() {
+            return this.infoTextWidth() + 16;
+        }
+        messageWindth() {
+            return this.width - this.padding * 2 - this.messageX();
+        }
+        drawAllItems() {
+            this._drawDetailPrepared = false;
+            if (this._drawState === "draw" && !this._questData) {
+                this.drawNothingQuest(0);
+            }
+            else if (this._drawState === "draw" && this._questData.state() === "hidden") {
+                this.drawHiddenDetail(0);
+            }
+            else if (this._drawState === "draw") {
+                this.drawQuestData();
+            }
+        }
+        drawQuestData() {
+            let startLine = 0;
+            const titleRows = this.drawTitle(startLine);
+            startLine += titleRows;
             this.drawHorzLine(this.startY(startLine));
             startLine += 0.25;
-        }
-        this.drawDetail(startLine);
-    }
-
-    isOnlyDisplayDetail() {
-        return !(DisplayRequestor || DisplayRewards || DisplayDifficulty || DisplayPlace || DisplayTimeLimit);
-    }
-
-    drawNothingQuest(startLine) {
-        this.drawTextEx(Text.NothingQuestText, this.padding, this.startY(startLine), this.width - this.padding * 2);
-    }
-
-    drawTitle(startLine) {
-        let titleRows = 1;
-        this.resetTextColor();
-        const stateWidth = 120;
-        const titleWidth = this.width - this.padding * 4 - stateWidth;
-        if (QuestTitleWrap) {
-            if (this._questData.iconIndex === 0) {
-                titleRows = this.drawTextExWrap(this._questData.title, this.padding, this.startY(startLine), titleWidth);
-            } else {
-                titleRows = this.drawIconTextWrap(this._questData.title, this._questData.iconIndex, this.padding, this.startY(startLine), titleWidth);
+            if (DisplayRequestor) {
+                this.drawRequester(startLine);
+                startLine += 1;
             }
-        } else {
-            if (this._questData.iconIndex === 0) {
-                this.drawText(this._questData.title, this.padding, this.startY(startLine), titleWidth);
-            } else {
-                this.drawIconText(this._questData.title, this._questData.iconIndex, this.padding, this.startY(startLine), titleWidth);
+            if (DisplayRewards) {
+                this.drawRewards(startLine);
+                startLine += this._questData.rewards.length;
+            }
+            if (DisplayDifficulty) {
+                this.drawDifficulty(startLine);
+                startLine += 1;
+            }
+            if (DisplayPlace) {
+                this.drawPlace(startLine);
+                startLine += 1;
+            }
+            if (DisplayTimeLimit) {
+                this.drawTimeLimit(startLine);
+                startLine += 1;
+            }
+            if (!this.isOnlyDisplayDetail()) {
+                this.drawHorzLine(this.startY(startLine));
+                startLine += 0.25;
+            }
+            this._detailStartYPos = this.startY(startLine);
+            this.prepareDrawDetail();
+            this.drawDetail(startLine);
+            this.drawPageNumber();
+        }
+        isOnlyDisplayDetail() {
+            return !(DisplayRequestor || DisplayRewards || DisplayDifficulty || DisplayPlace || DisplayTimeLimit);
+        }
+        drawNothingQuest(startLine) {
+            this.drawTextEx(Text.NothingQuestText, this.padding, this.startY(startLine), this.width - this.padding * 2);
+        }
+        drawTitle(startLine) {
+            let titleRows = 1;
+            this.resetTextColor();
+            const stateWidth = 120;
+            const titleWidth = this.width - this.padding * 4 - stateWidth;
+            if (QuestTitleWrap) {
+                if (this._questData.iconIndex === 0) {
+                    titleRows = this.drawTextExWrap(this._questData.title, this.padding, this.startY(startLine), titleWidth);
+                }
+                else {
+                    titleRows = this.drawIconTextWrap(this._questData.title, this._questData.iconIndex, this.padding, this.startY(startLine), titleWidth);
+                }
+            }
+            else {
+                if (this._questData.iconIndex === 0) {
+                    this.drawText(this._questData.title, this.padding, this.startY(startLine), titleWidth);
+                }
+                else {
+                    this.drawIconText(this._questData.title, this._questData.iconIndex, this.padding, this.startY(startLine), titleWidth);
+                }
+            }
+            this.changeTextColor(this._questData.stateTextColor());
+            this.drawText(this._questData.stateText(), this.padding + titleWidth, this.startY(startLine), stateWidth, "right");
+            this.resetTextColor();
+            return titleRows;
+        }
+        drawRequester(startLine) {
+            this.changeTextColor(this.systemColor());
+            this.drawText(Text.RequesterText, this.padding, this.startY(startLine), this.infoTextWidth());
+            this.resetTextColor();
+            this.drawText(this._questData.requester, this.messageX(), this.startY(startLine), this.messageWindth());
+        }
+        drawRewards(startLine) {
+            this.changeTextColor(this.systemColor());
+            this.drawText(Text.RewardText, this.padding, this.startY(startLine), this.infoTextWidth());
+            this.resetTextColor();
+            for (const reward of this._questData.rewards) {
+                this.drawReward(reward, this.startY(startLine));
+                startLine++;
             }
         }
-        this.changeTextColor(this._questData.stateTextColor());
-        this.drawText(this._questData.stateText(), this.padding + titleWidth, this.startY(startLine), stateWidth, "right");
-        this.resetTextColor();
-        return titleRows;
-    }
-
-    drawRequester(startLine) {
-        this.changeTextColor(this.systemColor());
-        this.drawText(Text.RequesterText, this.padding, this.startY(startLine), this.infoTextWidth());
-        this.resetTextColor();
-        this.drawText(this._questData.requester, this.messageX(), this.startY(startLine), this.messageWindth());
-    }
-
-    drawRewards(startLine) {
-        this.changeTextColor(this.systemColor());
-        this.drawText(Text.RewardText, this.padding, this.startY(startLine), this.infoTextWidth());
-        this.resetTextColor();
-        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === this._questData.variableId);
-        for (const reward of questSaveData.rewards()) {
-            this.drawReward(reward, this.startY(startLine))
-            startLine++;
+        drawReward(reward, y) {
+            new RewardWindowDrawer(this, reward).drawRewardToWindow(this.messageX(), y, this.messageWindth());
+        }
+        drawDifficulty(startLine) {
+            this.changeTextColor(this.systemColor());
+            this.drawText(Text.DifficultyText, this.padding, this.startY(startLine), this.infoTextWidth());
+            this.resetTextColor();
+            this.drawText(this._questData.difficulty, this.messageX(), this.startY(startLine), this.messageWindth());
+        }
+        drawPlace(startLine) {
+            this.changeTextColor(this.systemColor());
+            this.drawText(Text.PlaceText, this.padding, this.startY(startLine), this.infoTextWidth());
+            this.resetTextColor();
+            this.drawText(this._questData.place, this.messageX(), this.startY(startLine), this.messageWindth());
+        }
+        drawTimeLimit(startLine) {
+            this.changeTextColor(this.systemColor());
+            this.drawText(Text.TimeLimitText, this.padding, this.startY(startLine), this.infoTextWidth());
+            this.resetTextColor();
+            this.drawText(this._questData.timeLimit, this.messageX(), this.startY(startLine), this.messageWindth());
+        }
+        // クエスト詳細の表示前にdetailのページ分割処理を行う。
+        prepareDrawDetail() {
+            if (!this._drawDetailPrepared) {
+                this._drawDetailPrepared = true;
+                const height = this.height - this._detailStartYPos;
+                const lineHeight = this.itemHeight() + this.padding;
+                const pageSplitter = new PageSplitter(this._questData.detail, height, lineHeight);
+                this._detailPages = pageSplitter.doSplit();
+                this._maxPage = this._detailPages.length;
+            }
+        }
+        drawDetail(startLine) {
+            const detailPage = this._detailPages[this._page - 1];
+            // 自動改行を考慮して横幅を-24する。
+            this.drawTextExWrap(detailPage, this.padding, this.startY(startLine), this.width - this.padding * 2 - 24);
+        }
+        drawPageNumber() {
+            if (this._maxPage === 1)
+                return;
+            const x = 0;
+            const y = this.height - 48 - this.padding;
+            const w = this.width - this.padding * 2;
+            this.changeTextColor(this.systemColor());
+            this.drawText(`${this._page}/${this._maxPage}`, x, y, w, "center");
+            this.resetTextColor();
+        }
+        drawHiddenDetail(startLine) {
+            this.drawTextEx(this._questData.hiddenDetail, this.padding, this.startY(startLine), this.width - this.padding * 2);
+        }
+        startY(line) {
+            return this.padding + this.itemHeight() * line;
+        }
+        drawHorzLine(y, color = this.systemColor()) {
+            this.changeTextColor(color);
+            const padding = this.itemPadding();
+            const x = padding;
+            const width = this.innerWidth - padding * 2;
+            this.drawRect(x, y, width, 5);
+            this.resetTextColor();
+        }
+        drawTextExWrap(text, x, y, width) {
+            const textDrawer = new TextDrawer(this);
+            return textDrawer.drawTextExWrap(text, x, y, width);
+        }
+        drawIconText(text, iconIndex, x, y, width) {
+            const textDrawer = new TextDrawer(this);
+            return textDrawer.drawIconText(text, iconIndex, x, y, width);
+        }
+        drawIconTextWrap(text, iconIndex, x, y, width) {
+            const textDrawer = new TextDrawer(this);
+            return textDrawer.drawIconTextWrap(text, iconIndex, x, y, width);
+        }
+        itemHeight() {
+            return 32;
         }
     }
-
-    drawReward(reward, y) {
-        new RewardWindowDrawer(this, reward).drawRewardToWindow(this.messageX(), y, this.messageWindth());
-    }
-
-    drawDifficulty(startLine) {
-        this.changeTextColor(this.systemColor());
-        this.drawText(Text.DifficultyText, this.padding, this.startY(startLine), this.infoTextWidth());
-        this.resetTextColor();
-        this.drawText(this._questData.difficulty, this.messageX(), this.startY(startLine), this.messageWindth());
-    }
-
-    drawPlace(startLine) {
-        this.changeTextColor(this.systemColor());
-        this.drawText(Text.PlaceText, this.padding, this.startY(startLine), this.infoTextWidth());
-        this.resetTextColor();
-        this.drawText(this._questData.place, this.messageX(), this.startY(startLine), this.messageWindth());
-    }
-
-    drawTimeLimit(startLine) {
-        this.changeTextColor(this.systemColor());
-        this.drawText(Text.TimeLimitText, this.padding, this.startY(startLine), this.infoTextWidth());
-        this.resetTextColor();
-        this.drawText(this._questData.timeLimit, this.messageX(), this.startY(startLine), this.messageWindth());
-    }
-
-    drawDetail(startLine) {
-        // 自動改行を考慮して横幅を-24する。
-        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === this._questData.variableId);
-        this.drawTextExWrap(questSaveData.detail(), this.padding, this.startY(startLine), this.width - this.padding * 2 - 24);
-    }
-
-    drawHiddenDetail(startLine) {
-        this.drawTextEx(this._questData.hiddenDetail, this.padding, this.startY(startLine), this.width - this.padding * 2);
-    }
-
-    startY(line) {
-        return this.padding + this.itemHeight() * line;
-    }
-
-    drawHorzLine(y, color = this.systemColor()) {
-        this.changeTextColor(color);
-        const padding = this.itemPadding();
-        const x = padding;
-        const width = this.innerWidth - padding * 2;
-        this.drawRect(x, y, width, 5);
-        this.resetTextColor();
-    }
-
-    drawTextExWrap(text, x, y, width) {
-        const textDrawer = new TextDrawer(this);
-        return textDrawer.drawTextExWrap(text, x, y, width);
-    }
-
-    drawIconText(text, iconIndex, x, y, width) {
-        const textDrawer = new TextDrawer(this);
-        return textDrawer.drawIconText(text, iconIndex, x, y, width);
-    }
-
-    drawIconTextWrap(text, iconIndex, x, y, width) {
-        const textDrawer = new TextDrawer(this);
-        return textDrawer.drawIconTextWrap(text, iconIndex, x, y, width);
-    }
-
-    itemHeight() {
-        return 32;
-    }
-}
-
-class Window_QuestOrder extends Window_Command_MZMV {
-    initialize(rect) {
-        super.initialize(rect);
-        this.deactivate();
-        this.hide();
-        this.close();
-    }
-
-    makeCommandList() {
-        this.addCommand(Text.QuestOrderYesText, "yes");
-        this.addCommand(Text.QuestOrderNoText, "no");
-    }
-
-    drawAllItems() {
-        const rect = this.itemLineRect(-1);
-        this.drawText(Text.QuestOrderText, rect.x, rect.y, rect.width);
-        super.drawAllItems();
-    }
-
-    itemRect(index) {
-        const rect = super.itemRect(index + 1);
-        return rect;
-    }
-
-    playOkSound() {
-        if (this.currentSymbol() === "yes") return this.playOrderSound();
-        super.playOkSound();
-    }
-
-    playOrderSound() {
-        if (QuestOrderSe.FileName === "") return;
-        const se = {
-            name: QuestOrderSe.FileName,
-            pan: QuestOrderSe.Pan,
-            pitch: QuestOrderSe.Pitch,
-            volume: QuestOrderSe.Volume,
+    QuestSystem.Window_QuestDetail = Window_QuestDetail;
+    class Window_QuestOrder extends Window_Command_MZMV {
+        initialize(rect) {
+            super.initialize(rect);
+            this.deactivate();
+            this.hide();
+            this.close();
         }
-        AudioManager.playSe(se);
-    }
-}
-
-class Window_QuestOrderFailed extends Window_Selectable_MZMV {
-    initialize(rect) {
-        super.initialize(rect);
-        this.deactivate();
-        this.hide();
-        this.close();
-    }
-
-    onTouchOk() {
-        this.processOk();
-    }
-
-    drawAllItems() {
-        const rect = this.itemLineRect(0);
-        this.drawText(Text.ReachedLimitText, rect.x, rect.y, rect.width);
-    }
-}
-
-class Window_QuestCancel extends Window_Command_MZMV {
-    initialize(rect) {
-        super.initialize(rect);
-        this.deactivate();
-        this.hide();
-        this.close();
-    }
-
-    makeCommandList() {
-        this.addCommand(Text.QuestCancelYesText, "yes");
-        this.addCommand(Text.QuestCancelNoText, "no");
-    }
-
-    drawAllItems() {
-        const rect = this.itemLineRect(-1);
-        this.drawText(Text.QuestCancelText, rect.x, rect.y, rect.width);
-        super.drawAllItems();
-    }
-
-    itemRect(index) {
-        const rect = super.itemRect(index + 1);
-        return rect;
-    }
-}
-
-class Window_QuestReport extends Window_Command_MZMV {
-    initialize(rect) {
-        super.initialize(rect);
-        this.deactivate();
-        this.hide();
-        this.close();
-    }
-
-    makeCommandList() {
-        this.addCommand(Text.QuestReportYesText, "yes");
-        this.addCommand(Text.QuestReportNoText, "no");
-    }
-
-    drawAllItems() {
-        const rect = this.itemLineRect(-1);
-        this.drawText(Text.QuestReportText, rect.x, rect.y, rect.width);
-        super.drawAllItems();
-    }
-
-    itemRect(index) {
-        const rect = super.itemRect(index + 1);
-        return rect;
-    }
-
-    playOkSound() {
-        if (this.currentSymbol() === "yes") return this.playOrderSound();
-        super.playOkSound();
-    }
-
-    playOrderSound() {
-        if (QuestReportMe.FileName === "") return;
-        const me = {
-            name: QuestReportMe.FileName,
-            pan: QuestReportMe.Pan,
-            pitch: QuestReportMe.Pitch,
-            volume: QuestReportMe.Volume,
+        makeCommandList() {
+            this.addCommand(Text.QuestOrderYesText, "yes");
+            this.addCommand(Text.QuestOrderNoText, "no");
         }
-        AudioManager.playMe(me);
-    }
-}
-
-class Window_QuestGetReward extends Window_Selectable_MZMV {
-    initialize(rect) {
-        super.initialize(rect);
-        this.deactivate();
-        this.hide();
-        this.close();
-        this._questData = null;
-    }
-
-    refresh() {
-        if (this._questData) this.updateWindowRect();
-        super.refresh();
-    }
-
-    updateWindowRect() {
-        const numRewards = this._questData.rewards.length;
-        const w = WindowSize.GetRewardWindowWidth;
-        const h = (Utils.RPGMAKER_NAME === "MZ" ? 80 : 70) + numRewards * 40;
-        const x = Graphics.boxWidth / 2 - w / 2;
-        const y = Graphics.boxHeight / 2 - h / 2;
-        this.move(x, y, w, h);
-    }
-
-    onTouchOk() {
-        this.processOk();
-    }
-
-    setQuestData(questData) {
-        this._questData = questData;
-    }
-
-    drawAllItems() {
-        const rect = this.itemLineRect(0);
-        this.drawText(Text.GetRewardText, rect.x, rect.y, rect.width);
-        this.drawRewards();
-    }
-
-    drawRewards() {
-        let i = 1;
-        const questSaveData = $questSaveDatas.find(saveData => saveData.variableId() === this._questData.variableId);
-        for (const reward of questSaveData.rewards()) {
-            const rect = this.itemLineRect(i);
-            this.drawReward(reward, rect);
-            i++;
+        drawAllItems() {
+            const rect = this.itemLineRect(-1);
+            this.drawText(Text.QuestOrderText, rect.x, rect.y, rect.width);
+            super.drawAllItems();
+        }
+        itemRect(index) {
+            const rect = super.itemRect(index + 1);
+            return rect;
+        }
+        playOkSound() {
+            if (this.currentSymbol() === "yes")
+                return this.playOrderSound();
+            super.playOkSound();
+        }
+        playOrderSound() {
+            if (QuestOrderSe.FileName === "")
+                return;
+            const se = {
+                name: QuestOrderSe.FileName,
+                pan: QuestOrderSe.Pan,
+                pitch: QuestOrderSe.Pitch,
+                volume: QuestOrderSe.Volume,
+            };
+            AudioManager.playSe(se);
         }
     }
-
-    drawReward(reward, rect) {
-        new RewardWindowDrawer(this, reward).drawRewardToWindow(rect.x, rect.y, rect.width);
-    }
-}
-
-
-// セーブデータ対応
-const _DataManager_createGameObjects = DataManager.createGameObjects;
-DataManager.createGameObjects = function() {
-    _DataManager_createGameObjects.call(this);
-    $questSaveDatas = $dataQuests.map(questData => new QuestSaveData(questData.variableId));
-};
-
-const _DataManager_makeSaveContents = DataManager.makeSaveContents;
-DataManager.makeSaveContents = function() {
-    const contents = _DataManager_makeSaveContents.call(this);
-    contents.questSaveDatas = $questSaveDatas;
-    return contents;
-};
-
-const _DataManager_extractSaveContents = DataManager.extractSaveContents;
-DataManager.extractSaveContents = function(contents) {
-    _DataManager_extractSaveContents.call(this, contents);
-    if (!contents.questSaveDatas) return;
-    $questSaveDatas = $dataQuests.map(questData => {
-        const savedQuestSaveData = contents.questSaveDatas.find(saveData => saveData.variableId() === questData.variableId);
-        if (savedQuestSaveData) return savedQuestSaveData;
-        return new QuestSaveData(questData.variableId);
-    });
-};
-
-
-// Register plugin command.
-if (Utils.RPGMAKER_NAME === "MZ") {
-    PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", args => {
-        SceneManager.push(Scene_QuestSystem);
-        const params = PluginParamsParser.parse(args, { QuestCommands: ["string"], BackgroundImage: {} });
-        const fileName1 = params.BackgroundImage.FileName1;
-        const fileName2 = params.BackgroundImage.FileName2;
-        const xOfs = params.BackgroundImage.XOfs;
-        const yOfs = params.BackgroundImage.YOfs;
-        QuestUtils.startQuestScene(params.QuestCommands, fileName1, fileName2, xOfs, yOfs);
-    });
-
-    PluginManager.registerCommand(QuestSystemPluginName, "GetRewards", args => {
-        const params = PluginParamsParser.parse(args, { VariableId: "number" });
-        QuestUtils.getRewards(params.VariableId);
-    });
-
-    PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", args => {
-        const params = PluginParamsParser.parse(args, { VariableId: "number", Detail: "string", DetailNote: "string" });
-        let detail;
-        if (params.DetailNote == null || params.DetailNote === "") {
-            detail = params.Detail;
-        } else {
-            detail = JSON.parse(params.DetailNote);
+    QuestSystem.Window_QuestOrder = Window_QuestOrder;
+    class Window_QuestOrderFailed extends Window_Selectable_MZMV {
+        initialize(rect) {
+            super.initialize(rect);
+            this.deactivate();
+            this.hide();
+            this.close();
         }
-        QuestUtils.changeDetail(params.VariableId, detail);
-    });
-
-    PluginManager.registerCommand(QuestSystemPluginName, "ChangeRewards", args => {
-        const params = PluginParamsParser.parse(args, { Rewards: [{}] });
-        const rewards = params.Rewards.map(rewardParam => {
-            return RewardData.fromParam(rewardParam);
+        onTouchOk() {
+            this.processOk();
+        }
+        drawAllItems() {
+            const rect = this.itemLineRect(0);
+            this.drawText(Text.ReachedLimitText, rect.x, rect.y, rect.width);
+        }
+    }
+    QuestSystem.Window_QuestOrderFailed = Window_QuestOrderFailed;
+    class Window_QuestCancel extends Window_Command_MZMV {
+        initialize(rect) {
+            super.initialize(rect);
+            this.deactivate();
+            this.hide();
+            this.close();
+        }
+        makeCommandList() {
+            this.addCommand(Text.QuestCancelYesText, "yes");
+            this.addCommand(Text.QuestCancelNoText, "no");
+        }
+        drawAllItems() {
+            const rect = this.itemLineRect(-1);
+            this.drawText(Text.QuestCancelText, rect.x, rect.y, rect.width);
+            super.drawAllItems();
+        }
+        itemRect(index) {
+            const rect = super.itemRect(index + 1);
+            return rect;
+        }
+    }
+    QuestSystem.Window_QuestCancel = Window_QuestCancel;
+    class Window_QuestReport extends Window_Command_MZMV {
+        initialize(rect) {
+            super.initialize(rect);
+            this.deactivate();
+            this.hide();
+            this.close();
+        }
+        makeCommandList() {
+            this.addCommand(Text.QuestReportYesText, "yes");
+            this.addCommand(Text.QuestReportNoText, "no");
+        }
+        drawAllItems() {
+            const rect = this.itemLineRect(-1);
+            this.drawText(Text.QuestReportText, rect.x, rect.y, rect.width);
+            super.drawAllItems();
+        }
+        itemRect(index) {
+            const rect = super.itemRect(index + 1);
+            return rect;
+        }
+        playOkSound() {
+            if (this.currentSymbol() === "yes")
+                return this.playOrderSound();
+            super.playOkSound();
+        }
+        playOrderSound() {
+            if (QuestReportMe.FileName === "")
+                return;
+            const me = {
+                name: QuestReportMe.FileName,
+                pan: QuestReportMe.Pan,
+                pitch: QuestReportMe.Pitch,
+                volume: QuestReportMe.Volume,
+            };
+            AudioManager.playMe(me);
+        }
+    }
+    QuestSystem.Window_QuestReport = Window_QuestReport;
+    class Window_QuestGetReward extends Window_Selectable_MZMV {
+        initialize(rect) {
+            super.initialize(rect);
+            this.deactivate();
+            this.hide();
+            this.close();
+            this._questData = null;
+        }
+        refresh() {
+            if (this._questData)
+                this.updateWindowRect();
+            super.refresh();
+        }
+        updateWindowRect() {
+            const numRewards = this._questData.rewards.length;
+            const w = WindowSize.GetRewardWindowWidth;
+            const h = (Utils.RPGMAKER_NAME === "MZ" ? 80 : 70) + numRewards * 40;
+            const x = Graphics.boxWidth / 2 - w / 2;
+            const y = Graphics.boxHeight / 2 - h / 2;
+            this.move(x, y, w, h);
+        }
+        onTouchOk() {
+            this.processOk();
+        }
+        setQuestData(questData) {
+            this._questData = questData;
+        }
+        drawAllItems() {
+            const rect = this.itemLineRect(0);
+            this.drawText(Text.GetRewardText, rect.x, rect.y, rect.width);
+            this.drawRewards();
+        }
+        drawRewards() {
+            let i = 1;
+            for (const reward of this._questData.rewards) {
+                const rect = this.itemLineRect(i);
+                this.drawReward(reward, rect);
+                i++;
+            }
+        }
+        drawReward(reward, rect) {
+            new RewardWindowDrawer(this, reward).drawRewardToWindow(rect.x, rect.y, rect.width);
+        }
+    }
+    QuestSystem.Window_QuestGetReward = Window_QuestGetReward;
+    // セーブデータ対応
+    const _DataManager_createGameObjects = DataManager.createGameObjects;
+    DataManager.createGameObjects = function () {
+        _DataManager_createGameObjects.call(this);
+        $questSaveDatas = $dataQuests.map(questData => new QuestSaveData(questData.variableId));
+    };
+    const _DataManager_makeSaveContents = DataManager.makeSaveContents;
+    DataManager.makeSaveContents = function () {
+        const contents = _DataManager_makeSaveContents.call(this);
+        contents.questSaveDatas = $questSaveDatas;
+        return contents;
+    };
+    const _DataManager_extractSaveContents = DataManager.extractSaveContents;
+    DataManager.extractSaveContents = function (contents) {
+        _DataManager_extractSaveContents.call(this, contents);
+        if (!contents.questSaveDatas)
+            return;
+        $questSaveDatas = $dataQuests.map(questData => {
+            const savedQuestSaveData = contents.questSaveDatas.find((saveData) => saveData.variableId() === questData.variableId);
+            if (savedQuestSaveData)
+                return savedQuestSaveData;
+            return new QuestSaveData(questData.variableId);
         });
-        QuestUtils.changeRewardsByRewardObject(params.VariableId, rewards);
-    });
-}
-
-
-// Add QuestSystem to menu command.
-const _Window_MenuCommand_addOriginalCommands = Window_MenuCommand.prototype.addOriginalCommands;
-Window_MenuCommand.prototype.addOriginalCommands = function() {
-    _Window_MenuCommand_addOriginalCommands.call(this);
-    if (EnabledQuestMenu && Text.MenuQuestSystemText !== "") this.addCommand(Text.MenuQuestSystemText, "quest", this.isEnabledQuestMenu());
-};
-
-Window_MenuCommand.prototype.isEnabledQuestMenu = function() {
-    if (EnabledQuestMenuSwitchId === 0) return true;
-    return $gameSwitches.value(EnabledQuestMenuSwitchId);
-};
-
-const _Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
-Scene_Menu.prototype.createCommandWindow = function() {
-    _Scene_Menu_createCommandWindow.call(this);
-    this._commandWindow.setHandler("quest", this.quest.bind(this));
-};
-
-Scene_Menu.prototype.quest = function() {
-    SceneManager.push(Scene_QuestSystem);
-    SceneManager.prepareNextScene(MenuCommands, MenuBackgroundImage);
-};
-
-
-// セーブデータに含めるクラスをwindowオブジェクトに登録する。
-window.RewardData = RewardData;
-window.ItemInfo = ItemInfo;
-window.QuestSaveData = QuestSaveData;
-
-
-// Define class alias.
-return {
-    QuestUtils,
-    ItemInfo,
-    RewardData,
-    RewardWindowDrawer,
-    QuestSaveData,
-    QuestData,
-    Scene_QuestSystem,
-    Window_QuestCommand,
-    Window_QuestList,
-    Window_QuestDetail,
-    Window_QuestOrder,
-    Window_QuestCancel,
-    Window_QuestReport,
-    Window_QuestGetReward,
-};
-
-})();
+        for (const questData of $dataQuests) {
+            questData.loadSaveData();
+        }
+    };
+    // Register plugin command.
+    if (Utils.RPGMAKER_NAME === "MZ") {
+        PluginManager.registerCommand(QuestSystemPluginName, "StartQuestScene", (args) => {
+            SceneManager.push(Scene_QuestSystem);
+            const params = PluginParamsParser.parse(args, { QuestCommands: ["string"], BackgroundImage: {} });
+            const fileName1 = params.BackgroundImage.FileName1;
+            const fileName2 = params.BackgroundImage.FileName2;
+            const xOfs = params.BackgroundImage.XOfs;
+            const yOfs = params.BackgroundImage.YOfs;
+            QuestUtils.startQuestScene(params.QuestCommands, fileName1, fileName2, xOfs, yOfs);
+        });
+        PluginManager.registerCommand(QuestSystemPluginName, "GetRewards", (args) => {
+            const params = PluginParamsParser.parse(args, { VariableId: "number" });
+            QuestUtils.getRewards(params.VariableId);
+        });
+        PluginManager.registerCommand(QuestSystemPluginName, "ChangeDetail", (args) => {
+            const params = PluginParamsParser.parse(args, { VariableId: "number", Detail: "string", DetailNote: "string" });
+            let detail;
+            if (params.DetailNote == null || params.DetailNote === "") {
+                detail = params.Detail;
+            }
+            else {
+                detail = JSON.parse(params.DetailNote);
+            }
+            QuestUtils.changeDetail(params.VariableId, detail);
+        });
+        PluginManager.registerCommand(QuestSystemPluginName, "ChangeRewards", (args) => {
+            const params = PluginParamsParser.parse(args, { Rewards: [{}] });
+            const rewards = params.Rewards.map((rewardParam) => {
+                return RewardData.fromParam(rewardParam);
+            });
+            QuestUtils.changeRewardsByRewardObject(params.VariableId, rewards);
+        });
+    }
+    // Add QuestSystem to menu command.
+    const _Window_MenuCommand_addOriginalCommands = Window_MenuCommand.prototype.addOriginalCommands;
+    Window_MenuCommand.prototype.addOriginalCommands = function () {
+        _Window_MenuCommand_addOriginalCommands.call(this);
+        if (EnabledQuestMenu && Text.MenuQuestSystemText !== "")
+            this.addCommand(Text.MenuQuestSystemText, "quest", this.isEnabledQuestMenu());
+    };
+    Window_MenuCommand.prototype.isEnabledQuestMenu = function () {
+        if (EnabledQuestMenuSwitchId === 0)
+            return true;
+        return $gameSwitches.value(EnabledQuestMenuSwitchId);
+    };
+    const _Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
+    Scene_Menu.prototype.createCommandWindow = function () {
+        _Scene_Menu_createCommandWindow.call(this);
+        this._commandWindow.setHandler("quest", this.quest.bind(this));
+    };
+    Scene_Menu.prototype.quest = function () {
+        SceneManager.push(Scene_QuestSystem);
+        SceneManager.prepareNextScene(MenuCommands, MenuBackgroundImage);
+    };
+    // セーブデータに含めるクラスをwindowオブジェクトに登録する。
+    window.RewardData = RewardData;
+    window.ItemInfo = ItemInfo;
+    window.QuestSaveData = QuestSaveData;
+})(QuestSystem || (QuestSystem = {}));
+const QuestSystemAlias = QuestSystem;
