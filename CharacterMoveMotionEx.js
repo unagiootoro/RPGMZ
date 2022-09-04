@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Character movement motion expansion v1.0.1
+@plugindesc Character movement motion expansion v1.1.0
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterMoveMotionEx.js
 @help
@@ -30,7 +30,7 @@ It can be applied to diagonal dashes in the same way.
 With this, even if you dash, 4 or more
 It becomes possible to display the motion.
 
-■ Add dash, diagonal walk, and diagonal dash motions
+■ Add wait, dash, diagonal walk, and diagonal dash motions
 In the plug-in parameter "Character movement motion list"
 By registering various motions, it is possible to change the motion when moving.
 
@@ -76,6 +76,12 @@ Register a list of character movement motions.
 @desc
 Specify the walking motion.
 
+@param WaitMotion
+@text waiting motion
+@type struct<Motion>
+@desc
+Specifies the standby motion.
+
 @param DashMotion
 @text dash motion
 @type struct<Motion>
@@ -110,12 +116,20 @@ Specify the file name of the character.
 @default 0
 @desc
 Specifies the character's index.
+
+@param MotionSpeed
+@text motion speed
+@type number
+@decimals 2
+@default 3
+@desc
+Specifies the motion playback speed in frames.
 */
 
 
 /*:ja
 @target MV MZ
-@plugindesc キャラクター移動モーション拡張 v1.0.1
+@plugindesc キャラクター移動モーション拡張 v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterMoveMotionEx.js
 @help
@@ -145,7 +159,7 @@ Specifies the character's index.
 これによって、ダッシュした場合などでも4以上の
 モーションを表示することが可能になります。
 
-■ ダッシュ、斜め歩行、斜めダッシュのモーションを追加する
+■ 待機、ダッシュ、斜め歩行、斜めダッシュのモーションを追加する
 プラグインパラメータ「キャラクター移動モーションリスト」に
 各種モーションを登録することで、移動時のモーション変更が可能になります。
 
@@ -191,6 +205,12 @@ Specifies the character's index.
 @desc
 歩行モーションを指定します。
 
+@param WaitMotion
+@text 待機モーション
+@type struct<Motion>
+@desc
+待機モーションを指定します。
+
 @param DashMotion
 @text ダッシュモーション
 @type struct<Motion>
@@ -225,6 +245,14 @@ Specifies the character's index.
 @default 0
 @desc
 キャラクターのインデックスを指定します。
+
+@param MotionSpeed
+@text モーション速度
+@type number
+@decimals 2
+@default 3
+@desc
+モーションの再生速度をフレーム単位で指定します。
 */
 
 const CharacterMoveMotionEx = {};
@@ -314,6 +342,7 @@ class PluginParamsParser {
 const typeDefine = {
     CharacterMoveMotionList: [{
         WalkMotion: {},
+        WaitMotion: {},
         DashMotion: {},
         DiagonalWalkMotion: {},
         DiagonalDashMotion: {},
@@ -323,9 +352,10 @@ const PP = PluginParamsParser.parse(PluginManager.parameters(pluginName), typeDe
 
 const MotionType = {
     WALK: 0,
-    DASH: 1,
-    DIAGONAL_WALK: 2,
-    DIAGONAL_DASH: 3,
+    WAIT: 1,
+    DASH: 2,
+    DIAGONAL_WALK: 3,
+    DIAGONAL_DASH: 4,
 };
 
 if (typeof DotMoveSystemPluginName !== "undefined") {
@@ -335,19 +365,19 @@ if (typeof DotMoveSystemPluginName !== "undefined") {
     CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: true }) {
         _CharacterMover_dotMoveByDeg.call(this, deg, opt);
         const dir = DotMoveUtils.deg2direction(deg);
-        if (this._character.isMoved()) this._character.motionChangeProcess(dir);
+        if (this._character.isMoved()) this._character.moveMotionChangeProcess(dir);
     };
 
     const _CharacterMover_dotMoveByDirection = CharacterMover.prototype.dotMoveByDirection;
     CharacterMover.prototype.dotMoveByDirection = function(direction, opt = { changeDir: true }) {
         _CharacterMover_dotMoveByDirection.call(this, direction, opt);
-        if (this._character.isMoved()) this._character.motionChangeProcess(direction);
+        if (this._character.isMoved()) this._character.moveMotionChangeProcess(direction);
     };
 } else {
     const _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
     Game_CharacterBase.prototype.moveStraight = function(d) {
         _Game_CharacterBase_moveStraight.call(this, d);
-        if (this.isMovementSucceeded()) this.motionChangeProcess(d);
+        if (this.isMovementSucceeded()) this.moveMotionChangeProcess(d);
     };
 
     const _Game_CharacterBase_moveDiagonally = Game_CharacterBase.prototype.moveDiagonally;
@@ -363,7 +393,7 @@ if (typeof DotMoveSystemPluginName !== "undefined") {
         } else if (horz === 4 && vert === 8) {
             d = 7;
         }
-        if (this.isMovementSucceeded()) this.motionChangeProcess(d);
+        if (this.isMovementSucceeded()) this.moveMotionChangeProcess(d);
     };
 }
 
@@ -384,22 +414,33 @@ class MoveMotionUtils {
 class MoveMotionController {
     constructor(character) {
         this._character = character;
-        this._motion = MotionType.WALK;
-        this._lastMotion = this._motion;
+        this._motion = MotionType.WAIT;
+        this._lastMotion = MotionType.WALK; // 初回更新でWAITへの遷移を発生させるため、WALKとする。
         this._numPattern = 3;
-        this._walkReserve = false; // DotMoveSystemを導入している場合は使用しない。
+        this._waitReserve = false; // WAITへの遷移を1フレーム遅延させる。
+        this._waitMotionDelay = 1;
         this._needReset = true;
     }
 
     update() {
         this.updateResetMotionImage();
+        this.updateEndDashMotion();
         this.updateMotionNonmoved();
         this.updateChangeMotionImage();
     }
 
-    motionChangeProcess(direction) {
+    moveMotionChangeProcess(direction) {
+        this.motionChangeProcessWhenWalk();
         this.motionChangeProcessWhenDash();
         this.motionChangeProcessWhenDiagonal(direction);
+    }
+
+    motionChangeProcessWhenWalk() {
+        if (this._character.isMoving()) {
+            if (this._motion === MotionType.WAIT) {
+                this._motion = MotionType.WALK;
+            }
+        }
     }
 
     motionChangeProcessWhenDash() {
@@ -407,7 +448,7 @@ class MoveMotionController {
         if ($gamePlayer.isDashing()) {
             if (this._motion === MotionType.DIAGONAL_WALK) {
                 nextMotion = MotionType.DIAGONAL_DASH;
-            } else if (this._motion === MotionType.WALK) {
+            } else if (this._motion === MotionType.WAIT || MotionType.WALK) {
                 nextMotion = MotionType.DASH;
             }
         } else {
@@ -417,7 +458,7 @@ class MoveMotionController {
                 nextMotion = MotionType.WALK;
             }
         }
-        if (nextMotion) this._motion = nextMotion;
+        if (nextMotion != null) this._motion = nextMotion;
     }
 
     motionChangeProcessWhenDiagonal(direction) {
@@ -425,7 +466,7 @@ class MoveMotionController {
             this._diagonalMoveDirection = direction;
             if (this._motion === MotionType.DASH) {
                 this._motion = MotionType.DIAGONAL_DASH;
-            } else if (this._motion === MotionType.WALK) {
+            } else if (this._motion === MotionType.WALK || MotionType.WAIT) {
                 this._motion = MotionType.DIAGONAL_WALK;
             }
         } else {
@@ -446,33 +487,38 @@ class MoveMotionController {
         }
     }
 
+    updateEndDashMotion() {
+        if (this._motion === MotionType.DASH && !$gamePlayer.isDashing()) {
+            this._motion = MotionType.WALK;
+        }
+    }
+
     updateMotionNonmoved() {
+        let needWait = false;
         if (typeof DotMoveSystemPluginName !== "undefined") {
             if (!this._character.isMoved()) {
-                this._motion = MotionType.WALK;
-            }
-            if (this._motion === MotionType.DASH && !$gamePlayer.isDashing()) {
-                this._motion = MotionType.WALK;
+                needWait = true;
             }
         } else {
-            if (this._character.isMoving()) {
-                if (!(this._motion === MotionType.DASH && !$gamePlayer.isDashing())) {
-                    this._walkReserve = false;
-                }
-            } else {
-                if (this._walkReserve) {
-                    this._walkReserve = false;
-                    this._motion = MotionType.WALK;
-                }
-                if (this._motion !== MotionType.WALK) {
-                    this._walkReserve = true;
-                }
+            if (!this._character.isMoving()) {
+                needWait = true;
             }
+        }
+
+        if (needWait) {
+            if (this._waitReserve) {
+                this._motion = MotionType.WAIT;
+                this._waitReserve = false;
+            } else {
+                this._waitReserve = true;
+            }
+        } else {
+            this._waitReserve = false;
         }
     }
 
     updateChangeMotionImage() {
-        if (this._lastMotion != this._motion) {
+        if (this._lastMotion !== this._motion) {
             const motionData = this.getMotionData();
             if (motionData) {
                 if (!(this.isDiagonalMotion() && this._character.isDirectionFixed())) {
@@ -486,32 +532,20 @@ class MoveMotionController {
     getMotionData() {
         const characterMoveMotion = this.findMoveMotion();
         if (!characterMoveMotion) return null;
-        switch (this._motion) {
+        const motion = this.getMotionType();
+        switch (motion) {
         case MotionType.WALK:
             return characterMoveMotion.WalkMotion;
+        case MotionType.WAIT:
+            return characterMoveMotion.WaitMotion;
         case MotionType.DASH:
-            if (characterMoveMotion.DashMotion && characterMoveMotion.DashMotion.CharacterFileName != "") {
-                return characterMoveMotion.DashMotion;
-            } else {
-                return characterMoveMotion.WalkMotion;
-            }
+            return characterMoveMotion.DashMotion;
         case MotionType.DIAGONAL_WALK:
-            if (characterMoveMotion.DiagonalWalkMotion && characterMoveMotion.DiagonalWalkMotion.CharacterFileName != "") {
-                return characterMoveMotion.DiagonalWalkMotion;
-            } else {
-                return characterMoveMotion.WalkMotion;
-            }
+            return characterMoveMotion.DiagonalWalkMotion;
         case MotionType.DIAGONAL_DASH:
-            if (characterMoveMotion.DiagonalDashMotion && characterMoveMotion.DiagonalDashMotion.CharacterFileName != "") {
-                return characterMoveMotion.DiagonalDashMotion;
-            } else if (characterMoveMotion.DashMotion) {
-                return characterMoveMotion.DashMotion;
-            } else if (characterMoveMotion.DiagonalWalkMotion) {
-                return characterMoveMotion.DiagonalWalkMotion;
-            } else {
-                return characterMoveMotion.WalkMotion;
-            }
+            return characterMoveMotion.DiagonalDashMotion;
         }
+        throw new Error(`invalid motion(${motion})`);
     }
 
     getMotionType() {
@@ -520,20 +554,26 @@ class MoveMotionController {
         switch (this._motion) {
         case MotionType.WALK:
             return MotionType.WALK;
+        case MotionType.WAIT:
+            if (characterMoveMotion.WaitMotion && characterMoveMotion.WaitMotion.CharacterFileName !== "") {
+                return MotionType.WAIT;
+            } else {
+                return MotionType.WALK;
+            }
         case MotionType.DASH:
-            if (characterMoveMotion.DashMotion && characterMoveMotion.DashMotion.CharacterFileName != "") {
+            if (characterMoveMotion.DashMotion && characterMoveMotion.DashMotion.CharacterFileName !== "") {
                 return MotionType.DASH;
             } else {
                 return MotionType.WALK;
             }
         case MotionType.DIAGONAL_WALK:
-            if (characterMoveMotion.DiagonalWalkMotion && characterMoveMotion.DiagonalWalkMotion.CharacterFileName != "") {
+            if (characterMoveMotion.DiagonalWalkMotion && characterMoveMotion.DiagonalWalkMotion.CharacterFileName !== "") {
                 return MotionType.DIAGONAL_WALK;
             } else {
                 return MotionType.WALK;
             }
         case MotionType.DIAGONAL_DASH:
-            if (characterMoveMotion.DiagonalDashMotion && characterMoveMotion.DiagonalDashMotion.CharacterFileName != "") {
+            if (characterMoveMotion.DiagonalDashMotion && characterMoveMotion.DiagonalDashMotion.CharacterFileName !== "") {
                 return MotionType.DIAGONAL_DASH;
             } else if (characterMoveMotion.DashMotion) {
                 return MotionType.DASH;
@@ -558,6 +598,16 @@ class MoveMotionController {
             }
         }
         return null;
+    }
+
+    isNeedWaitAnimation() {
+        return this.getMotionType() === MotionType.WAIT;
+    }
+
+    motionSpeed() {
+        const motionData = this.getMotionData();
+        if (!motionData || motionData.MotionSpeed == null) return 3;
+        return motionData.MotionSpeed;
     }
 
     numPattern() {
@@ -590,8 +640,8 @@ Game_CharacterBase.prototype.moveMotionController = function() {
     return $gameTemp.moveMotionController(this);
 };
 
-Game_CharacterBase.prototype.motionChangeProcess = function(direction) {
-    this.moveMotionController().motionChangeProcess(direction);
+Game_CharacterBase.prototype.moveMotionChangeProcess = function(direction) {
+    this.moveMotionController().moveMotionChangeProcess(direction);
 };
 
 Game_CharacterBase.prototype.updateMotion = function() {
@@ -627,10 +677,22 @@ Game_CharacterBase.prototype.numPattern = function() {
 };
 
 Game_CharacterBase.prototype.straighten = function() {
-    if (this.hasWalkAnime() || this.hasStepAnime()) {
+    if (this.hasWalkAnime() || this.hasStepAnime() || this.moveMotionController().isNeedWaitAnimation()) {
         this._pattern = this.originalPattern();
     }
     this._animationCount = 0;
+};
+
+Game_CharacterBase.prototype.updateAnimationCount = function() {
+    if (this.isMoving() && this.hasWalkAnime()) {
+        this._animationCount += 1.5;
+    } else if (this.hasStepAnime() || !this.isOriginalPattern() || this.moveMotionController().isNeedWaitAnimation()) {
+        this._animationCount++;
+    }
+};
+
+Game_CharacterBase.prototype.animationWait = function() {
+    return Math.round((9 - this.realMoveSpeed()) * this.moveMotionController().motionSpeed());
 };
 
 Game_CharacterBase.prototype.isOriginalPattern = function() {
