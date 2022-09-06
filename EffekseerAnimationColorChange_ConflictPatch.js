@@ -12,6 +12,10 @@ EffekseerAnimationColorChange.jsの競合回避用パッチプラグインです
 ・EffekseerAnimationColorChange.js
 ・EffekseerAnimationColorChange_ConflictPatch.js
 
+本パッチは以下のバージョンで動作確認を行っています。
+・EffekseerAnimationColorChange.js v1.0.1
+・MPP_Pseudo3DBattle.js 1.3.0
+
 【ライセンス】
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
