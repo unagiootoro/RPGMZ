@@ -144,11 +144,15 @@ DoubleMagic.js
         ・装備による連続魔法設定が反映されない不具合を修正
 
 EffekseerAnimationColorChange.js
+    2022/09/09 v1.0.2
+        ・エフェクトとダメージ表示が重なった場合にダメージ表示を優先するように修正
     2022/08/11 v1.0.1
         ・MVアニメーションを画面全体に表示したときに正常に表示されない不具合を修正
 
 EffekseerAnimationColorChange_ConflictPatch.js
-    2022/09/26 v1.0.0
+    2022/09/09 v1.0.1
+        ・エフェクトとバトラーが重なった場合に正常に表示されない場合がある不具合を修正
+    2022/09/08 v1.0.0
         ・新規作成
 
 EquipOptimizeOrClearSelect.js

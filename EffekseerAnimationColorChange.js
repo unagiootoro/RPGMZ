@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Effekseerアニメーションカラー変更 v1.0.1
+@plugindesc Effekseerアニメーションカラー変更 v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EffekseerAnimationColorChange.js
 @help
@@ -178,6 +178,24 @@ Spriteset_Battle.prototype.createBattleField = function() {
 
 Spriteset_Battle.prototype.getBackSprite = function() {
     return this._battleContainerSprite;
+};
+
+
+Sprite_Battler.prototype.createDamageSprite = function() {
+    const last = this._damages[this._damages.length - 1];
+    const sprite = new Sprite_Damage();
+    if (last) {
+        sprite.x = last.x + 8;
+        sprite.y = last.y - 16;
+    } else {
+        sprite.x = this.x + this.damageOffsetX();
+        sprite.y = this.y + this.damageOffsetY();
+    }
+    sprite.setup(this._battler);
+    this._damages.push(sprite);
+    const spriteset = SceneManager._scene._spriteset;
+    const baseSprite = spriteset._baseSprite;
+    baseSprite.addChild(sprite);
 };
 
 
