@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Effekseerアニメーションカラー変更 競合回避用パッチ v1.0.1
+@plugindesc Effekseerアニメーションカラー変更 競合回避用パッチ v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EffekseerAnimationColorChange_ConflictPatch.js
 @help
@@ -25,7 +25,8 @@ EffekseerAnimationColorChange.jsの競合回避用パッチプラグインです
 
 if (typeof Spriteset_Battle.prototype.pseudo3dSprites !== "undefined") {
     Spriteset_Battle.prototype.pseudo3dSprites = function () {
-        return this._battleField.children;
+        const damages = this._baseSprite.children.filter(sprite => sprite instanceof Sprite_Damage)
+        return [...this._battleField.children, ...damages];
     };
 }
 
