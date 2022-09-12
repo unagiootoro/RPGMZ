@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc リングコマンドメニュー v1.4.0
+@plugindesc リングコマンドメニュー v1.4.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/RingCommandMenu.js
 @help
@@ -949,9 +949,9 @@ class RingCommandSpriteController {
         let rotationDeg;
         if (index >= this._sprites.length) {
             index = index - this._sprites.length;
-            rotationDeg = this.calcIndexDeg(1);
+            rotationDeg = -this.calcIndexDeg(1);
         } else {
-            rotationDeg = this.calcRelativeIndexDeg(index);
+            rotationDeg = -this.calcRelativeIndexDeg(index);
         }
         this.startChangeCommand(index, rotationDeg);
         return true;
@@ -963,9 +963,9 @@ class RingCommandSpriteController {
         let rotationDeg;
         if (index < 0) {
             index = this._sprites.length + index;
-            rotationDeg = -this.calcIndexDeg(1);
+            rotationDeg = this.calcIndexDeg(1);
         } else {
-            rotationDeg = this.calcRelativeIndexDeg(index);
+            rotationDeg = -this.calcRelativeIndexDeg(index);
         }
         this.startChangeCommand(index, rotationDeg);
         return true;
@@ -1568,7 +1568,7 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
     inputLeftKey() {
         let changed = $gameTemp.ringCommandManager().inputLeftKey();
         if (changed) {
-            changed = this._spriteset.ringCommandPrev();
+            changed = this._spriteset.ringCommandNext();
         }
         if (changed) {
             SoundManager.playCursor();
@@ -1579,7 +1579,7 @@ class Scene_RingCommandMenu extends Scene_MenuBase {
     inputRightKey() {
         let changed = $gameTemp.ringCommandManager().inputRightKey();
         if (changed) {
-            changed = this._spriteset.ringCommandNext();
+            changed = this._spriteset.ringCommandPrev();
         }
         if (changed) {
             SoundManager.playCursor();
