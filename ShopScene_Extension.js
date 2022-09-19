@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc Shop screen expansion v1.0.4
+@plugindesc Shop screen expansion v1.0.5
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/ShopScene_Extension.js
 
@@ -67,7 +67,7 @@ Specifies the text to display when there are no currently equipped items on the 
 
 /*:ja
 @target MZ
-@plugindesc ショップ画面拡張 v1.0.4
+@plugindesc ショップ画面拡張 v1.0.5
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/ShopScene_Extension.js
 
@@ -246,6 +246,7 @@ class Sprite_ActorCharacter extends Sprite_Clickable {
             break;
         case "equipped":
             this.bitmap.fontSize = 20;
+            this.bitmap.textColor = "#ffffff";
             this.bitmap.drawText("Ｅ", 32, 32, 16, 16);
             break;
         case "up":
