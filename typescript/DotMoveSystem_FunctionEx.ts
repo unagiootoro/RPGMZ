@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system function extension v2.0.0
+@plugindesc Dot movement system function extension v2.1.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -15,6 +15,8 @@ Add the following features.
 ・ Jump with collision detection
 ・ Half-square collision detection of terrain
 ・ Triangular mass collision detection of terrain
+
+※ When installing this plugin, "DotMoveSystem.js v2.1.0" or later is required.
 
 【How to use】
 ■ Change player size
@@ -61,10 +63,6 @@ In the memo field of the event to be pushed
 <PushableEvent>
 Please describe.
 
-■ Changes in behavior when immersing yourself in an event
-By setting the plugin command "ThroughIfCollided" to true
-If you're into an event, make sure it slips through.
-
 ■ Jump with collision detection
 Jump with collision detection.
 Write the following script in the movement route setting.
@@ -100,13 +98,6 @@ Specify various information of the player.
 @default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.75","SlideLengthY":"0.75","TransferOffsetX":"0","TransferOffsetY":"0"}
 @desc
 Specify various information of followers.
-
-@param ThroughIfCollided
-@text slip through when an event collides
-@type boolean
-@default true
-@desc
-Setting true allows you to bypass conflicted events.
 
 @param HalfCollisionMassInfo
 @text Collision detection information per half square
@@ -554,7 +545,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v2.0.0
+@plugindesc ドット移動システム機能拡張 v2.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @help
@@ -565,10 +556,11 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 ・加速度の追加
 ・慣性の追加
 ・イベントを押す
-・イベントめり込み時の挙動の変更
 ・当たり判定付きジャンプ
 ・地形の半マス当たり判定
 ・地形の三角マス当たり判定
+
+※ 本プラグインを導入する場合、「DotMoveSystem.js v2.1.0」以降が必要になります。
 
 【使用方法】
 ■ プレイヤーサイズの変更
@@ -615,10 +607,6 @@ this.setInertia(2);
 <PushableEvent>
 と記載してください。
 
-■ イベントめり込み時の挙動の変更
-プラグインコマンド「ThroughIfCollided」をtrueに設定することで、
-イベントにめり込んでいる場合はそのイベントはすり抜けられるようにします。
-
 ■ 当たり判定付きジャンプ
 当たり判定付きでジャンプを行います。
 移動ルートの設定で以下のスクリプトを記述します。
@@ -654,13 +642,6 @@ this.smartJump(2, -3.5);
 @default {"Width":"1","Height":"1","OffsetX":"0","OffsetY":"0","SlideLengthX":"0.75","SlideLengthY":"0.75","TransferOffsetX":"0","TransferOffsetY":"0"}
 @desc
 フォロワーの各種情報を指定します。
-
-@param ThroughIfCollided
-@text イベント衝突時すり抜け
-@type boolean
-@default true
-@desc
-trueを設定すると衝突済みのイベントをすり抜けられるようになります。
 
 @param HalfCollisionMassInfo
 @text 半マス当たり判定情報
@@ -1106,7 +1087,7 @@ trueを設定すると衝突済みのイベントをすり抜けられるよう�
 右上三角方向の三角マス当たり判定の地形タグIDを設定します。
 */
 
-const DotMoveSystem_FunctionExPluginName = document.currentScript ? (document.currentScript as HTMLScriptElement).src.match(/^.*\/(.+)\.js$/)![1] : "DotMoveSystem_FunctionEx";
+const DotMoveSystem_FunctionExPluginName = document.currentScript ? decodeURIComponent((document.currentScript as HTMLScriptElement).src.match(/^.*\/(.+)\.js$/)![1]) : "DotMoveSystem_FunctionEx";
 
 declare interface Game_CharacterBase {
     _dpf: number | null;
@@ -1161,22 +1142,22 @@ declare interface Game_Follower {
 }
 
 declare namespace DotMoveSystem {
-    interface CollisionResult<T> {
-        triangleType: number;
-    }
-
-    interface CharacterCollisionChecker<T> {
+    interface CharacterCollisionCheckProcess {
         checkEventsPrepare(): number[];
-        getMassRects(x: number, y: number): Rectangle[];
+        getMassRects(x: number, y: number): DotMoveRectangle[];
         getMassCollisionType(x: number, y: number): number;
-        checkCollisionMassLeftUp(subjectRect: Rectangle, d: number, ix: number, iy: number): CollisionResult<null>[];
-        checkCollisionMassDownLeft(subjectRect: Rectangle, d: number, ix: number, iy: number): CollisionResult<null>[];
-        checkCollisionMassRightDown(subjectRect: Rectangle, d: number, ix: number, iy: number): CollisionResult<null>[];
-        checkCollisionMassUpRight(subjectRect: Rectangle, d: number, ix: number, iy: number): CollisionResult<null>[];
-        calcMassTriangle(id: number, characterRect: Rectangle, direction: number, ix: number, iy: number): Rectangle;
+        checkCollisionMassLeftUp(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<TriangleMassInfo>[];
+        checkCollisionMassDownLeft(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<TriangleMassInfo>[];
+        checkCollisionMassRightDown(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<TriangleMassInfo>[];
+        checkCollisionMassUpRight(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<TriangleMassInfo>[];
+        calcMassTriangle(id: number, characterRect: DotMoveRectangle, direction: number, ix: number, iy: number): DotMoveRectangle;
     }
 
-    interface CharacterMover<T> {
+    interface CharacterController {
+        checkCollisionResultIsAllTriangleMass(collisionResults: CollisionResult<unknown>[], type: number): boolean;
+    }
+
+    interface CharacterMover {
         _lastDirection: number;
         _changeDirectionCount: number;
         _direction8: number;
@@ -1188,7 +1169,7 @@ declare namespace DotMoveSystem {
         setDirection8(direction8: number): void;
         direction8(): number;
         changeDirectionWhenDotMove(direction: number): void;
-        dotMoveByDistance(this: CharacterMover<Game_CharacterBase>, direction: number, distance: Point): void;
+        dotMoveByDistance(this: CharacterMover, direction: number, distance: DotMovePoint): void;
     }
 
     interface PlayerMover {
@@ -1300,7 +1281,7 @@ namespace DotMoveSystem {
      * ● 初期化処理
      */
     const _CharacterMover_initialize = CharacterMover.prototype.initialize;
-    CharacterMover.prototype.initialize = function(this: CharacterMover<Game_CharacterBase>, character) {
+    CharacterMover.prototype.initialize = function(this: CharacterMover, character) {
         _CharacterMover_initialize.call(this, character);
         this._lastDirection = character.direction();
         this._changeDirectionCount = 0;
@@ -1431,7 +1412,7 @@ namespace DotMoveSystem {
     /*
      * ● 移動速度の調整
      */
-    CharacterMover.prototype.updateChangeDirection = function(this: CharacterMover<Game_CharacterBase>) {
+    CharacterMover.prototype.updateChangeDirection = function(this: CharacterMover) {
         if (!this._reserveChangeDirection) return;
         const direction = this._lastDirection;
         if (direction !== this._character.direction()) {
@@ -1474,7 +1455,7 @@ namespace DotMoveSystem {
         _CharacterMover_dotMoveByDirection.call(this, direction);
     };
 
-    CharacterMover.prototype.changeDirectionWhenDotMove = function(this: CharacterMover<Game_CharacterBase>, direction) {
+    CharacterMover.prototype.changeDirectionWhenDotMove = function(this: CharacterMover, direction) {
         if (this._lastDirection !== direction) {
             this._lastDirection = direction;
             this._changeDirectionCount = 0;
@@ -1534,7 +1515,7 @@ namespace DotMoveSystem {
                 if (this._acceleration > 0) {
                     this._acceleration -= this._inertia;
                     if (this._acceleration < 0) this._acceleration = 0;
-                    this.mover<CharacterMover<Game_CharacterBase>>().dotMoveByDirection(this.mover<CharacterMover<Game_CharacterBase>>().direction8(), { changeDir: false });
+                    this.mover<CharacterMover>().dotMoveByDirection(this.mover<CharacterMover>().direction8(), { changeDir: false });
                 }
             }
         }
@@ -1630,46 +1611,9 @@ namespace DotMoveSystem {
     };
 
     /*
-     * ● イベントと既に衝突している場合、そのイベントはすり抜けられるようにする
-     */
-    CharacterCollisionChecker.prototype.checkEventsPrepare = function(this: CharacterCollisionChecker<Game_CharacterBase>) {
-        const collidedEvents = [];
-        const pos = this._character.positionPoint();
-        const margin = this._character.distancePerFrame();
-        for (const result of this.checkHitCharacters(pos.x, pos.y, this._character.direction())) {
-            if (!(result.targetObject instanceof Game_Event)) continue;
-            const event = result.targetObject;
-            if (event.isNormalPriority() && !event.isThrough()) {
-                if (result.collisionLengthX() >= margin && result.collisionLengthY() >= margin) collidedEvents.push(event);
-            }
-        }
-        return collidedEvents.map(event => event.eventId());
-    };
-
-    CharacterCollisionChecker.prototype.checkEventsFromTargetCharacters = function(x, y, d, targetCharacter) {
-        let notCollisionEventIds: number[] = [];
-        if (PP.ThroughIfCollided) {
-            notCollisionEventIds = this.checkEventsPrepare();
-        }
-        const collisionResults = [];
-        for (const character of targetCharacter) {
-            if (!(character instanceof Game_Event)) continue;
-            if (character.isNormalPriority() && !character.isThrough() && !notCollisionEventIds.includes(character.eventId())) {
-                const result = this.checkCharacter(x, y, d, character, { overComplementMode: true });
-                if (result) collisionResults.push(result);
-            }
-        }
-        return collisionResults;
-    };
-
-    FollowerCollisionChecker.prototype.checkEventsPrepare = function() {
-        return [];
-    };
-
-    /*
      * ● 当たり判定付きジャンプ
      */
-    CharacterMover.prototype.dotMoveByDistance = function(this: CharacterMover<Game_CharacterBase>, direction: number, distance: Point, opt = {}) {
+    CharacterMover.prototype.dotMoveByDistance = function(this: CharacterMover, direction: number, distance: DotMovePoint, opt = {}) {
         this._controller.dotMoveByDistance(direction, distance);
     };
 
@@ -1712,7 +1656,7 @@ namespace DotMoveSystem {
         this._jumpCount--;
         const x = this._realX + this._jumpXPlus / (this._jumpPeak * 2);
         const y = this._realY + this._jumpYPlus / (this._jumpPeak * 2);
-        const dis = new Point(x - this._realX, y - this._realY);
+        const dis = new DotMovePoint(x - this._realX, y - this._realY);
         this.mover().dotMoveByDistance(this.direction(), dis);
         if (this._jumpCount === 0) {
             this._jumpXPlus = 0;
@@ -1725,37 +1669,37 @@ namespace DotMoveSystem {
     /*
      * ● 半マス通行判定設定
      */
-    CharacterCollisionChecker.prototype.getMassRects = function(x, y): Rectangle[] {
+    CharacterCollisionCheckProcess.prototype.getMassRects = function(x, y): DotMoveRectangle[] {
         switch (this.getMassCollisionType(x, y)) {
             case 1:
-                return [new Rectangle(x, y, 1, 0.5)];
+                return [new DotMoveRectangle(x, y, 1, 0.5)];
             case 2:
-                return [new Rectangle(x + 0.5, y, 0.5, 1)];
+                return [new DotMoveRectangle(x + 0.5, y, 0.5, 1)];
             case 3:
-                return [new Rectangle(x, y + 0.5, 1, 0.5)];
+                return [new DotMoveRectangle(x, y + 0.5, 1, 0.5)];
             case 4:
-                return [new Rectangle(x, y, 0.5, 1)];
+                return [new DotMoveRectangle(x, y, 0.5, 1)];
             case 5:
-                return [new Rectangle(x + 0.5, y, 0.5, 0.5)];
+                return [new DotMoveRectangle(x + 0.5, y, 0.5, 0.5)];
             case 6:
-                return [new Rectangle(x + 0.5, y + 0.5, 0.5, 0.5)];
+                return [new DotMoveRectangle(x + 0.5, y + 0.5, 0.5, 0.5)];
             case 7:
-                return [new Rectangle(x, y + 0.5, 0.5, 0.5)];
+                return [new DotMoveRectangle(x, y + 0.5, 0.5, 0.5)];
             case 8:
-                return [new Rectangle(x, y, 0.5, 0.5)];
+                return [new DotMoveRectangle(x, y, 0.5, 0.5)];
             case 9:
-                return [new Rectangle(x, y, 0.5, 1), new Rectangle(x + 0.5, y + 0.5, 0.5, 0.5)];
+                return [new DotMoveRectangle(x, y, 0.5, 1), new DotMoveRectangle(x + 0.5, y + 0.5, 0.5, 0.5)];
             case 10:
-                return [new Rectangle(x, y, 0.5, 1), new Rectangle(x + 0.5, y, 0.5, 0.5)];
+                return [new DotMoveRectangle(x, y, 0.5, 1), new DotMoveRectangle(x + 0.5, y, 0.5, 0.5)];
             case 11:
-                return [new Rectangle(x + 0.5, y, 0.5, 1), new Rectangle(x, y, 0.5, 0.5)];
+                return [new DotMoveRectangle(x + 0.5, y, 0.5, 1), new DotMoveRectangle(x, y, 0.5, 0.5)];
             case 12:
-                return [new Rectangle(x + 0.5, y, 0.5, 1), new Rectangle(x, y + 0.5, 0.5, 0.5)];
+                return [new DotMoveRectangle(x + 0.5, y, 0.5, 1), new DotMoveRectangle(x, y + 0.5, 0.5, 0.5)];
         }
-        return [new Rectangle(x, y, 1, 1)];
+        return [new DotMoveRectangle(x, y, 1, 1)];
     };
 
-    CharacterCollisionChecker.prototype.getMassCollisionType = function(x, y) {
+    CharacterCollisionCheckProcess.prototype.getMassCollisionType = function(x, y) {
         const regionId = $gameMap.regionId(x, y);
         const terrainTag = $gameMap.terrainTag(x, y);
         if (regionId > 0) {
@@ -1833,54 +1777,58 @@ namespace DotMoveSystem {
         return 0;
     };
 
-    CharacterCollisionChecker.prototype.checkCollisionMass = function(this: CharacterCollisionChecker<Game_CharacterBase>, subjectRect, d, ix, iy) {
+    const _CharacterCollisionCheckProcess_isNoTargetMass = CharacterCollisionCheckProcess.prototype.isNoCheckMass;
+    CharacterCollisionCheckProcess.prototype.isNoCheckMass = function(this: CharacterCollisionCheckProcess, ix, iy, d, massRange) {
+        if (this.getMassCollisionType(ix, iy) >= 1 && this.getMassCollisionType(ix, iy) <= END_TRIANGLE_ID) {
+            return false;
+        }
+        return _CharacterCollisionCheckProcess_isNoTargetMass.call(this, ix, iy, d, massRange);
+    }
+
+    CharacterCollisionCheckProcess.prototype.checkCollisionMass = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
         const results = [];
-        const pos = this._character.positionPoint();
-        const massRects = this.getMassRects(ix, iy);
         if (!this.checkPassMass(ix, iy, d)) {
+            const massRects = this.getMassRects(ix, iy);
             for (const massRect of massRects) {
-                const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+                const result = this.checkCollidedRect<MassInfo>(d, subjectRect.clone(), massRect, new MassInfo(ix, iy));
                 if (result) results.push(result);
             }
         }
         return results;
     }
 
-    CharacterCollisionChecker.prototype.checkPassMass = function(this: CharacterCollisionChecker<Game_CharacterBase>, x, y, d) {
-        const x2 = $gameMap.roundX(x);
-        const y2 = $gameMap.roundY(y);
-        if (!$gameMap.isValid(x2, y2)) {
+    CharacterCollisionCheckProcess.prototype.checkPassMass = function(this: CharacterCollisionCheckProcess, ix, iy, d) {
+        if (!$gameMap.isValid(ix, iy)) {
             return false;
         }
         if (this._character.isThrough() || this._character.isDebugThrough()) {
             return true;
         }
 
-        if (this.getMassCollisionType(x2, y2) >= 1 && this.getMassCollisionType(x2, y2) <= END_TRIANGLE_ID) {
+        if (this.getMassCollisionType(ix, iy) >= 1 && this.getMassCollisionType(ix, iy) <= END_TRIANGLE_ID) {
             return false;
         }
-        const prevPoint = DotMoveUtils.prevPointWithDirection(new Point(x2, y2), d);
+        const prevPoint = DotMoveUtils.prevPointWithDirection(new DotMovePoint(ix, iy), d);
         if (this.getMassCollisionType(prevPoint.x, prevPoint.y) >= 1 && this.getMassCollisionType(prevPoint.x, prevPoint.y) <= END_TRIANGLE_ID) {
             return true;
         }
 
-        if (this.isMassCollisionNoTarget(x, y, d)) return true;
         if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
             return false;
         }
         return true;
     };
 
-    const _CharacterCollisionChecker_checkCollisionXCliff = CharacterCollisionChecker.prototype.checkCollisionXCliff;
-    CharacterCollisionChecker.prototype.checkCollisionXCliff = function(subjectRect, x1, x2, iy, d) {
+    const _CharacterCollisionChecker_checkCollisionXCliff = CharacterCollisionCheckProcess.prototype.checkCollisionXCliff;
+    CharacterCollisionCheckProcess.prototype.checkCollisionXCliff = function(subjectRect, x1, x2, iy, d) {
         if (this.getMassCollisionType(x1, iy) >= 1 && this.getMassCollisionType(x1, iy) <= END_TRIANGLE_ID && this.getMassCollisionType(x2, iy) >= 1 && this.getMassCollisionType(x2, iy) <= END_TRIANGLE_ID) {
             return [];
         }
         return _CharacterCollisionChecker_checkCollisionXCliff.call(this, subjectRect, x1, x2, iy, d);
     };
 
-    const _CharacterCollisionChecker_checkCollisionYCliff = CharacterCollisionChecker.prototype.checkCollisionYCliff;
-    CharacterCollisionChecker.prototype.checkCollisionYCliff = function(subjectRect, y1, y2, ix, d) {
+    const _CharacterCollisionChecker_checkCollisionYCliff = CharacterCollisionCheckProcess.prototype.checkCollisionYCliff;
+    CharacterCollisionCheckProcess.prototype.checkCollisionYCliff = function(subjectRect, y1, y2, ix, d) {
         if (this.getMassCollisionType(ix, y1) >= 1 && this.getMassCollisionType(ix, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(ix, y2) >= 1 && this.getMassCollisionType(ix, y2) <= END_TRIANGLE_ID) {
             return [];
         }
@@ -1890,82 +1838,90 @@ namespace DotMoveSystem {
     /*
      * ● 三角マス通行判定設定
      */
-    Object.defineProperty(CollisionResult, "triangleType", {
-        get: function() {
-            return this._triangleType;
-        },
-        set: function(_triangleType) {
-            this._triangleType = _triangleType;
-        },
-        configurable: true
-    });
+    export class TriangleMassInfo extends MassInfo {
+        protected _type!: number;
 
-    CharacterCollisionChecker.prototype.calcMassTriangle = function(id, characterRect, direction, ix, iy) {
+        get type() { return this._type; }
+        set type(_type) { this._type = _type; }
+
+        initialize(x: number, y: number): void {
+            super.initialize(x, y);
+            this._type = 0;
+        }
+    }
+
+    CharacterCollisionCheckProcess.prototype.calcMassTriangle = function(id, characterRect, direction, ix, iy) {
         switch (id) {
             case LEFT_UP_TRIANGLE_ID:
                 if (direction === 8) {
                     const dx = characterRect.x - ix;
                     const h = 1 - dx;
-                    return new Rectangle(ix, iy, 1, h);
+                    return new DotMoveRectangle(ix, iy, 1, h);
                 } else if (direction === 4) {
                     const dy = characterRect.y - iy;
                     let w = 1 - dy;
-                    return new Rectangle(ix, iy, w, 1);
+                    return new DotMoveRectangle(ix, iy, w, 1);
                 }
                 break;
             case DOWN_LEFT_TRIANGLE_ID:
                 if (direction === 2) {
                     const dx = characterRect.x - ix;
                     const h = 1 - dx;
-                    return new Rectangle(ix, iy + (1 - h), 1, h);
+                    return new DotMoveRectangle(ix, iy + (1 - h), 1, h);
                 } else if (direction === 4) {
-                    const dy = (characterRect.y + characterRect.height) - iy;
+                    const dy = characterRect.y2 - iy;
                     const w = dy;
-                    return new Rectangle(ix, iy, w, 1);
+                    return new DotMoveRectangle(ix, iy, w, 1);
                 }
                 break;
             case RIGHT_DOWN_TRIANGLE_ID:
                 if (direction === 6) {
-                    const dy = (characterRect.y + characterRect.height) - iy;
+                    const dy = characterRect.y2 - iy;
                     const w = dy;
-                    return new Rectangle(ix + (1 - w), iy, w, 1);
+                    return new DotMoveRectangle(ix + (1 - w), iy, w, 1);
                 } else if (direction === 2) {
-                    const dx = (characterRect.x + characterRect.width) - ix;
+                    const dx = characterRect.x2 - ix;
                     const h = dx;
-                    return new Rectangle(ix, iy + (1 - h), 1, h);
+                    return new DotMoveRectangle(ix, iy + (1 - h), 1, h);
                 }
                 break;
             case UP_RIGHT_TRIANGLE_ID:
                 if (direction === 8) {
-                    const dx = (characterRect.x + characterRect.width) - ix;
+                    const dx = characterRect.x2 - ix;
                     const h = dx;
-                    return new Rectangle(ix, iy, 1, h);
+                    return new DotMoveRectangle(ix, iy, 1, h);
                 } else if (direction === 6) {
                     const dy = characterRect.y - iy;
                     const w = 1 - dy;
-                    return new Rectangle(ix + (1 - w), iy, w, 1);
+                    return new DotMoveRectangle(ix + (1 - w), iy, w, 1);
                 }
                 break;
         }
         throw new Error(`Calc triangle failed. (id=${id}, direction=${direction})`);
     };
 
-    const _CharacterCollisionChecker_checkCollisionCliff = CharacterCollisionChecker.prototype.checkCollisionCliff;
-    CharacterCollisionChecker.prototype.checkCollisionCliff = function(subjectRect, x1, y1, x2, y2, d) {
-        for (let ix = x1; ix < x2; ix++) {
-            for (let iy = y1; iy < y2; iy++) {
-                const id = $gameMap.regionId(ix, iy);
+    const _CharacterCollisionChecker_checkCollisionCliff = CharacterCollisionCheckProcess.prototype.checkCollisionCliff;
+    CharacterCollisionCheckProcess.prototype.checkCollisionCliff = function(subjectRect, massRange, d) {
+        for (let ix = massRange.x; ix < massRange.x2; ix++) {
+            for (let iy = massRange.y; iy < massRange.y2; iy++) {
+                const ix2 = $gameMap.roundX(ix);
+                const iy2 = $gameMap.roundX(iy);
+                const id = $gameMap.regionId(ix2, iy2);
                 if (id >= START_TRIANGLE_ID && id <= END_TRIANGLE_ID) return [];
             }
         }
-        return _CharacterCollisionChecker_checkCollisionCliff.call(this, subjectRect, x1, y1, x2, y2, d);
+        return _CharacterCollisionChecker_checkCollisionCliff.call(this, subjectRect, massRange, d);
     };
 
-    const _CharacterCollisionChecker_checkCollisionMass = CharacterCollisionChecker.prototype.checkCollisionMass;
-    CharacterCollisionChecker.prototype.checkCollisionMass = function(subjectRect, d, ix, iy) {
+    const _CharacterCollisionChecker_checkCollisionMass = CharacterCollisionCheckProcess.prototype.checkCollisionMass;
+    CharacterCollisionCheckProcess.prototype.checkCollisionMass = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
         const id = this.getMassCollisionType(ix, iy);
 
         if (this.checkPassMass(ix, iy, d)) return [];
+
+        // 三角マスの衝突判定ではthroughIfCollidedを無効にする。
+        const tmpThroughIfCollided = this._throughIfCollided;
+        this._throughIfCollided = false;
 
         if (id === LEFT_UP_TRIANGLE_ID) {
             return this.checkCollisionMassLeftUp(subjectRect, d, ix, iy);
@@ -1975,25 +1931,28 @@ namespace DotMoveSystem {
             return this.checkCollisionMassRightDown(subjectRect, d, ix, iy);
         } else if (id === UP_RIGHT_TRIANGLE_ID) {
             return this.checkCollisionMassUpRight(subjectRect, d, ix, iy);
-        } else {
-            return _CharacterCollisionChecker_checkCollisionMass.call(this, subjectRect, d, ix, iy);
         }
+
+        this._throughIfCollided = tmpThroughIfCollided;
+
+        return _CharacterCollisionChecker_checkCollisionMass.call(this, subjectRect, d, ix, iy);
     };
 
-    CharacterCollisionChecker.prototype.checkCollisionMassLeftUp = function(this: CharacterCollisionChecker<Game_CharacterBase>, subjectRect, d, ix, iy) {
-        const massRect = new Rectangle(ix, iy, 1, 1);
-        const pos = this._character.positionPoint();
-        const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+    CharacterCollisionCheckProcess.prototype.checkCollisionMassLeftUp = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+        const massRect = new DotMoveRectangle(ix, iy, 1, 1);
+        const pos = new DotMovePoint(this._origX, this._origY);
+        const triangleMassInfo = new TriangleMassInfo(ix, iy);
+        const result = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), massRect, triangleMassInfo);
         if (!result) return [];
         if (d === 8) {
             if (pos.x < ix) {
-                result.triangleType = 1;
+                triangleMassInfo.type = LEFT_UP_TRIANGLE_ID;
                 return [result];
             } else {
                 const rect = this.calcMassTriangle(LEFT_UP_TRIANGLE_ID, subjectRect, d, ix, iy);
-                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                const result2 = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), rect, triangleMassInfo);
                 if (!result2) return [];
-                result2.triangleType = 1;
+                triangleMassInfo.type = LEFT_UP_TRIANGLE_ID;
                 return [result2];
             }
         } else if (d === 6) {
@@ -2010,23 +1969,24 @@ namespace DotMoveSystem {
             }
         } else if (d === 4) {
             if (pos.y < iy) {
-                result.triangleType = 1;
+                triangleMassInfo.type = LEFT_UP_TRIANGLE_ID;
                 return [result];
             } else {
                 const rect = this.calcMassTriangle(LEFT_UP_TRIANGLE_ID, subjectRect, d, ix, iy);
-                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                const result2 = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), rect, triangleMassInfo);
                 if (!result2) return [];
-                result2.triangleType = 1;
+                triangleMassInfo.type = LEFT_UP_TRIANGLE_ID;
                 return [result2];
             }
         }
         return [];
     };
 
-    CharacterCollisionChecker.prototype.checkCollisionMassDownLeft = function(this: CharacterCollisionChecker<Game_CharacterBase>, subjectRect, d, ix, iy) {
-        const massRect = new Rectangle(ix, iy, 1, 1);
-        const pos = this._character.positionPoint();
-        const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+    CharacterCollisionCheckProcess.prototype.checkCollisionMassDownLeft = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+        const massRect = new DotMoveRectangle(ix, iy, 1, 1);
+        const pos = new DotMovePoint(this._origX, this._origY);
+        const triangleMassInfo = new TriangleMassInfo(ix, iy);
+        const result = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), massRect, triangleMassInfo);
         if (!result) return [];
         if (d === 8) {
             if (pos.y + this._character.height() < iy + 1) {
@@ -2042,34 +2002,35 @@ namespace DotMoveSystem {
             }
         } else if (d === 2) {
             if (pos.x < ix) {
-                result.triangleType = 2;
+                triangleMassInfo.type = DOWN_LEFT_TRIANGLE_ID;
                 return [result];
             } else {
                 const rect = this.calcMassTriangle(DOWN_LEFT_TRIANGLE_ID, subjectRect, d, ix, iy);
-                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                const result2 = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), rect, triangleMassInfo);
                 if (!result2) return [];
-                result2.triangleType = 2;
+                triangleMassInfo.type = DOWN_LEFT_TRIANGLE_ID;
                 return [result2];
             }
         } else if (d === 4) {
             if (pos.y + this._character.height() > iy + 1) {
-                result.triangleType = 2;
+                triangleMassInfo.type = DOWN_LEFT_TRIANGLE_ID;
                 return [result];
             } else {
                 const rect = this.calcMassTriangle(DOWN_LEFT_TRIANGLE_ID, subjectRect, d, ix, iy);
-                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                const result2 = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), rect, triangleMassInfo);
                 if (!result2) return [];
-                result2.triangleType = 2;
+                triangleMassInfo.type = DOWN_LEFT_TRIANGLE_ID;
                 return [result2];
             }
         }
         return [];
     };
 
-    CharacterCollisionChecker.prototype.checkCollisionMassRightDown = function(this: CharacterCollisionChecker<Game_CharacterBase>, subjectRect, d, ix, iy) {
-        const massRect = new Rectangle(ix, iy, 1, 1);
-        const pos = this._character.positionPoint();
-        const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+    CharacterCollisionCheckProcess.prototype.checkCollisionMassRightDown = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+        const massRect = new DotMoveRectangle(ix, iy, 1, 1);
+        const pos = new DotMovePoint(this._origX, this._origY);
+        const triangleMassInfo = new TriangleMassInfo(ix, iy);
+        const result = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), massRect, triangleMassInfo);
         if (!result) return [];
         if (d === 8) {
             if (pos.y + this._character.height() < iy + 1) {
@@ -2079,24 +2040,24 @@ namespace DotMoveSystem {
             }
         } else if (d === 6) {
             if (pos.y + this._character.height() > iy + 1) {
-                result.triangleType = 3;
+                triangleMassInfo.type = RIGHT_DOWN_TRIANGLE_ID;
                 return [result];
             } else {
                 const rect = this.calcMassTriangle(RIGHT_DOWN_TRIANGLE_ID, subjectRect, d, ix, iy);
-                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                const result2 = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), rect, triangleMassInfo);
                 if (!result2) return [];
-                result2.triangleType = 3;
+                triangleMassInfo.type = RIGHT_DOWN_TRIANGLE_ID;
                 return [result2];
             }
         } else if (d === 2) {
             if (pos.x + this._character.width() > ix + 1) {
-                result.triangleType = 3;
+                triangleMassInfo.type = RIGHT_DOWN_TRIANGLE_ID;
                 return [result];
             } else {
                 const rect = this.calcMassTriangle(RIGHT_DOWN_TRIANGLE_ID, subjectRect, d, ix, iy);
-                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                const result2 = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), rect, triangleMassInfo);
                 if (!result2) return [];
-                result2.triangleType = 3;
+                triangleMassInfo.type = RIGHT_DOWN_TRIANGLE_ID;
                 return [result2];
             }
         } else if (d === 4) {
@@ -2109,31 +2070,32 @@ namespace DotMoveSystem {
         return [];
     };
 
-    CharacterCollisionChecker.prototype.checkCollisionMassUpRight = function(this: CharacterCollisionChecker<Game_CharacterBase>, subjectRect, d, ix, iy) {
-        const massRect = new Rectangle(ix, iy, 1, 1);
-        const pos = this._character.positionPoint();
-        const result = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), massRect, "mass", null);
+    CharacterCollisionCheckProcess.prototype.checkCollisionMassUpRight = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+        const massRect = new DotMoveRectangle(ix, iy, 1, 1);
+        const pos = new DotMovePoint(this._origX, this._origY);
+        const triangleMassInfo = new TriangleMassInfo(ix, iy);
+        const result = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), massRect, triangleMassInfo);
         if (!result) return [];
         if (d === 8) {
             if (pos.x + this._character.width() >= ix + 1) {
-                result.triangleType = 4;
+                triangleMassInfo.type = UP_RIGHT_TRIANGLE_ID;
                 return [result];
             } else {
                 const rect = this.calcMassTriangle(UP_RIGHT_TRIANGLE_ID, subjectRect, d, ix, iy);
-                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                const result2 = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), rect, triangleMassInfo);
                 if (!result2) return [];
-                result2.triangleType = 4;
+                triangleMassInfo.type = UP_RIGHT_TRIANGLE_ID;
                 return [result2];
             }
         } else if (d === 6) {
             if (pos.y < iy) {
-                result.triangleType = 4;
+                triangleMassInfo.type = UP_RIGHT_TRIANGLE_ID;
                 return [result];
             } else {
                 const rect = this.calcMassTriangle(UP_RIGHT_TRIANGLE_ID, subjectRect, d, ix, iy);
-                const result2 = this.checkCollidedRectOverComplement(pos.x, pos.y, d, subjectRect.clone(), rect, "mass", null);
+                const result2 = this.checkCollidedRect<TriangleMassInfo>(d, subjectRect.clone(), rect, triangleMassInfo);
                 if (!result2) return [];
-                result2.triangleType = 4;
+                triangleMassInfo.type = UP_RIGHT_TRIANGLE_ID;
                 return [result2];
             }
         } else if (d === 2) {
@@ -2152,24 +2114,24 @@ namespace DotMoveSystem {
         return [];
     };
 
-    CharacterController.prototype.calcUp = function(this: CharacterController<Game_CharacterBase>, dis) {
+    CharacterController.prototype.calcUp = function(this: CharacterController, dis) {
         const pos = this._character.positionPoint();
         const collisionResults = this.checkCollision(pos.x, pos.y + dis.y, 8);
 
         if (collisionResults.length >= 1) {
-            if (collisionResults.every(res => res.triangleType === 1)) {
-                let dis2 = this.calcDistance(45);
-                return this.calcUpRightWithSlide(dis2);
-            } else if (collisionResults.every(res => res.triangleType === 4)) {
-                let dis2 = this.calcDistance(315);
-                return this.calcLeftUpWithSlide(dis2);
+            if (this.checkCollisionResultIsAllTriangleMass(collisionResults, LEFT_UP_TRIANGLE_ID)) {
+                const dis2 = this.calcDistance(45);
+                return this.calcUpRight(dis2);
+            } else if (this.checkCollisionResultIsAllTriangleMass(collisionResults, UP_RIGHT_TRIANGLE_ID)) {
+                const dis2 = this.calcDistance(315);
+                return this.calcLeftUp(dis2);
             }
         }
 
         if (this.canSlide(collisionResults, 4)) {
-            return this.calcLeftUpWithSlide(dis);
+            return this.calcSlideLeftWhenUp(pos, dis, collisionResults);
         } else if (this.canSlide(collisionResults, 6)) {
-            return this.calcUpRightWithSlide(dis);
+            return this.calcSlideRightWhenUp(pos, dis, collisionResults);
         }
         if (dis.x < 0) {
             return this.calcLeftUpWithoutSlide(dis);
@@ -2178,24 +2140,24 @@ namespace DotMoveSystem {
         }
     };
 
-    CharacterController.prototype.calcRight = function(this: CharacterController<Game_CharacterBase>, dis) {
+    CharacterController.prototype.calcRight = function(this: CharacterController, dis) {
         const pos = this._character.positionPoint();
         const collisionResults = this.checkCollision(pos.x + dis.x, pos.y, 6);
 
         if (collisionResults.length >= 1) {
-            if (collisionResults.every(res => res.triangleType === 4)) {
-                let dis2 = this.calcDistance(135);
-                return this.calcRightDownWithSlide(dis2);
-            } else if (collisionResults.every(res => res.triangleType === 3)) {
-                let dis2 = this.calcDistance(45);
-                return this.calcUpRightWithSlide(dis2);
+            if (this.checkCollisionResultIsAllTriangleMass(collisionResults, UP_RIGHT_TRIANGLE_ID)) {
+                const dis2 = this.calcDistance(135);
+                return this.calcRightDown(dis2);
+            } else if (this.checkCollisionResultIsAllTriangleMass(collisionResults, RIGHT_DOWN_TRIANGLE_ID)) {
+                const dis2 = this.calcDistance(45);
+                return this.calcUpRight(dis2);
             }
         }
 
         if (this.canSlide(collisionResults, 8)) {
-            return this.calcUpRightWithSlide(dis);
+            return this.calcSlideUpWhenRight(pos, dis, collisionResults);
         } else if (this.canSlide(collisionResults, 2)) {
-            return this.calcRightDownWithSlide(dis);
+            return this.calcSlideDownWhenRight(pos, dis, collisionResults);
         }
         if (dis.y < 0) {
             return this.calcUpRightWithoutSlide(dis);
@@ -2204,24 +2166,24 @@ namespace DotMoveSystem {
         }
     };
 
-    CharacterController.prototype.calcDown = function(this: CharacterController<Game_CharacterBase>, dis) {
+    CharacterController.prototype.calcDown = function(this: CharacterController, dis) {
         const pos = this._character.positionPoint();
         const collisionResults = this.checkCollision(pos.x, pos.y + dis.y, 2);
 
         if (collisionResults.length >= 1) {
-            if (collisionResults.every(res => res.triangleType === 2)) {
-                let dis2 = this.calcDistance(135);
-                return this.calcRightDownWithSlide(dis2);
-            } else if (collisionResults.every(res => res.triangleType === 3)) {
-                let dis2 = this.calcDistance(225);
-                return this.calcDownLeftWithSlide(dis2);
+            if (this.checkCollisionResultIsAllTriangleMass(collisionResults, DOWN_LEFT_TRIANGLE_ID)) {
+                const dis2 = this.calcDistance(135);
+                return this.calcRightDown(dis2);
+            } else if (this.checkCollisionResultIsAllTriangleMass(collisionResults, RIGHT_DOWN_TRIANGLE_ID)) {
+                const dis2 = this.calcDistance(225);
+                return this.calcDownLeft(dis2);
             }
         }
 
         if (this.canSlide(collisionResults, 4)) {
-            return this.calcDownLeftWithSlide(dis);
+            return this.calcSlideLeftWhenDown(pos, dis, collisionResults);
         } else if (this.canSlide(collisionResults, 6)) {
-            return this.calcRightDownWithSlide(dis);
+            return this.calcSlideRightWhenDown(pos, dis, collisionResults);
         }
         if (dis.x < 0) {
             return this.calcDownLeftWithoutSlide(dis);
@@ -2230,29 +2192,35 @@ namespace DotMoveSystem {
         }
     };
 
-    CharacterController.prototype.calcLeft = function(this: CharacterController<Game_CharacterBase>, dis) {
+    CharacterController.prototype.calcLeft = function(this: CharacterController, dis) {
         const pos = this._character.positionPoint();
         const collisionResults = this.checkCollision(pos.x + dis.x, pos.y, 4);
 
         if (collisionResults.length >= 1) {
-            if (collisionResults.every(res => res.triangleType === 1)) {
-                let dis2 = this.calcDistance(225);
-                return this.calcDownLeftWithSlide(dis2);
-            } else if (collisionResults.every(res => res.triangleType === 2)) {
-                let dis2 = this.calcDistance(315);
-                return this.calcLeftUpWithSlide(dis2);
+            if (this.checkCollisionResultIsAllTriangleMass(collisionResults, LEFT_UP_TRIANGLE_ID)) {
+                const dis2 = this.calcDistance(225);
+                return this.calcDownLeft(dis2);
+            } else if (this.checkCollisionResultIsAllTriangleMass(collisionResults, DOWN_LEFT_TRIANGLE_ID)) {
+                const dis2 = this.calcDistance(315);
+                return this.calcLeftUp(dis2);
             }
         }
 
         if (this.canSlide(collisionResults, 8)) {
-            return this.calcLeftUpWithSlide(dis);
+            return this.calcSlideUpWhenLeft(pos, dis, collisionResults);
         } else if (this.canSlide(collisionResults, 2)) {
-            return this.calcDownLeftWithSlide(dis);
+            return this.calcSlideDownWhenLeft(pos, dis, collisionResults);
         }
         if (dis.y < 0) {
             return this.calcLeftUpWithoutSlide(dis);
         } else {
             return this.calcDownLeftWithoutSlide(dis);
         }
+    };
+
+    CharacterController.prototype.checkCollisionResultIsAllTriangleMass = function(this: CharacterController, collisionResults, type) {
+        return collisionResults.every(res => {
+            return (res.targetObject instanceof TriangleMassInfo) && res.targetObject.type === type;
+        });
     };
 }
