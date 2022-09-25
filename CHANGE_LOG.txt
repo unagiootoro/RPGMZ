@@ -116,6 +116,10 @@ DotMoveSystem.js
         ・経路探索時にイベントサイズを考慮されるように修正
         ・イベントサイズによってイベント起動位置がずれる不具合を修正
 
+DotMoveSystem_DecideTriggerEx.js
+    2022/09/25 v1.0.0
+        ・新規作成
+
 DotMoveSystem_FunctionEx.js
     2022/09/25 v2.1.0
         ・DotMoveSystem.js本体のv2.1.0に対応
