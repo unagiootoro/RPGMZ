@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v2.0.0
+@plugindesc Dot movement system v2.1.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -108,7 +108,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v2.0.0
+@plugindesc ドット移動システム v2.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -215,8 +215,12 @@ targetCharacterClassにキャラクタークラスを指定した場合は、
 このプラグインは、MITライセンスの条件の下で利用可能です。
 */
 
+declare module "DotMoveSystem" {
+    export = DotMoveSystem;
+}
+
 declare interface Window {
-    MoverData: Function;
+    MoverData: new () => DotMoveSystem.MoverData;
 }
 
 declare interface Game_Map {
@@ -234,9 +238,9 @@ declare interface Game_CharacterBase {
     _setMoveSpeedReserve: number | null;
     _moverData: DotMoveSystem.MoverData;
 
-    createTempData(): DotMoveSystem.CharacterTempData<Game_CharacterBase>;
-    tempData<T extends DotMoveSystem.CharacterTempData<Game_CharacterBase>>(): T;
-    mover<T extends DotMoveSystem.CharacterMover<Game_CharacterBase>>(): T;
+    createDotMoveTempData(): DotMoveSystem.CharacterDotMoveTempData;
+    dotMoveTempData<T extends DotMoveSystem.CharacterDotMoveTempData>(): T;
+    mover<T extends DotMoveSystem.CharacterMover>(): T;
     moverData(): DotMoveSystem.MoverData;
     slideLengthX(): number;
     slideLengthY(): number;
@@ -247,9 +251,9 @@ declare interface Game_CharacterBase {
     moveUnit(): number;
     setMoveUnit(moveUnit: number): void;
     incrementTotalDpf(): void;
-    positionPoint(): Point;
-    centerPositionPoint(): Point;
-    setPositionPoint(point: Point): void;
+    positionPoint(): DotMoveSystem.DotMovePoint;
+    centerPositionPoint(): DotMoveSystem.DotMovePoint;
+    setPositionPoint(point: DotMoveSystem.DotMovePoint): void;
     width(): number;
     height(): number;
     offsetX(): number;
@@ -258,12 +262,13 @@ declare interface Game_CharacterBase {
     centerRealY(): number;
     minTouchWidth(): number;
     minTouchHeight(): number;
-    collisionRect(): Rectangle;
+    collisionRect(): DotMoveSystem.DotMoveRectangle;
     updateMapCharactersCache(): void;
     clearMovedFlag(): void;
     moveCallback(moved: boolean): void;
     canPass(x: number, y: number, d: number, opt?: { needCheckCharacters?: boolean }): boolean;
     canPassDiagonally(x: number, y: number, horz: number, vert: number, opt?: { needCheckCharacters?: boolean }): boolean;
+    isCollidedWithFollowers(x: number, y: number, d?: number): boolean;
     isCollidedWithEvents(x: number, y: number, d?: number): boolean;
     isCollidedWithVehicles(x: number, y: number, d?: number): boolean;
     isCollidedWithCharacters(x: number, y: number, d?: number): boolean;
@@ -273,7 +278,7 @@ declare interface Game_CharacterBase {
     resumeMove(): void;
     cancelMove(): void;
     checkCharacter(character: Game_CharacterBase): DotMoveSystem.CollisionResult<Game_CharacterBase> | null;
-    checkHitCharacters(targetCharacterClass?: Function | null): DotMoveSystem.CollisionResult<Game_CharacterBase>[];
+    checkHitCharacters(targetCharacterClass?: (new () => unknown) | null): DotMoveSystem.CollisionResult<Game_CharacterBase>[];
 }
 
 declare interface Game_Character {
@@ -284,6 +289,8 @@ declare interface Game_Character {
     moveToTarget(x: number, y: number): void;
     deltaRealXFrom(x: number): number;
     deltaRealYFrom(y: number): number;
+    isCollidedWithEvents(x: number, y: number, d?: number): boolean;
+    isCollidedWithCharacters(x: number, y: number, d?: number): boolean;
 }
 
 declare interface Game_Player {
@@ -299,11 +306,13 @@ declare interface Game_Player {
     forceMoveOffShipOrBoat(): void;
     updateRemoveCollideTriggerEventIds(): void;
     updateCountProcess(sceneActive: boolean): void;
-    initCollideTriggerEventIds(x?: number, y?: number): void;
+    setupCollideTriggerEventIds(x?: number, y?: number): void;
     checkRideVehicles(): string | null;
     getOffAirship(): boolean;
     getOffShipOrBoat(): boolean;
-    isGetOffCollided(point: Point): boolean;
+    checkAirshipLandOk(pos: DotMoveSystem.DotMovePoint): boolean;
+    checkShipOrBoatLandOk(pos: DotMoveSystem.DotMovePoint): boolean;
+    isGetOffCollided(pos: DotMoveSystem.DotMovePoint): boolean;
     getOffVehicleLastPhase(): void;
     updateTowardLandShipOrBoat(): void;
     startMapEventFront(x: number, y: number, d: number, triggers: number[], normal: boolean, isTouch: boolean): void;
@@ -311,10 +320,10 @@ declare interface Game_Player {
 }
 
 declare interface Game_Event {
+    getAnnotationValue(name: string, page?: number): string | null;
+    getAnnotation(page: number): string;
     widthArea(): number;
     heightArea(): number;
-    isCollidedWithCharacters(x: number, y: number, d?: number): boolean;
-    isCollidedWithEvents(x: number, y: number, d?: number): boolean;
     isCollidedWithPlayerCharacters(x: number, y: number, d?: number): boolean;
 }
 
@@ -334,90 +343,118 @@ declare interface Game_Vehicle {
 }
 
 declare interface Game_Temp {
-    _characterTempDatas: Map<Game_CharacterBase, DotMoveSystem.CharacterTempData<Game_CharacterBase>>;
+    _characterTempDatas: Map<Game_CharacterBase, DotMoveSystem.CharacterDotMoveTempData>;
     _mapCharactersCache: DotMoveSystem.MapCharactersCache | null;
-    _beforeTouchMovedPoint: Point | null;
+    _beforeTouchMovedPoint: DotMoveSystem.DotMovePoint | null;
 
-    characterTempDatas(character: Game_CharacterBase): DotMoveSystem.CharacterTempData<Game_CharacterBase>;
+    characterTempData(character: Game_CharacterBase): DotMoveSystem.CharacterDotMoveTempData;
     initCharacterTempDatas(): void;
     setupMapCharactersCache(width: number, height: number): void;
     mapCharactersCache(): DotMoveSystem.MapCharactersCache | null;
-    beforeTouchMovedPoint(): Point | null;
-    setBeforeTouchMovedPoint(point: Point): void;
+    beforeTouchMovedPoint(): DotMoveSystem.DotMovePoint | null;
+    setBeforeTouchMovedPoint(point: DotMoveSystem.DotMovePoint | null): void;
 }
 
 
-const DotMoveSystemPluginName = document.currentScript ? (document.currentScript as HTMLScriptElement).src.match(/^.*\/(.+)\.js$/)![1] : "DotMoveSystem";
+const DotMoveSystemPluginName = document.currentScript ? decodeURIComponent((document.currentScript as HTMLScriptElement).src.match(/^.*\/(.+)\.js$/)![1]) : "DotMoveSystem";
 
 namespace DotMoveSystem {
-    export class EventParamParser {
-        static getWidth(event: Game_Event): number {
-            let width = 1;
-            let noteWidth = this.getAnnotationValue(event, "width");
-            if (noteWidth != null) width = parseFloat(noteWidth);
-            return width;
+    export class DotMovePoint {
+        private _x!: number;
+        private _y!: number;
+
+        get x() { return this._x; }
+        set x(_x) { this._x = _x; }
+        get y() { return this._y; }
+        set y(_y) { this._y = _y; }
+
+        constructor(...args: [number, number]) {
+            this.initialize(...args);
         }
 
-        static getHeight(event: Game_Event): number {
-            let height = 1;
-            let noteHeight = this.getAnnotationValue(event, "height");
-            if (noteHeight != null) height = parseFloat(noteHeight);
-            return height;
+        initialize(x: number = 0, y: number = 0): void {
+            this._x = x;
+            this._y = y;
         }
 
-        static getOffsetX(event: Game_Event): number {
-            let offsetX = 0;
-            let noteOffsetX = this.getAnnotationValue(event, "offsetX");
-            if (noteOffsetX != null) offsetX = parseFloat(noteOffsetX);
-            return offsetX;
+        clone(): DotMovePoint {
+            return new DotMovePoint(this._x, this._y);
         }
 
-        static getOffsetY(event: Game_Event): number {
-            let offsetY = 0;
-            let noteOffsetY = this.getAnnotationValue(event, "offsetY");
-            if (noteOffsetY != null) offsetY = parseFloat(noteOffsetY);
-            return offsetY;
+        equals(point: DotMovePoint): boolean {
+            return this.x === point.x && this.y === point.y;
         }
 
-        static getWidthArea(event: Game_Event): number {
-            let widthArea = 0.5;
-            let noteWidthArea = this.getAnnotationValue(event, "widthArea");
-            if (noteWidthArea != null) widthArea = parseFloat(noteWidthArea);
-            return widthArea;
+        add(point: DotMovePoint): DotMovePoint {
+            return new DotMovePoint(this.x + point.x, this.y + point.y);
         }
 
-        static getHeightArea(event: Game_Event): number {
-            let heightArea = 0.5;
-            let noteHeightArea = this.getAnnotationValue(event, "heightArea");
-            if (noteHeightArea != null) heightArea = parseFloat(noteHeightArea);
-            return heightArea;
+        calcDeg(targetPoint: DotMovePoint): number {
+            const ox = $gameMap.deltaX(targetPoint.x, this.x);
+            const oy = $gameMap.deltaY(targetPoint.y, this.y);
+            const rad = Math.atan2(oy, ox);
+            return DotMoveUtils.rad2deg(rad);
         }
 
-        static getAnnotationValue(event: Game_Event, name: string): string | null {
-            const note = this.getAnnotation(event);
-            const data: any = { note };
-            DataManager.extractMetadata(data);
-            if (data.meta[name]) return data.meta[name];
-            return null;
+        calcFar(targetPoint: DotMovePoint): number {
+            const xDiff = $gameMap.deltaX(targetPoint.x, this.x);
+            const yDiff = $gameMap.deltaY(targetPoint.y, this.y);
+            if (xDiff === 0 && yDiff === 0) return 0;
+            return Math.sqrt(xDiff ** 2 + yDiff ** 2);
+        }
+    }
+
+
+    export class DotMoveRectangle {
+        private _x!: number;
+        private _y!: number;
+        private _width!: number;
+        private _height!: number;
+
+        get x() { return this._x; }
+        set x(_x) { this._x = _x; }
+        get y() { return this._y; }
+        set y(_y) { this._y = _y; }
+        get width() { return this._width; }
+        set width(_width) { this._width = _width; }
+        get height() { return this._height; }
+        set height(_height) { this._height = _height; }
+        get x2() { return this.x + this.width; }
+        get y2() { return this.y + this.height; }
+
+        constructor(...args: [number, number, number, number]) {
+            this.initialize(...args);
         }
 
-        static getAnnotation(event: Game_Event): string {
-            const eventData = event.event();
-            if (eventData) {
-                const noteLines = [];
-                const page0List = eventData.pages[0].list;
-                if (page0List.length > 0 && page0List[0].code === 108) {
-                    for (let i = 0; i < page0List.length; i++) {
-                        if (page0List[0].code === 108 || page0List[0].code === 408) {
-                            noteLines.push(page0List[i].parameters[0]);
-                        } else {
-                            break;
-                        }
-                    }
-                    return noteLines.join("\n");
-                }
+        initialize(x: number = 0, y: number = 0, width: number = 0, height: number = 0): void {
+            this._x = x;
+            this._y = y;
+            this._width = width;
+            this._height = height;
+        }
+
+        clone(): DotMoveRectangle {
+            return new DotMoveRectangle(this._x, this._y, this._width, this._height);
+        }
+
+        equals(rect: DotMoveRectangle): boolean {
+            return this.x === rect.x && this.y === rect.y && this.width === rect.width && this.height === rect.height;
+        }
+
+        isCollidedRect(rect: DotMoveRectangle): boolean {
+            if ((this.x > rect.x && this.x < rect.x2 || this.x2 > rect.x && this.x2 < rect.x2 || rect.x >= this.x && rect.x2 <= this.x2) &&
+                (this.y > rect.y && this.y < rect.y2 || this.y2 > rect.y && this.y2 < rect.y2 || rect.y >= this.y && rect.y2 <= this.y2)) {
+                return true;
             }
-            return "";
+            return false;
+        }
+
+        union(rect: DotMoveRectangle): DotMoveRectangle {
+            const x1 = this.x < rect.x ? this.x : rect.x;
+            const x2 = this.x2 > rect.x2 ? this.x2 : rect.x2;
+            const y1 = this.y < rect.y ? this.y : rect.y;
+            const y2 = this.y2 > rect.y2 ? this.y2 : rect.y2;
+            return new DotMoveRectangle(x1, y1, x2 - x1, y2 - y1);
         }
     }
 
@@ -559,6 +596,71 @@ namespace DotMoveSystem {
     }
 
 
+    export class MassInfo {
+        protected _x!: number;
+        protected _y!: number;
+
+        get x() { return this._x; }
+        get y() { return this._y; }
+
+        constructor(...args: [number, number]) {
+            this.initialize(...args);
+        }
+
+        initialize(x: number, y: number): void {
+            this._x = x;
+            this._y = y;
+        }
+    }
+
+
+    export class MassRange {
+        protected _x!: number;
+        protected _y!: number;
+        protected _x2!: number;
+        protected _y2!: number;
+
+        static fromRect(rect: DotMoveRectangle): MassRange {
+            const x = Math.floor(rect.x);
+            const y = Math.floor(rect.y);
+            const x2 = Math.ceil(rect.x2) - 1;
+            const y2 = Math.ceil(rect.y2) - 1;
+            return new MassRange(x, y, x2, y2);
+        }
+
+        get x() { return this._x; }
+        get y() { return this._y; }
+        get x2() { return this._x2; }
+        get y2() { return this._y2; }
+
+        constructor(...args: [number, number, number, number]) {
+            this.initialize(...args);
+        }
+
+        initialize(x: number, y: number, x2: number, y2: number): void {
+            this._x = x;
+            this._y = y;
+            this._x2 = x2;
+            this._y2 = y2;
+        }
+
+        masses(): number[] {
+            const masses = [];
+            for (let ix = this.x; ix <= this.x2; ix++) {
+                for (let iy = this.y; iy <= this.y2; iy++) {
+                    const ix2 = $gameMap.roundX(ix);
+                    const iy2 = $gameMap.roundY(iy);
+                    if ($gameMap.isValid(ix2, iy2)) {
+                        const i = iy2 * $gameMap.width() + ix2;
+                        masses.push(i);
+                    }
+                }
+            }
+            return masses;
+        }
+    }
+
+
     export class DotMoveUtils {
         static readonly DIAGONAL_COST = 1 / Math.sin(Math.PI / 4);
         static readonly MARGIN_UNIT = 65536;
@@ -665,31 +767,17 @@ namespace DotMoveSystem {
             return false;
         }
 
-        static calcDistance(deg: number, dpf: number): Point {
+        static calcDistance(deg: number, dpf: number): DotMovePoint {
             const rad = this.deg2rad(deg);
             let disX = dpf * Math.cos(rad);
             let disY = dpf * Math.sin(rad);
             const marginUnit = DotMoveUtils.MARGIN_UNIT;
             disX = Math.round(disX * marginUnit) / marginUnit;
             disY = Math.round(disY * marginUnit) / marginUnit;
-            return new Point(disX, disY);
+            return new DotMovePoint(disX, disY);
         }
 
-        static calcDeg(fromPoint: Point, targetPoint: Point): number {
-            const ox = $gameMap.deltaX(targetPoint.x, fromPoint.x);
-            const oy = $gameMap.deltaY(targetPoint.y, fromPoint.y);
-            const rad = Math.atan2(oy, ox);
-            return this.rad2deg(rad);
-        }
-
-        static calcFar(fromPoint: Point, targetPoint: Point): number {
-            const xDiff = $gameMap.deltaX(targetPoint.x, fromPoint.x);
-            const yDiff = $gameMap.deltaY(targetPoint.y, fromPoint.y);
-            if (xDiff === 0 && yDiff === 0) return 0;
-            return Math.sqrt(xDiff ** 2 + yDiff ** 2);
-        }
-
-        static nextPointWithDirection(point: Point, direction: number, unit: number = 1): Point {
+        static nextPointWithDirection(point: DotMovePoint, direction: number, unit: number = 1): DotMovePoint {
             let x = point.x;
             let y = point.y;
             const signPoint = this.direction2SignPoint(direction);
@@ -697,10 +785,10 @@ namespace DotMoveSystem {
             y += signPoint.y * unit;
             x = $gameMap.roundX(x);
             y = $gameMap.roundY(y);
-            return new Point(x, y);
+            return new DotMovePoint(x, y);
         }
 
-        static prevPointWithDirection(point: Point, direction: number, unit: number = 1): Point {
+        static prevPointWithDirection(point: DotMovePoint, direction: number, unit: number = 1): DotMovePoint {
             let x = point.x;
             let y = point.y;
             const signPoint = this.direction2SignPoint(direction);
@@ -708,14 +796,14 @@ namespace DotMoveSystem {
             y -= signPoint.y * unit;
             x = $gameMap.roundX(x);
             y = $gameMap.roundY(y);
-            return new Point(x, y);
+            return new DotMovePoint(x, y);
         }
 
-        static direction2SignPoint(direction: number): Point {
+        static direction2SignPoint(direction: number): DotMovePoint {
             const [horz, vert] = this.direction2HorzAndVert(direction);
             const xSign = horz === 4 ? -1 : horz === 6 ? 1 : 0;
             const ySign = vert === 8 ? -1 : vert === 2 ? 1 : 0;
-            return new Point(xSign, ySign);
+            return new DotMovePoint(xSign, ySign);
         }
 
         static direction2HorzAndVert(direction: number): [number, number] {
@@ -766,42 +854,32 @@ namespace DotMoveSystem {
             return vert === 0 ? horz : vert;
         }
 
-        static checkCollidedRect<T>(rect1: Rectangle, rect2: Rectangle, targetObjectType: string, targetObject: T): CollisionResult<T> | null {
-            if (DotMoveUtils.isCollidedRect(rect1, rect2)) {
-                const result = new CollisionResult<T>(rect1, rect2, targetObjectType, targetObject);
+        static checkCollidedRect<T>(rect1: DotMoveRectangle, rect2: DotMoveRectangle, targetObject: T): CollisionResult<T> | null {
+            if (rect1.isCollidedRect(rect2)) {
+                const result = new CollisionResult<T>(rect1, rect2, targetObject);
                 if (result.collisionLengthX() > 0 && result.collisionLengthY() > 0) return result;
             }
             return null;
-        }
-
-        static isCollidedRect(rect1: Rectangle, rect2: Rectangle): boolean {
-            if ((rect1.x > rect2.x && rect1.x < (rect2.x + rect2.width) || (rect1.x + rect1.width) > rect2.x && (rect1.x + rect1.width) < rect2.x + rect2.width || rect2.x >= rect1.x && (rect2.x + rect2.width) <= (rect1.x + rect1.width)) &&
-                (rect1.y > rect2.y && rect1.y < (rect2.y + rect2.height) || (rect1.y + rect1.height) > rect2.y && (rect1.y + rect1.height) < rect2.y + rect2.height || rect2.y >= rect1.y && (rect2.y + rect2.height) <= (rect1.y + rect1.height))) {
-                return true;
-            }
-            return false;
         }
     }
 
 
     export class CollisionResult<T> {
-        protected _subjectRect!: Rectangle;
-        protected _targetRect!: Rectangle;
-        protected _targetObjectType!: string;
+        protected _subjectRect!: DotMoveRectangle;
+        protected _targetRect!: DotMoveRectangle;
         protected _targetObject!: T;
         protected _rightCollisionLength!: number;
         protected _leftCollisionLength!: number;
         protected _upCollisionLength!: number;
         protected _downCollisionLength!: number;
 
-        constructor(...args: [Rectangle, Rectangle, string, T]) {
+        constructor(...args: [DotMoveRectangle, DotMoveRectangle, T]) {
             this.initialize(...args);
         }
 
-        initialize(subjectRect: Rectangle, targetRect: Rectangle, targetObjectType: string, targetObject: T): void {
+        initialize(subjectRect: DotMoveRectangle, targetRect: DotMoveRectangle, targetObject: T): void {
             this._subjectRect = subjectRect;
             this._targetRect = targetRect;
-            this._targetObjectType = targetObjectType;
             this._targetObject = targetObject;
             const margin = 1.0 / DotMoveUtils.MARGIN_UNIT;
             const rightCollisionLength = this.calcRightCollisionLength();
@@ -816,7 +894,6 @@ namespace DotMoveSystem {
 
         get subjectRect() { return this._subjectRect; }
         get targetRect() { return this._targetRect; }
-        get targetObjectType() { return this._targetObjectType; }
         get targetObject() { return this._targetObject; }
 
         getCollisionLength(axis: string): number {
@@ -879,32 +956,32 @@ namespace DotMoveSystem {
         }
 
         calcUpCollisionLength(): number {
-            if (this._subjectRect.y < this._targetRect.y + this._targetRect.height) {
-                return this._subjectRect.y + this._subjectRect.height - this._targetRect.y;
+            if (this._subjectRect.y < this._targetRect.y2) {
+                return this._subjectRect.y2 - this._targetRect.y;
             } else {
                 return this._subjectRect.height;
             }
         }
 
         calcRightCollisionLength(): number {
-            if (this._targetRect.x + this._targetRect.width < this._subjectRect.x + this._subjectRect.width) {
-                return this._targetRect.x + this._targetRect.width - this._subjectRect.x;
+            if (this._targetRect.x2 < this._subjectRect.x2) {
+                return this._targetRect.x2 - this._subjectRect.x;
             } else {
                 return this._subjectRect.width;
             }
         }
 
         calcDownCollisionLength(): number {
-            if (this._targetRect.y + this._targetRect.height < this._subjectRect.y + this._subjectRect.height) {
-                return this._targetRect.y + this._targetRect.height - this._subjectRect.y;
+            if (this._targetRect.y2 < this._subjectRect.y2) {
+                return this._targetRect.y2 - this._subjectRect.y;
             } else {
                 return this._subjectRect.height;
             }
         }
 
         calcLeftCollisionLength(): number {
-            if (this._subjectRect.x < this._targetRect.x + this._targetRect.width) {
-                return this._subjectRect.x + this._subjectRect.width - this._targetRect.x;
+            if (this._subjectRect.x < this._targetRect.x2) {
+                return this._subjectRect.x2 - this._targetRect.x;
             } else {
                 return this._subjectRect.width;
             }
@@ -943,22 +1020,39 @@ namespace DotMoveSystem {
     }
 
 
-    // キャラクターの衝突判定を実施する。
-    // このクラスからキャラクターの状態を書き換えることはない。
-    export class CharacterCollisionChecker<T extends Game_CharacterBase> {
-        protected _character!: T;
-        protected _characterRealPosMode!: boolean;
-        protected _lastRect!: Rectangle | null;
+    export interface CharacterCollisionCheckProcessOption {
+        origX?: number;
+        origY?: number;
+        // overComplementModeがtrueの場合は衝突幅がキャラクターの幅を超える場合に衝突幅の修正を行う
+        overComplementMode?: boolean;
+        // throughIfCollidedがtrueの場合は既に衝突が発生していたときの衝突判定を無効にする
+        throughIfCollided?: boolean;
+        // characterIntPosModeがtrueの場合はキャラクターの衝突判定に整数座標を使用する
+        // この機能は経路探索のためにマス単位での衝突判定を可能にすることを主な目的としている
+        characterIntPosMode?: boolean;
+    }
 
-        constructor(...args: [T]) {
+
+    export class CharacterCollisionCheckProcess {
+        protected _character!: Game_CharacterBase;
+        protected _characterIntPosMode!: boolean;
+        protected _overComplementMode!: boolean;
+        protected _throughIfCollided!: boolean;
+        protected _origX!: number;
+        protected _origY!: number;
+
+        constructor(...args: [Game_CharacterBase, CharacterCollisionCheckProcessOption?]) {
             this.initialize(...args);
         }
 
-        initialize(character: T): void {
+        initialize(character: Game_CharacterBase, opt: CharacterCollisionCheckProcessOption = {}): void {
             this._character = character;
-            this._characterRealPosMode = true;
-            // マップイベントのキャッシュ更新用に移動前の座標と変更前のサイズを保持する
-            this._lastRect = null;
+            const pos = this._character.positionPoint();
+            this._origX = opt.origX == null ? pos.x : opt.origX;
+            this._origY = opt.origY == null ? pos.y : opt.origY;
+            this._overComplementMode = opt.overComplementMode == null ? false : opt.overComplementMode;
+            this._throughIfCollided = opt.throughIfCollided == null ? false : opt.throughIfCollided;
+            this._characterIntPosMode = opt.characterIntPosMode == null ? false : opt.characterIntPosMode;
         }
 
         checkCollision(x: number, y: number, d: number): CollisionResult<unknown>[] {
@@ -971,155 +1065,6 @@ namespace DotMoveSystem {
             return collisionResults;
         }
 
-        // characterRealPosModeがfalseの場合はキャラクターの衝突判定に整数座標を使用する
-        // この機能は経路探索のためにマス単位での衝突判定を可能にすることを主な目的としている
-        setCharacterRealPosMode(realPosMode: boolean): void {
-            this._characterRealPosMode = realPosMode;
-        }
-
-        isCharacterRealPosMode(): boolean {
-            return this._characterRealPosMode;
-        }
-
-        checkCollisionMasses(x: number, y: number, d: number): CollisionResult<null>[] {
-            let collisionResults = [];
-            const subjectRect = new Rectangle(x, y, this._character.width(), this._character.height());
-
-            const x1 = Math.floor(x);
-            const x2 = Math.ceil(x + this._character.width()) - 1;
-            const y1 = Math.floor(y);
-            const y2 = Math.ceil(y + this._character.height()) - 1;
-
-            for (let ix = x1; ix <= x2; ix++) {
-                for (let iy = y1; iy <= y2; iy++) {
-                    collisionResults.push(...this.checkCollisionMass(subjectRect, d, ix, iy));
-                }
-            }
-
-            if (collisionResults.length > 0) return collisionResults;
-            const cliffCollisionResult = this.checkCollisionCliff(subjectRect, x1, y1, x2, y2, d);
-            collisionResults.push(...cliffCollisionResult);
-
-            return collisionResults;
-        }
-
-        checkCollisionMass(subjectRect: Rectangle, d: number, ix: number, iy: number): CollisionResult<null>[] {
-            const massRect = new Rectangle(ix, iy, 1, 1);
-            if (!this.checkPassMass(ix, iy, d)) {
-                const point = this._character.positionPoint();
-                const result = this.checkCollidedRectOverComplement<null>(point.x, point.y, d, subjectRect.clone(), massRect, "mass", null);
-                if (result) return [result];
-            }
-            return [];
-        }
-
-        checkCollisionCliff(subjectRect: Rectangle, x1: number, y1: number, x2: number, y2: number, d: number): CollisionResult<null>[] {
-            switch (d) {
-                case 8:
-                    return this.checkCollisionXCliff(subjectRect, x1, x2, y1, d);
-                case 6:
-                    return this.checkCollisionYCliff(subjectRect, y1, y2, x2, d);
-                case 2:
-                    return this.checkCollisionXCliff(subjectRect, x1, x2, y2, d);
-                case 4:
-                    return this.checkCollisionYCliff(subjectRect, y1, y2, x1, d);
-            }
-            return [];
-        }
-
-        checkCollisionXCliff(subjectRect: Rectangle, x1: number, x2: number, iy: number, d: number): CollisionResult<null>[] {
-            if (x1 === x2) return [];
-            const results = [];
-            for (let ix = x1; ix < x2; ix++) {
-                if (!this.checkPassMass(ix, iy, 4) && !this.checkPassMass(ix + 1, iy, 6)) {
-                    const point = this._character.positionPoint();
-                    const massRect1 = new Rectangle(ix, iy, 1, 1);
-                    const massRect2 = new Rectangle(ix + 1, iy, 1, 1);
-                    const result1 = this.checkCollidedRectOverComplement<null>(point.x, point.y, d, subjectRect.clone(), massRect1, "mass", null);
-                    const result2 = this.checkCollidedRectOverComplement<null>(point.x, point.y, d, subjectRect.clone(), massRect2, "mass", null);
-                    if (result1 && result2) {
-                        if (result1.collisionLengthX() > result2.collisionLengthX()) {
-                            results.push(result2);
-                        } else {
-                            results.push(result1);
-                        }
-                    }
-                }
-            }
-            return results;
-        }
-
-        checkCollisionYCliff(subjectRect: Rectangle, y1: number, y2: number, ix: number, d: number): CollisionResult<null>[] {
-            if (y1 === y2) return [];
-            const results = [];
-            for (let iy = y1; iy < y2; iy++) {
-                if (!this.checkPassMass(ix, iy, 8) && !this.checkPassMass(ix, iy + 1, 2)) {
-                    const point = this._character.positionPoint();
-                    const massRect1 = new Rectangle(ix, iy, 1, 1);
-                    const massRect2 = new Rectangle(ix, iy + 1, 1, 1);
-                    const result1 = this.checkCollidedRectOverComplement<null>(point.x, point.y, d, subjectRect.clone(), massRect1, "mass", null);
-                    const result2 = this.checkCollidedRectOverComplement<null>(point.x, point.y, d, subjectRect.clone(), massRect2, "mass", null);
-                    if (result1 && result2) {
-                        if (result1.collisionLengthY() > result2.collisionLengthY()) {
-                            results.push(result2);
-                        } else {
-                            results.push(result1);
-                        }
-                    }
-                }
-            }
-            return results;
-        }
-
-        checkCollisionCharacters(x: number, y: number, d: number): CollisionResult<Game_CharacterBase>[] {
-            return [];
-        }
-
-        checkPassMass(x: number, y: number, d: number): boolean {
-            const x2 = $gameMap.roundX(x);
-            const y2 = $gameMap.roundY(y);
-            if (!$gameMap.isValid(x2, y2)) {
-                return false;
-            }
-            if (this._character.isThrough() || this._character.isDebugThrough()) {
-                return true;
-            }
-            if (this.isMassCollisionNoTarget(x, y, d)) return true;
-            const prevPoint = DotMoveUtils.prevPointWithDirection(new Point(x2, y2), d);
-            if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
-                return false;
-            }
-            return true;
-        }
-
-        // キャラクターの位置が小数の場合、逆方向のマスの通行判定が正しく取得できないため、衝突判定対象外とする
-        isMassCollisionNoTarget(x: number, y: number, d: number): boolean {
-            const point = this._character.positionPoint();
-            switch (d) {
-                case 8:
-                    if (point.y + this._character.height() <= y + 1) {
-                        return true;
-                    }
-                    break;
-                case 6:
-                    if (point.x >= x) {
-                        return true;
-                    }
-                    break;
-                case 2:
-                    if (point.y >= y) {
-                        return true;
-                    }
-                    break;
-                case 4:
-                    if (point.x + this._character.width() <= x + 1) {
-                        return true;
-                    }
-                    break;
-            }
-            return false;
-        }
-
         checkHitCharacters(x: number, y: number, d: number): CollisionResult<Game_CharacterBase>[] {
             const collisionResults = [];
             for (const character of this.enteringMassesCharacters(x, y)) {
@@ -1127,6 +1072,15 @@ namespace DotMoveSystem {
                 if (result) collisionResults.push(result);
             }
             return collisionResults;
+        }
+
+        checkCharacter(x: number, y: number, d: number, character: Game_CharacterBase): CollisionResult<Game_CharacterBase> | null {
+            const targetPos = character.positionPoint();
+            const targetX = this._characterIntPosMode ? character.x : targetPos.x;
+            const targetY = this._characterIntPosMode ? character.y : targetPos.y;
+            const subjectRect = new DotMoveRectangle(x, y, this._character.width(), this._character.height());
+            const targetRect = new DotMoveRectangle(targetX, targetY, character.width(), character.height());
+            return this.checkCollidedRect<Game_CharacterBase>(d, subjectRect, targetRect, character);
         }
 
         checkPlayer(x: number, y: number, d: number): CollisionResult<Game_CharacterBase>[] {
@@ -1145,12 +1099,146 @@ namespace DotMoveSystem {
             return this.checkVehiclesFromTargetCharacters(x, y, d, this.enteringMassesCharacters(x, y));
         }
 
+        checkCollisionMasses(x: number, y: number, d: number): CollisionResult<MassInfo>[] {
+            let collisionResults = [];
+
+            const subjectRect = new DotMoveRectangle(x, y, this._character.width(), this._character.height());
+            const massRange = this.calcSubjectCharacterMassRange(x, y);
+            for (let ix = massRange.x; ix <= massRange.x2; ix++) {
+                for (let iy = massRange.y; iy <= massRange.y2; iy++) {
+                    const ix2 = $gameMap.roundX(ix);
+                    const iy2 = $gameMap.roundY(iy);
+                    if (!this.isNoCheckMass(ix, iy, d, massRange)) {
+                        collisionResults.push(...this.checkCollisionMass(subjectRect, d, ix2, iy2));
+                    }
+                }
+            }
+
+            if (collisionResults.length > 0) return collisionResults;
+            const cliffCollisionResult = this.checkCollisionCliff(subjectRect, massRange, d);
+            collisionResults.push(...cliffCollisionResult);
+
+            return collisionResults;
+        }
+
+        // 最後尾のマスは衝突確認の対象外とする。
+        isNoCheckMass(ix: number, iy: number, d: number, massRect: MassRange): boolean {
+            switch (d) {
+                case 8:
+                    if (iy === massRect.y2) return true;
+                    break;
+                case 6:
+                    if (ix === massRect.x) return true;
+                    break;
+                case 2:
+                    if (iy === massRect.y) return true;
+                    break;
+                case 4:
+                    if (ix === massRect.x2) return true;
+                    break;
+            }
+            return false;
+        }
+
+        checkCollisionMass(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<MassInfo>[] {
+            if (!this.checkPassMass(ix, iy, d)) {
+                const massRect = new DotMoveRectangle(ix, iy, 1, 1);
+                const result = this.checkCollidedRect<MassInfo>(d, subjectRect.clone(), massRect, new MassInfo(ix, iy));
+                if (result) return [result];
+            }
+            return [];
+        }
+
+        checkCollisionCliff(subjectRect: DotMoveRectangle, massRange: MassRange, d: number): CollisionResult<MassInfo>[] {
+            const x1 = massRange.x;
+            const x2 = massRange.x2;
+            const y1 = massRange.y
+            const y2 = massRange.y2;
+            switch (d) {
+                case 8:
+                    if (y1 === y2) return [];
+                    return this.checkCollisionXCliff(subjectRect, x1, x2, y1, d);
+                case 6:
+                    if (x1 === x2) return [];
+                    return this.checkCollisionYCliff(subjectRect, y1, y2, x2, d);
+                case 2:
+                    if (y1 === y2) return [];
+                    return this.checkCollisionXCliff(subjectRect, x1, x2, y2, d);
+                case 4:
+                    if (x1 === x2) return [];
+                    return this.checkCollisionYCliff(subjectRect, y1, y2, x1, d);
+            }
+            return [];
+        }
+
+        checkCollisionXCliff(subjectRect: DotMoveRectangle, x1: number, x2: number, iy: number, d: number): CollisionResult<MassInfo>[] {
+            const results = [];
+            const iy2 = $gameMap.roundY(iy);
+            for (let ix = x1; ix < x2; ix++) {
+                const ix2 = $gameMap.roundX(ix);
+                if (!this.checkPassMass(ix2, iy2, 4) && !this.checkPassMass($gameMap.roundX(ix2 + 1), iy2, 6)) {
+                    const massRect1 = new DotMoveRectangle(ix2, iy2, 1, 1);
+                    const massRect2 = new DotMoveRectangle($gameMap.roundX(ix2 + 1), iy2, 1, 1);
+                    const result1 = this.checkCollidedRect<MassInfo>(d, subjectRect.clone(), massRect1, new MassInfo(massRect1.x, massRect1.y));
+                    const result2 = this.checkCollidedRect<MassInfo>(d, subjectRect.clone(), massRect2, new MassInfo(massRect2.x, massRect2.y));
+                    if (result1 && result2) {
+                        if (result1.collisionLengthX() > result2.collisionLengthX()) {
+                            results.push(result2);
+                        } else {
+                            results.push(result1);
+                        }
+                    }
+                }
+            }
+            return results;
+        }
+
+        checkCollisionYCliff(subjectRect: DotMoveRectangle, y1: number, y2: number, ix: number, d: number): CollisionResult<MassInfo>[] {
+            const results = [];
+            const ix2 = $gameMap.roundX(ix);
+            for (let iy = y1; iy < y2; iy++) {
+                const iy2 = $gameMap.roundY(iy);
+                if (!this.checkPassMass(ix2, iy2, 8) && !this.checkPassMass(ix2, $gameMap.roundY(iy2 + 1), 2)) {
+                    const massRect1 = new DotMoveRectangle(ix2, iy2, 1, 1);
+                    const massRect2 = new DotMoveRectangle(ix2, $gameMap.roundY(iy2 + 1), 1, 1);
+                    const result1 = this.checkCollidedRect<MassInfo>(d, subjectRect.clone(), massRect1, new MassInfo(massRect1.x, massRect1.y));
+                    const result2 = this.checkCollidedRect<MassInfo>(d, subjectRect.clone(), massRect2, new MassInfo(massRect2.x, massRect2.y));
+                    if (result1 && result2) {
+                        if (result1.collisionLengthY() > result2.collisionLengthY()) {
+                            results.push(result2);
+                        } else {
+                            results.push(result1);
+                        }
+                    }
+                }
+            }
+            return results;
+        }
+
+        checkCollisionCharacters(x: number, y: number, d: number): CollisionResult<Game_CharacterBase>[] {
+            return [];
+        }
+
+        checkPassMass(ix: number, iy: number, d: number): boolean {
+            if (!$gameMap.isValid(ix, iy)) {
+                return false;
+            }
+            if (this._character.isThrough() || this._character.isDebugThrough()) {
+                return true;
+            }
+            const prevPoint = DotMoveUtils.prevPointWithDirection(new DotMovePoint(ix, iy), d);
+            if (!this._character.isMapPassable(prevPoint.x, prevPoint.y, d)) {
+                return false;
+            }
+            return true;
+        }
+
         checkPlayerFromTargetCharacters(x: number, y: number, d: number, targetCharacters: Game_CharacterBase[]): CollisionResult<Game_CharacterBase>[] {
             const collisionResults = [];
             for (const character of targetCharacters) {
                 if (!(character instanceof Game_Player)) continue;
                 if (!character.isThrough()) {
-                    const result = this.checkCharacter(x, y, d, character, { overComplementMode: true });
+                    const result = this.checkCharacter(x, y, d, character);
                     if (result) collisionResults.push(result);
                 }
             }
@@ -1162,7 +1250,7 @@ namespace DotMoveSystem {
             for (const character of targetCharacters) {
                 if (!(character instanceof Game_Follower)) continue;
                 if (!character.isThrough()) {
-                    const result = this.checkCharacter(x, y, d, character, { overComplementMode: true });
+                    const result = this.checkCharacter(x, y, d, character);
                     if (result) collisionResults.push(result);
                 }
             }
@@ -1174,7 +1262,7 @@ namespace DotMoveSystem {
             for (const character of targetCharacters) {
                 if (!(character instanceof Game_Event)) continue;
                 if (character.isNormalPriority() && !character.isThrough()) {
-                    const result = this.checkCharacter(x, y, d, character, { overComplementMode: true });
+                    const result = this.checkCharacter(x, y, d, character);
                     if (result) collisionResults.push(result);
                 }
             }
@@ -1189,12 +1277,12 @@ namespace DotMoveSystem {
                 if (!(character instanceof Game_Vehicle)) continue;
                 if (character === boat) {
                     if (boat.mapId() === $gameMap.mapId() && !$gamePlayer.isInBoat() && !boat.isThrough()) {
-                        const result = this.checkCharacter(x, y, d, boat, { overComplementMode: true });
+                        const result = this.checkCharacter(x, y, d, boat);
                         if (result) collisionResults.push(result);
                     }
                 } else if (character === ship) {
                     if (ship.mapId() === $gameMap.mapId() && !$gamePlayer.isInShip() && !ship.isThrough()) {
-                        const result = this.checkCharacter(x, y, d, ship, { overComplementMode: true });
+                        const result = this.checkCharacter(x, y, d, ship);
                         if (result) collisionResults.push(result);
                     }
                 }
@@ -1204,10 +1292,9 @@ namespace DotMoveSystem {
 
         enteringMassesCharacters(x: number, y: number): Game_CharacterBase[] {
             const characters: Game_CharacterBase[] = [];
-            const masses = this.mapCharactersCacheMasses(x, y, this._character.width(), this._character.height());
-            const mapCharactersCache = $gameTemp.mapCharactersCache();
-            for (const massIdx of masses) {
-                const massCharacters = mapCharactersCache.massCharacters(massIdx);
+            const massRange = this.calcSubjectCharacterMassRange(x, y);
+            for (const massIdx of massRange.masses()) {
+                const massCharacters = $gameTemp.mapCharactersCache()!.massCharacters(massIdx);
                 for (const character of massCharacters) {
                     if (this._character === character) continue;
                     if (!characters.includes(character)) characters.push(character);
@@ -1216,57 +1303,86 @@ namespace DotMoveSystem {
             return characters;
         }
 
-        checkCharacter(x: number, y: number, d: number, character: Game_CharacterBase, opt: { origX?: number | null, origY?: number | null, overComplementMode?: boolean | null } = {}): CollisionResult<Game_CharacterBase> | null {
-            const realPoint = this._character.positionPoint();
-            let origX = opt.origX == null ? realPoint.x : opt.origX;
-            let origY = opt.origY == null ? realPoint.y : opt.origY;
-            const overComplementMode = opt.overComplementMode == null ? false : opt.overComplementMode;
-
-            const characterRealPoint = character.positionPoint();
-            let cx = this.isCharacterRealPosMode() ? characterRealPoint.x : character.x;
-            let cy = this.isCharacterRealPosMode() ? characterRealPoint.y : character.y;
-
-            if ($gameMap.isLoopHorizontal()) {
-                if (cx < this._character.width() && x >= $gameMap.width() - this._character.width()) {
-                    cx += $gameMap.width();
-                } else if (cx >= $gameMap.width() - character.width() && x < character.width()) {
-                    x += $gameMap.width();
-                    origX += $gameMap.width();
+        calcSubjectCharacterMassRange(x: number, y: number): MassRange {
+            const subjectRect = new DotMoveRectangle(x, y, this._character.width(), this._character.height());
+            if (this._overComplementMode) {
+                const subjectOrigRect = new DotMoveRectangle(this._origX, this._origY, subjectRect.width, subjectRect.height);
+                if ($gameMap.isLoopHorizontal()) {
+                    subjectOrigRect.x = $gameMap.roundX(subjectOrigRect.x);
+                    if (subjectRect.x < subjectOrigRect.width && subjectOrigRect.x >= $gameMap.width() - subjectOrigRect.width) {
+                        subjectRect.x += $gameMap.width();
+                    } else if (subjectRect.x >= $gameMap.width() - subjectRect.width && subjectOrigRect.x < subjectRect.width) {
+                        subjectOrigRect.x += $gameMap.width();
+                    }
                 }
-            }
-            if ($gameMap.isLoopVertical()) {
-                if (cy < this._character.height() && y >= $gameMap.height() - this._character.height()) {
-                    cy += $gameMap.height();
-                } else if (cy >= $gameMap.height() - character.height() && y < character.height()) {
-                    y += $gameMap.height();
-                    origY += $gameMap.height();
+                if ($gameMap.isLoopVertical()) {
+                    subjectOrigRect.y = $gameMap.roundY(subjectOrigRect.y);
+                    if (subjectRect.y < subjectOrigRect.height && subjectOrigRect.y >= $gameMap.height() - subjectOrigRect.height) {
+                        subjectRect.y += $gameMap.height();
+                    } else if (subjectRect.y >= $gameMap.height() - subjectRect.height && subjectOrigRect.y < subjectRect.height) {
+                        subjectOrigRect.y += $gameMap.height();
+                    }
                 }
-            }
-
-            const subjectRect = new Rectangle(x, y, this._character.width(), this._character.height());
-            const targetRect = new Rectangle(cx, cy, character.width(), character.height());
-            if (overComplementMode) {
-                return this.checkCollidedRectOverComplement<Game_CharacterBase>(origX, origY, d, subjectRect, targetRect, "character", character);
+                return MassRange.fromRect(subjectOrigRect.union(subjectRect));
             } else {
-                return DotMoveUtils.checkCollidedRect<Game_CharacterBase>(subjectRect, targetRect, "character", character);
+                return MassRange.fromRect(subjectRect);
             }
         }
 
         // 本メソッドは高速化のために引数のsubjectRectおよびtargetRectを直接変更する
-        checkCollidedRectOverComplement<TARGET_T>(origX: number, origY: number, d: number, subjectRect: Rectangle, targetRect: Rectangle, targetObjectType: string, targetObject: TARGET_T): CollisionResult<TARGET_T> | null {
+        checkCollidedRect<T>(d: number, subjectRect: DotMoveRectangle, targetRect: DotMoveRectangle, targetObject: T): CollisionResult<T> | null {
+            let origX = this._origX;
+            let origY = this._origY;
+
+            if ($gameMap.isLoopHorizontal()) {
+                subjectRect.x = $gameMap.roundX(subjectRect.x);
+                if (targetRect.x < subjectRect.width && subjectRect.x >= $gameMap.width() - subjectRect.width) {
+                    targetRect.x += $gameMap.width();
+                } else if (targetRect.x >= $gameMap.width() - targetRect.width && subjectRect.x < targetRect.width) {
+                    subjectRect.x += $gameMap.width();
+                    origX += $gameMap.width();
+                }
+            }
+            if ($gameMap.isLoopVertical()) {
+                subjectRect.y = $gameMap.roundY(subjectRect.y);
+                if (targetRect.y < subjectRect.height && subjectRect.y >= $gameMap.height() - subjectRect.height) {
+                    targetRect.y += $gameMap.height();
+                } else if (targetRect.y >= $gameMap.height() - targetRect.height && subjectRect.y < targetRect.height) {
+                    subjectRect.y += $gameMap.height();
+                    origY += $gameMap.height();
+                }
+            }
+
+            // throughIfCollidedが有効の場合、既に衝突していれば衝突判定対象外とする。
+            if (this._throughIfCollided) {
+                const subjectOrigRect = new DotMoveRectangle(origX, origY, subjectRect.width, subjectRect.height);
+                if (DotMoveUtils.checkCollidedRect<T>(subjectOrigRect, targetRect, targetObject)) {
+                    return null;
+                }
+            }
+
+            if (this._overComplementMode) {
+                return this.checkCollidedRectOverComplement<T>(origX, origY, d, subjectRect, targetRect, targetObject);
+            } else {
+                return DotMoveUtils.checkCollidedRect<T>(subjectRect, targetRect, targetObject);
+            }
+        }
+
+        // 本メソッドは高速化のために引数のsubjectRectおよびtargetRectを直接変更する
+        checkCollidedRectOverComplement<T>(origX: number, origY: number, d: number, subjectRect: DotMoveRectangle, targetRect: DotMoveRectangle, targetObject: T): CollisionResult<T> | null {
             switch (d) {
                 case 8:
-                    if (DotMoveUtils.isFloatGt(origY, targetRect.y + targetRect.height) && subjectRect.y < targetRect.y) {
+                    if (DotMoveUtils.isFloatGt(origY, targetRect.y2) && subjectRect.y < targetRect.y) {
                         targetRect.height += targetRect.y - subjectRect.y;
                         targetRect.y = subjectRect.y;
                     }
-                    if (DotMoveUtils.isFloatGt(origY, targetRect.y + targetRect.height) && subjectRect.y + subjectRect.height < targetRect.y + targetRect.height) {
-                        subjectRect.height += (targetRect.y + targetRect.height) - (subjectRect.y + subjectRect.height);
+                    if (DotMoveUtils.isFloatGt(origY, targetRect.y2) && subjectRect.y2 < targetRect.y2) {
+                        subjectRect.height += targetRect.y2 - subjectRect.y2;
                     }
                     break;
                 case 6:
-                    if (DotMoveUtils.isFloatLt(origX + subjectRect.width, targetRect.x) && subjectRect.x + subjectRect.width > targetRect.x + targetRect.width) {
-                        targetRect.width += (subjectRect.x + subjectRect.width) - (targetRect.x + targetRect.width);
+                    if (DotMoveUtils.isFloatLt(origX + subjectRect.width, targetRect.x) && subjectRect.x2 > targetRect.x2) {
+                        targetRect.width += subjectRect.x2 - targetRect.x2;
                     }
                     if (DotMoveUtils.isFloatLt(origX + subjectRect.width, targetRect.x) && subjectRect.x > targetRect.x) {
                         subjectRect.width += subjectRect.x - targetRect.x;
@@ -1274,8 +1390,8 @@ namespace DotMoveSystem {
                     }
                     break;
                 case 2:
-                    if (DotMoveUtils.isFloatLt(origY + subjectRect.height, targetRect.y) && subjectRect.y + subjectRect.height > targetRect.y + targetRect.height) {
-                        targetRect.height += (subjectRect.y + subjectRect.height) - (targetRect.y + targetRect.height);
+                    if (DotMoveUtils.isFloatLt(origY + subjectRect.height, targetRect.y) && subjectRect.y2 > targetRect.y2) {
+                        targetRect.height += subjectRect.y2 - targetRect.y2;
                     }
                     if (DotMoveUtils.isFloatLt(origY + subjectRect.height, targetRect.y) && subjectRect.y > targetRect.y) {
                         subjectRect.height += subjectRect.y - targetRect.y;
@@ -1283,66 +1399,21 @@ namespace DotMoveSystem {
                     }
                     break;
                 case 4:
-                    if (DotMoveUtils.isFloatGt(origX, targetRect.x + targetRect.width) && subjectRect.x < targetRect.x) {
+                    if (DotMoveUtils.isFloatGt(origX, targetRect.x2) && subjectRect.x < targetRect.x) {
                         targetRect.width += targetRect.x - subjectRect.x;
                         targetRect.x = subjectRect.x;
                     }
-                    if (DotMoveUtils.isFloatGt(origX, targetRect.x + targetRect.width) && subjectRect.x + subjectRect.width < targetRect.x + targetRect.width) {
-                        subjectRect.width += (targetRect.x + targetRect.width) - (subjectRect.x + subjectRect.width);
+                    if (DotMoveUtils.isFloatGt(origX, targetRect.x2) && subjectRect.x2 < targetRect.x2) {
+                        subjectRect.width += targetRect.x2 - subjectRect.x2;
                     }
                     break;
             }
-            return DotMoveUtils.checkCollidedRect<TARGET_T>(subjectRect, targetRect, targetObjectType, targetObject);
-        }
-
-        updateMapCharactersCache(): void {
-            const rect = this._character.collisionRect();
-            if (this._lastRect && (this._lastRect.x === rect.x && this._lastRect.y === rect.y && this._lastRect.width === rect.width && this._lastRect.height === rect.height)) {
-                return;
-            }
-            const mapCharactersCache = $gameTemp.mapCharactersCache();
-            let beforeMasses: number[];
-            if (this._lastRect) {
-                beforeMasses = this.mapCharactersCacheMasses(this._lastRect.x, this._lastRect.y, this._lastRect.width, this._lastRect.height);
-            } else {
-                beforeMasses = [];
-            }
-            const afterMasses = this.mapCharactersCacheMasses(rect.x, rect.y, rect.width, rect.height);
-            for (const afterMass of afterMasses) {
-                if (!beforeMasses.includes(afterMass)) {
-                    mapCharactersCache.addMapCharactersCache(afterMass, this._character);
-                }
-            }
-            for (const beforeMass of beforeMasses) {
-                if (!afterMasses.includes(beforeMass)) {
-                    mapCharactersCache.removeMapCharactersCache(beforeMass, this._character);
-                }
-            }
-            this._lastRect = rect;
-        }
-
-        mapCharactersCacheMasses(x: number, y: number, width: number, height: number): number[] {
-            const masses = [];
-            if (x >= $gameMap.width()) x = $gameMap.width();
-            if (y >= $gameMap.height()) y = $gameMap.height();
-            const x1 = Math.floor(x);
-            const x2 = Math.ceil(x) + Math.ceil(width - 1);
-            const y1 = Math.floor(y);
-            const y2 = Math.ceil(y) + Math.ceil(height - 1);
-            for (let ix = x1; ix <= x2; ix++) {
-                for (let iy = y1; iy <= y2; iy++) {
-                    const ix2 = $gameMap.roundX(ix);
-                    const iy2 = $gameMap.roundY(iy);
-                    const i = iy2 * $gameMap.width() + ix2;
-                    masses.push(i);
-                }
-            }
-            return masses;
+            return DotMoveUtils.checkCollidedRect<T>(subjectRect, targetRect, targetObject);
         }
     }
 
 
-    export class PlayerCollisionChecker extends CharacterCollisionChecker<Game_Player> {
+    export class PlayerCollisionCheckProcess extends CharacterCollisionCheckProcess {
         checkCollisionCharacters(x: number, y: number, d: number): CollisionResult<Game_CharacterBase>[] {
             let collisionResults = [];
             const targetCharacters = this.enteringMassesCharacters(x, y);
@@ -1353,12 +1424,12 @@ namespace DotMoveSystem {
     }
 
 
-    export class EventCollisionChecker extends CharacterCollisionChecker<Game_Event> {
+    export class EventCollisionCheckProcess extends CharacterCollisionCheckProcess {
         checkCollisionCharacters(x: number, y: number, d: number): CollisionResult<Game_CharacterBase>[] {
             let collisionResults = [];
             const targetCharacters = this.enteringMassesCharacters(x, y);
-            collisionResults.push(...this.checkPlayer(x, y, d));
-            if ($gamePlayer.followers().isVisible()) collisionResults.push(...this.checkFollowers(x, y, d));
+            collisionResults.push(...this.checkPlayerFromTargetCharacters(x, y, d, targetCharacters));
+            if ($gamePlayer.followers().isVisible()) collisionResults.push(...this.checkFollowersFromTargetCharacters(x, y, d, targetCharacters));
             collisionResults.push(...this.checkEventsFromTargetCharacters(x, y, d, targetCharacters));
             collisionResults.push(...this.checkVehiclesFromTargetCharacters(x, y, d, targetCharacters));
             return collisionResults;
@@ -1376,7 +1447,7 @@ namespace DotMoveSystem {
     }
 
 
-    export class FollowerCollisionChecker extends CharacterCollisionChecker<Game_Follower> {
+    export class FollowerCollisionCheckProcess extends CharacterCollisionCheckProcess {
         checkCollisionCharacters(x: number, y: number, d: number): CollisionResult<Game_CharacterBase>[] {
             let collisionResults = [];
             const targetCharacters = this.enteringMassesCharacters(x, y);
@@ -1387,17 +1458,98 @@ namespace DotMoveSystem {
     }
 
 
-    // 衝突判定を元にキャラクターの座標を更新する。
-    // 座標以外の状態は変更しない。
-    export class CharacterController<T extends Game_CharacterBase> {
-        protected _character!: T;
-        protected _collisionChecker!: CharacterCollisionChecker<T>;
+    // キャラクターの衝突判定を実施する。
+    // このクラスからキャラクターの状態を書き換えることはない。
+    export class CharacterCollisionChecker {
+        protected _character!: Game_CharacterBase;
+        protected _characterCollisionCheckProcessClass!: new (character: Game_CharacterBase, opt?: CharacterCollisionCheckProcessOption) => CharacterCollisionCheckProcess;
+        protected _lastRect!: DotMoveRectangle | null;
 
-        constructor(...args: [T, CharacterCollisionChecker<T>]) {
+        constructor(...args: [Game_CharacterBase, new (character: Game_CharacterBase, opt?: CharacterCollisionCheckProcessOption) => CharacterCollisionCheckProcess]) {
             this.initialize(...args);
         }
 
-        initialize(character: T, collisionChecker: CharacterCollisionChecker<T>): void {
+        initialize(character: Game_CharacterBase, collisionCheckProcessClass: new (character: Game_CharacterBase, opt?: CharacterCollisionCheckProcessOption) => CharacterCollisionCheckProcess): void {
+            this._character = character;
+            this._characterCollisionCheckProcessClass = collisionCheckProcessClass;
+            // マップイベントのキャッシュ更新用に移動前の座標と変更前のサイズを保持する
+            this._lastRect = null;
+        }
+
+        checkCollision(x: number, y: number, d: number, opt: CharacterCollisionCheckProcessOption = {}): CollisionResult<unknown>[] {
+            const collisionCheckProcess = new this._characterCollisionCheckProcessClass(this._character, opt);
+            return collisionCheckProcess.checkCollision(x, y, d);
+        }
+
+        checkHitCharacters(x: number, y: number, d: number): CollisionResult<Game_CharacterBase>[] {
+            const collisionCheckProcess = new this._characterCollisionCheckProcessClass(this._character);
+            return collisionCheckProcess.checkHitCharacters(x, y, d);
+        }
+
+        checkCharacter(x: number, y: number, d: number, character: Game_CharacterBase): CollisionResult<Game_CharacterBase> | null {
+            const collisionCheckProcess = new this._characterCollisionCheckProcessClass(this._character);
+            return collisionCheckProcess.checkCharacter(x, y, d, character);
+        }
+
+        checkPlayer(x: number, y: number, d: number, opt: { characterIntPosMode?: boolean } = {}): CollisionResult<Game_CharacterBase>[] {
+            const collisionCheckProcess = new this._characterCollisionCheckProcessClass(this._character, opt);
+            return collisionCheckProcess.checkPlayer(x, y, d);
+        }
+
+        checkFollowers(x: number, y: number, d: number, opt: { characterIntPosMode?: boolean } = {}): CollisionResult<Game_CharacterBase>[] {
+            const collisionCheckProcess = new this._characterCollisionCheckProcessClass(this._character, opt);
+            return collisionCheckProcess.checkFollowers(x, y, d);
+        }
+
+        checkEvents(x: number, y: number, d: number, opt: { characterIntPosMode?: boolean } = {}): CollisionResult<Game_CharacterBase>[] {
+            const collisionCheckProcess = new this._characterCollisionCheckProcessClass(this._character, opt);
+            return collisionCheckProcess.checkEvents(x, y, d);
+        }
+
+        checkVehicles(x: number, y: number, d: number, opt: { characterIntPosMode?: boolean } = {}): CollisionResult<Game_CharacterBase>[] {
+            const collisionCheckProcess = new this._characterCollisionCheckProcessClass(this._character, opt);
+            return collisionCheckProcess.checkVehicles(x, y, d);
+        }
+
+        updateMapCharactersCache(): void {
+            const rect = this._character.collisionRect();
+            if (this._lastRect && this._lastRect.equals(rect)) return;
+            const mapCharactersCache = $gameTemp.mapCharactersCache();
+            if (!mapCharactersCache) return;
+
+            let beforeMasses: number[];
+            if (this._lastRect) {
+                beforeMasses = MassRange.fromRect(this._lastRect).masses();
+            } else {
+                beforeMasses = [];
+            }
+            const afterMasses = MassRange.fromRect(rect).masses();
+            for (const afterMass of afterMasses) {
+                if (!beforeMasses.includes(afterMass)) {
+                    mapCharactersCache.addMapCharactersCache(afterMass, this._character);
+                }
+            }
+            for (const beforeMass of beforeMasses) {
+                if (!afterMasses.includes(beforeMass)) {
+                    mapCharactersCache.removeMapCharactersCache(beforeMass, this._character);
+                }
+            }
+            this._lastRect = rect;
+        }
+    }
+
+
+    // 衝突判定を元にキャラクターの座標を更新する。
+    // 座標以外の状態は変更しない。
+    export class CharacterController {
+        protected _character!: Game_CharacterBase;
+        protected _collisionChecker!: CharacterCollisionChecker;
+
+        constructor(...args: [Game_CharacterBase, CharacterCollisionChecker]) {
+            this.initialize(...args);
+        }
+
+        initialize(character: Game_CharacterBase, collisionChecker: CharacterCollisionChecker): void {
             this._character = character;
             this._collisionChecker = collisionChecker;
         }
@@ -1413,8 +1565,8 @@ namespace DotMoveSystem {
             return this.dotMoveByDistance(direction, distance);
         }
 
-        dotMoveByDistance(direction: number, distance: Point): boolean {
-            let movedPoint: Point;
+        dotMoveByDistance(direction: number, distance: DotMovePoint): boolean {
+            let movedPoint: DotMovePoint;
             switch (direction) {
                 case 8:
                     movedPoint = this.calcUp(distance);
@@ -1453,13 +1605,13 @@ namespace DotMoveSystem {
             return moved;
         }
 
-        calcUp(dis: Point): Point {
+        calcUp(dis: DotMovePoint): DotMovePoint {
             const pos = this._character.positionPoint();
             const collisionResults = this.checkCollision(pos.x, pos.y + dis.y, 8);
             if (this.canSlide(collisionResults, 4)) {
-                return this.calcLeftUpWithSlide(dis);
+                return this.calcSlideLeftWhenUp(pos, dis, collisionResults);
             } else if (this.canSlide(collisionResults, 6)) {
-                return this.calcUpRightWithSlide(dis);
+                return this.calcSlideRightWhenUp(pos, dis, collisionResults);
             }
             if (dis.x < 0) {
                 return this.calcLeftUpWithoutSlide(dis);
@@ -1468,13 +1620,13 @@ namespace DotMoveSystem {
             }
         }
 
-        calcRight(dis: Point): Point {
+        calcRight(dis: DotMovePoint): DotMovePoint {
             const pos = this._character.positionPoint();
             const collisionResults = this.checkCollision(pos.x + dis.x, pos.y, 6);
             if (this.canSlide(collisionResults, 8)) {
-                return this.calcUpRightWithSlide(dis);
+                return this.calcSlideUpWhenRight(pos, dis, collisionResults);
             } else if (this.canSlide(collisionResults, 2)) {
-                return this.calcRightDownWithSlide(dis);
+                return this.calcSlideDownWhenRight(pos, dis, collisionResults);
             }
             if (dis.y < 0) {
                 return this.calcUpRightWithoutSlide(dis);
@@ -1483,13 +1635,13 @@ namespace DotMoveSystem {
             }
         }
 
-        calcDown(dis: Point): Point {
+        calcDown(dis: DotMovePoint): DotMovePoint {
             const pos = this._character.positionPoint();
             const collisionResults = this.checkCollision(pos.x, pos.y + dis.y, 2);
             if (this.canSlide(collisionResults, 4)) {
-                return this.calcDownLeftWithSlide(dis);
+                return this.calcSlideLeftWhenDown(pos, dis, collisionResults);
             } else if (this.canSlide(collisionResults, 6)) {
-                return this.calcRightDownWithSlide(dis);
+                return this.calcSlideRightWhenDown(pos, dis, collisionResults);
             }
             if (dis.x < 0) {
                 return this.calcDownLeftWithoutSlide(dis);
@@ -1498,13 +1650,13 @@ namespace DotMoveSystem {
             }
         }
 
-        calcLeft(dis: Point): Point {
+        calcLeft(dis: DotMovePoint): DotMovePoint {
             const pos = this._character.positionPoint();
             const collisionResults = this.checkCollision(pos.x + dis.x, pos.y, 4);
             if (this.canSlide(collisionResults, 8)) {
-                return this.calcLeftUpWithSlide(dis);
+                return this.calcSlideUpWhenLeft(pos, dis, collisionResults);
             } else if (this.canSlide(collisionResults, 2)) {
-                return this.calcDownLeftWithSlide(dis);
+                return this.calcSlideDownWhenLeft(pos, dis, collisionResults);
             }
             if (dis.y < 0) {
                 return this.calcLeftUpWithoutSlide(dis);
@@ -1513,127 +1665,143 @@ namespace DotMoveSystem {
             }
         }
 
-        calcUpRight(dis: Point): Point {
-            return this.calcUpRightWithSlide(dis, this._character.needDiagonalSlideX(), this._character.needDiagonalSlideY());
-        }
-
-        calcRightDown(dis: Point): Point {
-            return this.calcRightDownWithSlide(dis, this._character.needDiagonalSlideX(), this._character.needDiagonalSlideY());
-        }
-
-        calcDownLeft(dis: Point): Point {
-            return this.calcDownLeftWithSlide(dis, this._character.needDiagonalSlideX(), this._character.needDiagonalSlideY());
-        }
-
-        calcLeftUp(dis: Point): Point {
-            return this.calcLeftUpWithSlide(dis, this._character.needDiagonalSlideX(), this._character.needDiagonalSlideY());
-        }
-
-        calcUpRightWithSlide(dis: Point, enableSlideX: boolean = true, enableSlideY: boolean = true): Point {
-            if (enableSlideX) {
+        calcUpRight(dis: DotMovePoint): DotMovePoint {
+            if (this._character.needDiagonalSlideX()) {
                 const pos = this._character.positionPoint();
                 const collisionResults1 = this.checkCollision(pos.x, pos.y + dis.y, 8);
                 if (this.canSlide(collisionResults1, 6)) {
-                    dis = this.slideDistance(dis, pos, collisionResults1, 45, 6);
-                    const slidedTarget = new Point(pos.x + dis.x, pos.y);
-                    dis = this.correctUpDistance(slidedTarget, dis);
-                    return new Point(pos.x + dis.x, pos.y + dis.y);
+                    return this.calcSlideRightWhenUp(pos, dis, collisionResults1);
                 }
             }
 
-            if (enableSlideY) {
+            if (this._character.needDiagonalSlideY()) {
                 const pos = this._character.positionPoint();
                 const collisionResults2 = this.checkCollision(pos.x + dis.x, pos.y, 6);
                 if (this.canSlide(collisionResults2, 8)) {
-                    dis = this.slideDistance(dis, pos, collisionResults2, 45, 8);
-                    const slidedTarget = new Point(pos.x, pos.y + dis.y);
-                    dis = this.correctRightDistance(slidedTarget, dis);
-                    return new Point(pos.x + dis.x, pos.y + dis.y);
+                    return this.calcSlideUpWhenRight(pos, dis, collisionResults2);
                 }
             }
 
             return this.calcUpRightWithoutSlide(dis);
         }
 
-        calcRightDownWithSlide(dis: Point, enableSlideX: boolean = true, enableSlideY: boolean = true): Point {
-            if (enableSlideY) {
+        calcRightDown(dis: DotMovePoint): DotMovePoint {
+            if (this._character.needDiagonalSlideY()) {
                 const pos = this._character.positionPoint();
                 const collisionResults1 = this.checkCollision(pos.x + dis.x, pos.y, 6);
                 if (this.canSlide(collisionResults1, 2)) {
-                    dis = this.slideDistance(dis, pos, collisionResults1, 135, 2);
-                    const slidedTarget = new Point(pos.x, pos.y + dis.y);
-                    dis = this.correctRightDistance(slidedTarget, dis);
-                    return new Point(pos.x + dis.x, pos.y + dis.y);
+                    return this.calcSlideDownWhenRight(pos, dis, collisionResults1);
                 }
             }
 
-            if (enableSlideX) {
+            if (this._character.needDiagonalSlideX()) {
                 const pos = this._character.positionPoint();
                 const collisionResults2 = this.checkCollision(pos.x, pos.y + dis.y, 2);
                 if (this.canSlide(collisionResults2, 6)) {
-                    dis = this.slideDistance(dis, pos, collisionResults2, 135, 6);
-                    const slidedTarget = new Point(pos.x + dis.x, pos.y);
-                    dis = this.correctDownDistance(slidedTarget, dis);
-                    return new Point(pos.x + dis.x, pos.y + dis.y);
+                    return this.calcSlideRightWhenDown(pos, dis, collisionResults2);
                 }
             }
 
             return this.calcRightDownWithoutSlide(dis);
         }
 
-        calcDownLeftWithSlide(dis: Point, enableSlideX: boolean = true, enableSlideY: boolean = true): Point {
-            if (enableSlideY) {
+        calcDownLeft(dis: DotMovePoint): DotMovePoint {
+            if (this._character.needDiagonalSlideY()) {
                 const pos = this._character.positionPoint();
                 const collisionResults1 = this.checkCollision(pos.x + dis.x, pos.y, 4);
                 if (this.canSlide(collisionResults1, 2)) {
-                    dis = this.slideDistance(dis, pos, collisionResults1, 225, 2);
-                    const slidedTarget = new Point(pos.x, pos.y + dis.y);
-                    dis = this.correctLeftDistance(slidedTarget, dis);
-                    return new Point(pos.x + dis.x, pos.y + dis.y);
+                    return this.calcSlideDownWhenLeft(pos, dis, collisionResults1);
                 }
             }
 
-            if (enableSlideX) {
+            if (this._character.needDiagonalSlideX()) {
                 const pos = this._character.positionPoint();
                 const collisionResults2 = this.checkCollision(pos.x, pos.y + dis.y, 2);
                 if (this.canSlide(collisionResults2, 4)) {
-                    dis = this.slideDistance(dis, pos, collisionResults2, 225, 4);
-                    const slidedTarget = new Point(pos.x + dis.x, pos.y);
-                    dis = this.correctDownDistance(slidedTarget, dis);
-                    return new Point(pos.x + dis.x, pos.y + dis.y);
+                    return this.calcSlideLeftWhenDown(pos, dis, collisionResults2);
                 }
             }
 
             return this.calcDownLeftWithoutSlide(dis);
         }
 
-        calcLeftUpWithSlide(dis: Point, enableSlideX: boolean = true, enableSlideY: boolean = true): Point {
-            if (enableSlideY) {
+        calcLeftUp(dis: DotMovePoint): DotMovePoint {
+            if (this._character.needDiagonalSlideY()) {
                 const pos = this._character.positionPoint();
                 const collisionResults1 = this.checkCollision(pos.x + dis.x, pos.y, 4);
                 if (this.canSlide(collisionResults1, 8)) {
-                    dis = this.slideDistance(dis, pos, collisionResults1, 315, 8);
-                    const slidedTarget = new Point(pos.x, pos.y + dis.y);
-                    dis = this.correctLeftDistance(slidedTarget, dis);
-                    return new Point(pos.x + dis.x, pos.y + dis.y);
+                    return this.calcSlideUpWhenLeft(pos, dis, collisionResults1);
                 }
             }
 
-            if (enableSlideX) {
+            if (this._character.needDiagonalSlideX()) {
                 const pos = this._character.positionPoint();
                 const collisionResults2 = this.checkCollision(pos.x, pos.y + dis.y, 8);
                 if (this.canSlide(collisionResults2, 4)) {
-                    dis = this.slideDistance(dis, pos, collisionResults2, 315, 4);
-                    const slidedTarget = new Point(pos.x + dis.x, pos.y);
-                    dis = this.correctUpDistance(slidedTarget, dis);
-                    return new Point(pos.x + dis.x, pos.y + dis.y);
+                    return this.calcSlideLeftWhenUp(pos, dis, collisionResults2);
                 }
             }
 
             return this.calcLeftUpWithoutSlide(dis);
         }
 
-        calcUpRightWithoutSlide(dis: Point): Point {
+        calcSlideRightWhenUp(pos: DotMovePoint, dis: DotMovePoint, collisionResults: CollisionResult<unknown>[]): DotMovePoint {
+            dis = this.slideDistance(dis, pos, collisionResults, 45, 6);
+            const slidedPos = new DotMovePoint(pos.x + dis.x, pos.y);
+            dis = this.correctUpDistance(slidedPos, dis);
+            return pos.add(dis);
+        }
+
+        calcSlideUpWhenRight(pos: DotMovePoint, dis: DotMovePoint, collisionResults: CollisionResult<unknown>[]): DotMovePoint {
+            dis = this.slideDistance(dis, pos, collisionResults, 45, 8);
+            const slidedPos = new DotMovePoint(pos.x, pos.y + dis.y);
+            dis = this.correctRightDistance(slidedPos, dis);
+            return pos.add(dis);
+        }
+
+        calcSlideDownWhenRight(pos: DotMovePoint, dis: DotMovePoint, collisionResults: CollisionResult<unknown>[]): DotMovePoint {
+            dis = this.slideDistance(dis, pos, collisionResults, 135, 2);
+            const slidedPos = new DotMovePoint(pos.x, pos.y + dis.y);
+            dis = this.correctRightDistance(slidedPos, dis);
+            return pos.add(dis);
+        }
+
+        calcSlideRightWhenDown(pos: DotMovePoint, dis: DotMovePoint, collisionResults: CollisionResult<unknown>[]): DotMovePoint {
+            dis = this.slideDistance(dis, pos, collisionResults, 135, 6);
+            const slidedPos = new DotMovePoint(pos.x + dis.x, pos.y);
+            dis = this.correctDownDistance(slidedPos, dis);
+            return pos.add(dis);
+        }
+
+        calcSlideDownWhenLeft(pos: DotMovePoint, dis: DotMovePoint, collisionResults: CollisionResult<unknown>[]): DotMovePoint {
+            dis = this.slideDistance(dis, pos, collisionResults, 225, 2);
+            const slidedPos = new DotMovePoint(pos.x, pos.y + dis.y);
+            dis = this.correctLeftDistance(slidedPos, dis);
+            return pos.add(dis);
+        }
+
+        calcSlideLeftWhenDown(pos: DotMovePoint, dis: DotMovePoint, collisionResults: CollisionResult<unknown>[]): DotMovePoint {
+            dis = this.slideDistance(dis, pos, collisionResults, 225, 4);
+            const slidedPos = new DotMovePoint(pos.x + dis.x, pos.y);
+            dis = this.correctDownDistance(slidedPos, dis);
+            return pos.add(dis);
+        }
+
+        calcSlideUpWhenLeft(pos: DotMovePoint, dis: DotMovePoint, collisionResults: CollisionResult<unknown>[]): DotMovePoint {
+            dis = this.slideDistance(dis, pos, collisionResults, 315, 8);
+            const slidedPos = new DotMovePoint(pos.x, pos.y + dis.y);
+            dis = this.correctLeftDistance(slidedPos, dis);
+            return pos.add(dis);
+        }
+
+        calcSlideLeftWhenUp(pos: DotMovePoint, dis: DotMovePoint, collisionResults: CollisionResult<unknown>[]): DotMovePoint {
+            dis = this.slideDistance(dis, pos, collisionResults, 315, 4);
+            const slidedPos = new DotMovePoint(pos.x + dis.x, pos.y);
+            dis = this.correctUpDistance(slidedPos, dis);
+            return pos.add(dis);
+        }
+
+        calcUpRightWithoutSlide(dis: DotMovePoint): DotMovePoint {
             const pos = this._character.positionPoint();
             dis = this.correctUpDistance(pos, dis);
             pos.y += dis.y;
@@ -1642,7 +1810,7 @@ namespace DotMoveSystem {
             return pos;
         }
 
-        calcRightDownWithoutSlide(dis: Point): Point {
+        calcRightDownWithoutSlide(dis: DotMovePoint): DotMovePoint {
             const pos = this._character.positionPoint();
             dis = this.correctRightDistance(pos, dis);
             pos.x += dis.x;
@@ -1651,7 +1819,7 @@ namespace DotMoveSystem {
             return pos;
         }
 
-        calcDownLeftWithoutSlide(dis: Point): Point {
+        calcDownLeftWithoutSlide(dis: DotMovePoint): DotMovePoint {
             const pos = this._character.positionPoint();
             dis = this.correctDownDistance(pos, dis);
             pos.y += dis.y;
@@ -1660,7 +1828,7 @@ namespace DotMoveSystem {
             return pos;
         }
 
-        calcLeftUpWithoutSlide(dis: Point): Point {
+        calcLeftUpWithoutSlide(dis: DotMovePoint): DotMovePoint {
             const pos = this._character.positionPoint();
             dis = this.correctLeftDistance(pos, dis);
             pos.x += dis.x;
@@ -1669,25 +1837,25 @@ namespace DotMoveSystem {
             return pos;
         }
 
-        correctUpDistance(pos: Point, distance: Point): Point {
+        correctUpDistance(pos: DotMovePoint, distance: DotMovePoint): DotMovePoint {
             return this.correctDistance(pos, distance, 8);
         }
 
-        correctRightDistance(pos: Point, distance: Point): Point {
+        correctRightDistance(pos: DotMovePoint, distance: DotMovePoint): DotMovePoint {
             return this.correctDistance(pos, distance, 6);
         }
 
-        correctDownDistance(pos: Point, distance: Point): Point {
+        correctDownDistance(pos: DotMovePoint, distance: DotMovePoint): DotMovePoint {
             return this.correctDistance(pos, distance, 2);
         }
 
-        correctLeftDistance(pos: Point, distance: Point): Point {
+        correctLeftDistance(pos: DotMovePoint, distance: DotMovePoint): DotMovePoint {
             return this.correctDistance(pos, distance, 4);
         }
 
         // 衝突判定を行い、衝突矩形から衝突した長さを取得してその分だけ距離を戻す
         // 衝突矩形が複数ある場合は最も衝突距離が長い分だけ距離を戻す
-        correctDistance(pos: Point, distance: Point, dir: number): Point {
+        correctDistance(pos: DotMovePoint, distance: DotMovePoint, dir: number): DotMovePoint {
             const axis = dir === 8 || dir === 2 ? "y" : "x";
             const correctedDistance = distance.clone();
             if (distance[axis] === 0) return correctedDistance;
@@ -1698,7 +1866,9 @@ namespace DotMoveSystem {
             } else {
                 nextY += distance.y;
             }
-            const collisionResults = this.checkCollision(nextX, nextY, dir);
+            const origX = $gameMap.roundX(pos.x);
+            const origY = $gameMap.roundY(pos.y);
+            const collisionResults = this.checkCollision(nextX, nextY, dir, { origX, origY, overComplementMode: true, throughIfCollided: true });
             if (collisionResults.length === 0) return correctedDistance;
             // 距離を戻すため、逆方向の衝突幅を取得する。
             const dir2 = this._character.reverseDir(dir);
@@ -1720,10 +1890,10 @@ namespace DotMoveSystem {
 
         // 衝突距離がキャラの移動距離以上であれば移動距離分スライドを行う
         // 衝突距離がキャラの移動距離未満であれば衝突距離分スライドを行う
-        slideDistance(dis: Point, pos: Point, collisionResults: CollisionResult<unknown>[], deg: number, dir: number): Point {
-            const newDis: Point = dis.clone();
+        slideDistance(dis: DotMovePoint, pos: DotMovePoint, collisionResults: CollisionResult<unknown>[], deg: number, dir: number): DotMovePoint {
+            const newDis: DotMovePoint = dis.clone();
             const len = collisionResults[0].getCollisionLengthByDirection(dir);
-            const diagDis: Point = this.calcDistance(deg);
+            const diagDis: DotMovePoint = this.calcDistance(deg);
             const axis = dir === 8 || dir === 2 ? "y" : "x";
             if (len < Math.abs(diagDis[axis])) {
                 newDis[axis] = diagDis[axis] < 0 ? -len : len;
@@ -1745,12 +1915,12 @@ namespace DotMoveSystem {
             return false;
         }
 
-        calcDistance(deg: number): Point {
+        calcDistance(deg: number): DotMovePoint {
             return DotMoveUtils.calcDistance(deg, this._character.distancePerFrame());
         }
 
-        checkCollision(x: number, y: number, dir: number): CollisionResult<unknown>[] {
-            return this._collisionChecker.checkCollision(x, y, dir);
+        checkCollision(x: number, y: number, d: number, opt: { origX?: number, origY?: number, overComplementMode?: boolean, throughIfCollided?: boolean } = {}): CollisionResult<unknown>[] {
+            return this._collisionChecker.checkCollision(x, y, d, opt);
         }
 
         getSlideLength(axis: string): number {
@@ -1761,7 +1931,7 @@ namespace DotMoveSystem {
             }
         }
 
-        reachPoint(realPoint: Point, targetPoint: Point, margin: number): boolean {
+        reachPoint(realPoint: DotMovePoint, targetPoint: DotMovePoint, margin: number): boolean {
             if (Math.abs(realPoint.x - targetPoint.x) <= margin &&
                 Math.abs(realPoint.y - targetPoint.y) <= margin) {
                 return true;
@@ -1773,28 +1943,28 @@ namespace DotMoveSystem {
 
     // CharacterControllerを用いてキャラクターの座標を更新し、
     // それに合わせてキャラクターの各種状態を更新する。
-    export class CharacterMover<T extends Game_CharacterBase> {
+    export class CharacterMover {
         protected _character!: Game_CharacterBase;
-        protected _collisionChecker!: CharacterCollisionChecker<T>;
-        protected _controller!: CharacterController<T>;
+        protected _collisionChecker!: CharacterCollisionChecker;
+        protected _controller!: CharacterController;
         protected _moverData!: MoverData;
 
-        constructor(...args: [T]) {
+        constructor(...args: [Game_CharacterBase]) {
             this.initialize(...args);
         }
 
-        initialize(character: T): void {
+        initialize(character: Game_CharacterBase): void {
             this._character = character;
             this._collisionChecker = this.createCollisionChecker(character);
             this._controller = this.createController(character);
             this._moverData = character.moverData();
         }
 
-        createCollisionChecker(character: T): CharacterCollisionChecker<T> {
-            return new CharacterCollisionChecker<T>(character);
+        createCollisionChecker(character: Game_CharacterBase): CharacterCollisionChecker {
+            return new CharacterCollisionChecker(character, CharacterCollisionCheckProcess);
         }
 
-        createController(character: T): CharacterController<T> {
+        createController(character: Game_CharacterBase): CharacterController {
             return new CharacterController(character, this._collisionChecker);
         }
 
@@ -1827,6 +1997,10 @@ namespace DotMoveSystem {
             this._moverData.targetCount = 0;
         }
 
+        isMovingToTarget(): boolean {
+            return this._moverData.targetCount > 0;
+        }
+
         checkCollision(x: number, y: number, direction: number): CollisionResult<unknown>[] {
             return this._collisionChecker.checkCollision(x, y, direction);
         }
@@ -1843,7 +2017,7 @@ namespace DotMoveSystem {
             return this._collisionChecker.checkCharacter(x2, y2, direction, character);
         }
 
-        checkHitCharacters(x: number, y: number, direction: number) {
+        checkHitCharacters(x: number, y: number, direction: number): CollisionResult<Game_CharacterBase>[] {
             return this._collisionChecker.checkHitCharacters(x, y, direction);
         }
 
@@ -1855,10 +2029,18 @@ namespace DotMoveSystem {
             return this._collisionChecker.checkHitCharacters(x2, y2, direction);
         }
 
+        isCollidedWithFollowers(x: number, y: number, d: number): boolean {
+            const collisionResults = this._collisionChecker.checkFollowers(x, y, d, { characterIntPosMode: true });
+            for (const result of collisionResults) {
+                if (result.collisionLengthX() >= this._character.minTouchWidth() || result.collisionLengthY() >= this._character.minTouchHeight()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         isCollidedWithEvents(x: number, y: number, d: number): boolean {
-            this._collisionChecker.setCharacterRealPosMode(false);
-            const collisionResults = this._collisionChecker.checkEvents(x, y, d);
-            this._collisionChecker.setCharacterRealPosMode(true);
+            const collisionResults = this._collisionChecker.checkEvents(x, y, d, { characterIntPosMode: true });
             for (const result of collisionResults) {
                 if (result.collisionLengthX() >= this._character.minTouchWidth() || result.collisionLengthY() >= this._character.minTouchHeight()) {
                     return true;
@@ -1868,9 +2050,7 @@ namespace DotMoveSystem {
         }
 
         isCollidedWithVehicles(x: number, y: number, d: number): boolean {
-            this._collisionChecker.setCharacterRealPosMode(false);
-            const collisionResults = this._collisionChecker.checkVehicles(x, y, d);
-            this._collisionChecker.setCharacterRealPosMode(true);
+            const collisionResults = this._collisionChecker.checkVehicles(x, y, d, { characterIntPosMode: true });
             for (const result of collisionResults) {
                 if (result.collisionLengthX() >= this._character.minTouchWidth() || result.collisionLengthY() >= this._character.minTouchHeight()) {
                     return true;
@@ -1904,8 +2084,8 @@ namespace DotMoveSystem {
             this.moveProcess();
         }
 
-        calcTargetCount(fromPoint: Point, targetPoint: Point): number {
-            const far = DotMoveUtils.calcFar(fromPoint, targetPoint);
+        calcTargetCount(fromPoint: DotMovePoint, targetPoint: DotMovePoint): number {
+            const far = fromPoint.calcFar(targetPoint);
             return Math.round(far / this._character.distancePerFrame());
         }
 
@@ -1962,9 +2142,9 @@ namespace DotMoveSystem {
             this.startMove(targetCount, null, d);
         }
 
-        moveToTarget(targetPoint: Point): void {
+        moveToTarget(targetPoint: DotMovePoint): void {
             const fromPoint = this._character.positionPoint();
-            const deg = DotMoveUtils.calcDeg(fromPoint, targetPoint);
+            const deg = fromPoint.calcDeg(targetPoint);
             const dir = DotMoveUtils.deg2direction4(deg, this._character.direction());
             this.setDirection(dir);
             const targetCount = this.calcTargetCount(fromPoint, targetPoint);
@@ -1973,22 +2153,20 @@ namespace DotMoveSystem {
     }
 
 
-    export class PlayerMover extends CharacterMover<Game_Player> {
-        createCollisionChecker(character: Game_Player): PlayerCollisionChecker {
-            return new PlayerCollisionChecker(character);
+    export class PlayerMover extends CharacterMover {
+        createCollisionChecker(character: Game_Player): CharacterCollisionChecker {
+            return new CharacterCollisionChecker(character, PlayerCollisionCheckProcess);
         }
     }
 
 
-    export class EventMover extends CharacterMover<Game_Event> {
-        createCollisionChecker(character: Game_Event): EventCollisionChecker {
-            return new EventCollisionChecker(character);
+    export class EventMover extends CharacterMover {
+        createCollisionChecker(character: Game_Event): CharacterCollisionChecker {
+            return new CharacterCollisionChecker(character, EventCollisionCheckProcess);
         }
 
         isCollidedWithPlayerCharacters(x: number, y: number, d: number): boolean {
-            this._collisionChecker.setCharacterRealPosMode(false);
-            const collisionResults = this._collisionChecker.checkPlayer(x, y, d);
-            this._collisionChecker.setCharacterRealPosMode(true);
+            const collisionResults = this._collisionChecker.checkPlayer(x, y, d, { characterIntPosMode: true });
             for (const result of collisionResults) {
                 if (result.collisionLengthX() >= this._character.minTouchWidth() || result.collisionLengthY() >= this._character.minTouchHeight()) {
                     return true;
@@ -1999,9 +2177,9 @@ namespace DotMoveSystem {
     }
 
 
-    export class FollowerMover extends CharacterMover<Game_Follower> {
-        createCollisionChecker(character: Game_Follower): FollowerCollisionChecker {
-            return new FollowerCollisionChecker(character);
+    export class FollowerMover extends CharacterMover {
+        createCollisionChecker(character: Game_Follower): CharacterCollisionChecker {
+            return new CharacterCollisionChecker(character, FollowerCollisionCheckProcess);
         }
     }
 
@@ -2035,8 +2213,8 @@ namespace DotMoveSystem {
     }
 
 
-    export class CharacterTempData<T extends Game_CharacterBase> {
-        private _mover!: CharacterMover<T> | null;
+    export class CharacterDotMoveTempData {
+        private _mover!: CharacterMover | null;
         private _width!: number;
         private _height!: number;
         private _offsetX!: number;
@@ -2067,8 +2245,8 @@ namespace DotMoveSystem {
     }
 
 
-    export class PlayerTempData extends CharacterTempData<Game_Player> {
-        _collideTriggerEventIds!: number[];
+    export class PlayerDotMoveTempData extends CharacterDotMoveTempData {
+        private _collideTriggerEventIds!: number[];
 
         get collideTriggerEventIds() { return this._collideTriggerEventIds; }
         set collideTriggerEventIds(_collideTriggerEventIds) { this._collideTriggerEventIds = _collideTriggerEventIds; }
@@ -2080,7 +2258,7 @@ namespace DotMoveSystem {
     }
 
 
-    export class EventTempData extends CharacterTempData<Game_Event> {
+    export class EventDotMoveTempData extends CharacterDotMoveTempData {
         private _widthArea!: number;
         private _heightArea!: number;
 
@@ -2097,7 +2275,7 @@ namespace DotMoveSystem {
     }
 
 
-    export class FollowerTempData extends CharacterTempData<Game_Follower> {
+    export class FollowerDotMoveTempData extends CharacterDotMoveTempData {
         private _sameDirectionTotalDpf!: number;
 
         get sameDirectionTotalDpf() { return this._sameDirectionTotalDpf; }
@@ -2119,7 +2297,7 @@ namespace DotMoveSystem {
         // マップ遷移時にマップキャラクターのキャッシュをクリアする
         $gameMap.initMapCharactersCache();
         // マップ遷移時にプレイヤーと既に衝突しているイベントは起動対象外にする
-        $gamePlayer.initCollideTriggerEventIds();
+        $gamePlayer.setupCollideTriggerEventIds();
     };
 
 
@@ -2136,8 +2314,7 @@ namespace DotMoveSystem {
     };
 
     Game_Map.prototype.initMapCharactersCache = function() {
-        // ループ時を考慮して実際のマップサイズ+1の幅の領域を確保する
-        $gameTemp.setupMapCharactersCache(this.width() + 1, this.height() + 1);
+        $gameTemp.setupMapCharactersCache(this.width(), this.height());
         for (const character of this.allCharacters()) {
             character.updateMapCharactersCache();
         }
@@ -2190,18 +2367,18 @@ namespace DotMoveSystem {
         this._moverData = new MoverData();
     };
 
-    Game_CharacterBase.prototype.createTempData = function() {
-        const tempData = new CharacterTempData();
+    Game_CharacterBase.prototype.createDotMoveTempData = function() {
+        const tempData = new CharacterDotMoveTempData();
         tempData.mover = new CharacterMover(this);
         return tempData;
     };
 
-    Game_CharacterBase.prototype.tempData = function <T>(): T {
-        return $gameTemp.characterTempDatas(this);
+    Game_CharacterBase.prototype.dotMoveTempData = function <T>(): T {
+        return $gameTemp.characterTempData(this) as unknown as T;
     };
 
     Game_CharacterBase.prototype.mover = function <T>(): T {
-        return this.tempData().mover as unknown as T;
+        return this.dotMoveTempData().mover as unknown as T;
     };
 
     Game_CharacterBase.prototype.moverData = function() {
@@ -2286,11 +2463,11 @@ namespace DotMoveSystem {
     };
 
     Game_CharacterBase.prototype.positionPoint = function(this: Game_CharacterBase) {
-        return new Point(this._realX, this._realY);
+        return new DotMovePoint(this._realX, this._realY);
     };
 
     Game_CharacterBase.prototype.centerPositionPoint = function() {
-        return new Point(this.centerRealX(), this.centerRealY())
+        return new DotMovePoint(this.centerRealX(), this.centerRealY())
     };
 
     Game_CharacterBase.prototype.setPositionPoint = function(this: Game_CharacterBase, point) {
@@ -2330,19 +2507,19 @@ namespace DotMoveSystem {
     };
 
     Game_CharacterBase.prototype.width = function() {
-        return this.tempData().width;
+        return this.dotMoveTempData().width;
     };
 
     Game_CharacterBase.prototype.height = function() {
-        return this.tempData().height;
+        return this.dotMoveTempData().height;
     };
 
     Game_CharacterBase.prototype.offsetX = function() {
-        return this.tempData().offsetX;
+        return this.dotMoveTempData().offsetX;
     };
 
     Game_CharacterBase.prototype.offsetY = function() {
-        return this.tempData().offsetY;
+        return this.dotMoveTempData().offsetY;
     };
 
     Game_CharacterBase.prototype.centerRealX = function(this: Game_CharacterBase) {
@@ -2375,11 +2552,16 @@ namespace DotMoveSystem {
     };
 
     Game_CharacterBase.prototype.collisionRect = function(this: Game_CharacterBase) {
-        return new Rectangle(this._realX, this._realY, this.width(), this.height());
+        return new DotMoveRectangle(this._realX, this._realY, this.width(), this.height());
     };
 
     const _Game_CharacterBase_setPosition = Game_CharacterBase.prototype.setPosition;
     Game_CharacterBase.prototype.setPosition = function(x, y) {
+        // 初回座標設定時は$gameMapと$dataMapが生成されないため、座標の丸めは行わない
+        if ($gameMap && $dataMap) {
+            x = $gameMap.roundX(x);
+            y = $gameMap.roundY(y);
+        }
         _Game_CharacterBase_setPosition.call(this, x, y);
         this.updateMapCharactersCache();
     };
@@ -2391,8 +2573,7 @@ namespace DotMoveSystem {
     };
 
     Game_CharacterBase.prototype.updateMapCharactersCache = function() {
-        // MapCharactersCacheが生成済みであればキャッシュを更新する
-        if ($gameTemp.mapCharactersCache()) this.mover().updateMapCharactersCache();
+        this.mover().updateMapCharactersCache();
     };
 
     Game_CharacterBase.prototype.clearMovedFlag = function() {
@@ -2443,6 +2624,10 @@ namespace DotMoveSystem {
         return false;
     };
 
+    Game_CharacterBase.prototype.isCollidedWithFollowers = function(this: Game_CharacterBase, x, y, d: number = this.direction()) {
+        return this.mover().isCollidedWithFollowers(x, y, d);
+    };
+
     Game_CharacterBase.prototype.isCollidedWithEvents = function(this: Game_CharacterBase, x, y, d: number = this.direction()) {
         return this.mover().isCollidedWithEvents(x, y, d);
     };
@@ -2456,18 +2641,20 @@ namespace DotMoveSystem {
     };
 
     Game_CharacterBase.prototype.calcDeg = function(targetCharacter) {
-        return DotMoveUtils.calcDeg(this.centerPositionPoint(), targetCharacter.centerPositionPoint());
+        return this.centerPositionPoint().calcDeg(targetCharacter.centerPositionPoint());
     };
 
     Game_CharacterBase.prototype.calcFar = function(targetCharacter) {
-        return DotMoveUtils.calcFar(this.centerPositionPoint(), targetCharacter.centerPositionPoint());
+        return this.centerPositionPoint().calcFar(targetCharacter.centerPositionPoint());
     };
 
     Game_CharacterBase.prototype.stopMove = function() {
+        this._moving = false;
         return this.mover().stopMove();
     };
 
     Game_CharacterBase.prototype.resumeMove = function() {
+        if (this.mover().isMovingToTarget()) this._moving = true;
         return this.mover().resumeMove();
     };
 
@@ -2585,7 +2772,7 @@ namespace DotMoveSystem {
     };
 
     Game_Character.prototype.moveToTarget = function(x, y) {
-        this.mover().moveToTarget(new Point(x, y));
+        this.mover().moveToTarget(new DotMovePoint(x, y));
     };
 
     Game_Character.prototype.deltaRealXFrom = function(x) {
@@ -2662,8 +2849,8 @@ namespace DotMoveSystem {
         this._moveSpeedBeforeGetOnVehicle = this._moveSpeed;
     };
 
-    Game_Player.prototype.createTempData = function() {
-        const tempData = new PlayerTempData();
+    Game_Player.prototype.createDotMoveTempData = function() {
+        const tempData = new PlayerDotMoveTempData();
         tempData.mover = new PlayerMover(this);
         return tempData;
     };
@@ -2680,21 +2867,6 @@ namespace DotMoveSystem {
             return true;
         }
         return false;
-    };
-
-    Game_Player.prototype.isMapPassable = function(x, y, d) {
-        const vehicle = this.vehicle();
-        if (vehicle) {
-            return vehicle.isMapPassable(x, y, d);
-        } else {
-            if (this._shipOrBoatTowardingLand) {
-                // 船から着陸中の場合は、陸から海の方向への当たり判定のみを行うようにする
-                const d2 = this.reverseDir(d);
-                const nextPoint = DotMoveUtils.nextPointWithDirection(new Point(x, y), d);
-                return $gameMap.isPassable(nextPoint.x, nextPoint.y, d2);
-            }
-            return Game_Character.prototype.isMapPassable.call(this, x, y, d);
-        }
     };
 
     Game_Player.prototype.executeMove = function(direction) {
@@ -2718,21 +2890,15 @@ namespace DotMoveSystem {
         }
     };
 
-    const _Game_Player_jump = Game_Player.prototype.jump;
-    Game_Player.prototype.jump = function(xPlus, yPlus) {
-        this.initCollideTriggerEventIds(this.x + xPlus, this.y + yPlus);
-        _Game_Player_jump.call(this, xPlus, yPlus);
-    };
-
     Game_Player.prototype.startTouchMove = function() {
         const x = $gameTemp.destinationX();
         const y = $gameTemp.destinationY();
         const direction = this.findDirectionTo(x, y);
         if (direction > 0) {
             const beforeTouchMovedPoint = $gameTemp.beforeTouchMovedPoint();
-            const currentPoint = new Point(this.x, this.y);
+            const currentPoint = new DotMovePoint(this.x, this.y);
             const nextPoint = DotMoveUtils.nextPointWithDirection(currentPoint, direction);
-            if (!beforeTouchMovedPoint || !(beforeTouchMovedPoint.x === nextPoint.x && beforeTouchMovedPoint.y === nextPoint.y)) {
+            if (!(beforeTouchMovedPoint && beforeTouchMovedPoint.equals(nextPoint))) {
                 if (x === nextPoint.x && y === nextPoint.y) {
                     this.mover().moveToTarget(nextPoint);
                 } else {
@@ -2747,7 +2913,7 @@ namespace DotMoveSystem {
         this._dashing = false;
         this.setMoveSpeed(4);
         this.setThrough(true);
-        const point = this.vehicle().positionPoint();
+        const point = this.vehicle()!.positionPoint();
         this.mover().moveToTarget(point);
         this.setThrough(false);
     };
@@ -2755,14 +2921,14 @@ namespace DotMoveSystem {
     Game_Player.prototype.forceMoveOffAirship = function() {
         this.setMoveSpeed(4);
         // リセットした乗り物の向きにプレイヤーを合わせる
-        this.setDirection(this.vehicle().direction());
+        this.setDirection(this.vehicle()!.direction());
         // 整数座標への着地中は飛行船とプレイヤーの向きを固定化
         // 固定化OFFはupdateVehicleGetOffで実施する
-        this.vehicle().setDirectionFix(true);
+        this.vehicle()!.setDirectionFix(true);
         this.setDirectionFix(true);
         if (this._getOffVehicleIntPos) {
             // 乗り物から降りた時にハマらないように整数座標に着陸する
-            const targetPoint = new Point(this.x, this.y);
+            const targetPoint = new DotMovePoint(this.x, this.y);
             this.mover().moveToTarget(targetPoint);
         }
     };
@@ -2773,7 +2939,7 @@ namespace DotMoveSystem {
         let fromPoint;
         if (this._getOffVehicleIntPos) {
             // 乗り物から降りた時にハマらないように整数座標に着陸する
-            fromPoint = new Point(this.x, this.y);
+            fromPoint = new DotMovePoint(this.x, this.y);
         } else {
             fromPoint = this.positionPoint();
         }
@@ -2804,7 +2970,7 @@ namespace DotMoveSystem {
 
     Game_Player.prototype.updateRemoveCollideTriggerEventIds = function() {
         if (this.isMoving() || this.isJumping()) return; // 船から降りた場合やジャンプ先のイベントを起動対象外にする
-        const tempData = this.tempData<PlayerTempData>();
+        const tempData = this.dotMoveTempData<PlayerDotMoveTempData>();
         for (const eventId of tempData.collideTriggerEventIds) {
             const event = $gameMap.event(eventId);
             if (event) {
@@ -2815,6 +2981,12 @@ namespace DotMoveSystem {
             }
             tempData.collideTriggerEventIds = tempData.collideTriggerEventIds.filter(id => id !== eventId);
         }
+    };
+
+    const _Game_Player_updateJump = Game_Player.prototype.updateJump;
+    Game_Player.prototype.updateJump = function() {
+        _Game_Player_updateJump.call(this);
+        if (!this.isJumping()) this.setupCollideTriggerEventIds();
     };
 
     const _Game_Player_increaseSteps = Game_Player.prototype.increaseSteps;
@@ -2838,12 +3010,14 @@ namespace DotMoveSystem {
         this._needCountProcess = false;
     };
 
-    Game_Player.prototype.updateNonmoving = function(wasMoving, sceneActive) {
+    Game_Player.prototype.updateNonmoving = function(this: Game_Player, wasMoving, sceneActive) {
         if ($gameMap.isEventRunning()) {
-            this.initCollideTriggerEventIds();
+            this.setupCollideTriggerEventIds();
         } else {
             if (wasMoving) {
-                this.checkEventTriggerHere([1, 2]);
+                if (!this._vehicleGettingOn) {
+                    this.checkEventTriggerHere([1, 2]);
+                }
                 if ($gameMap.setupStartingEvent()) {
                     return;
                 }
@@ -2858,10 +3032,11 @@ namespace DotMoveSystem {
         }
     };
 
-    Game_Player.prototype.initCollideTriggerEventIds = function(this: Game_Player, x = this._realX, y = this._realY) {
-        const tempData = this.tempData<PlayerTempData>();
+    Game_Player.prototype.setupCollideTriggerEventIds = function(this: Game_Player) {
+        const pos = this.positionPoint();
+        const tempData = this.dotMoveTempData<PlayerDotMoveTempData>();
         tempData.collideTriggerEventIds = [];
-        for (const result of this.mover().checkHitCharacters(x, y, this._direction)) {
+        for (const result of this.mover().checkHitCharacters(pos.x, pos.y, this._direction)) {
             if (!(result.targetObject instanceof Game_Event)) continue;
             const event = result.targetObject;
             const eventId = event.eventId();
@@ -2879,8 +3054,6 @@ namespace DotMoveSystem {
             this._vehicleGettingOn = true;
             this._moveSpeedBeforeGetOnVehicle = this.moveSpeed();
             this.forceMoveOnVehicle();
-            const point = this.vehicle().positionPoint();
-            this.initCollideTriggerEventIds(point.x, point.y);
             this.gatherFollowers();
         }
         return this._vehicleGettingOn;
@@ -2926,55 +3099,96 @@ namespace DotMoveSystem {
     };
 
     Game_Player.prototype.getOffAirship = function(this: Game_Player) {
-        if (this.vehicle().isLandOk(this.x, this.y, this.direction())) {
-            if (this.isGetOffCollided(this.positionPoint())) {
-                if (this.isGetOffCollided(new Point(this.x, this.y))) return this._vehicleGettingOff;
-                this._getOffVehicleIntPos = true;
+        if (!this.checkAirshipLandOk(this.positionPoint())) {
+            if (!this.checkAirshipLandOk(new DotMovePoint(this.x, this.y))) {
+                return false;
             }
-
-            this.getOffVehicleLastPhase();
+            this._getOffVehicleIntPos = true;
         }
-        return this._vehicleGettingOff;
+        this.getOffVehicleLastPhase();
+        return true;
     };
 
     Game_Player.prototype.getOffShipOrBoat = function(this: Game_Player) {
         const d = this.direction();
-        if (this.vehicle().isLandOk(this.x, this.y, d)) {
-            this._shipOrBoatTowardingLand = true;
+        this._shipOrBoatTowardingLand = true;
 
-            const x = (d === 8 || d === 2) ? this._realX : this.x;
-            const y = (d === 6 || d === 4) ? this._realY : this.y;
-            let point = new Point(x, y);
+        const x = (d === 8 || d === 2) ? this._realX : this.x;
+        const y = (d === 6 || d === 4) ? this._realY : this.y;
+        let point = new DotMovePoint(x, y);
 
-            const nextPoint = DotMoveUtils.nextPointWithDirection(point, d);
-            if (this.isGetOffCollided(nextPoint)) {
-                // 着陸座標で衝突が発生する場合は整数座標に着陸する
-                const intPoint = new Point(this.x, this.y);
-                const nextIntPoint = DotMoveUtils.nextPointWithDirection(intPoint, d);
-                const results = this.mover().checkCollision(intPoint.x, intPoint.y, d);
-                if (results.length > 0 || this.isGetOffCollided(nextIntPoint)) {
-                    this._shipOrBoatTowardingLand = false;
-                    return false;
-                }
-                this._getOffVehicleIntPos = true;
-                point = intPoint;
+        if (!this.checkShipOrBoatLandOk(point)) {
+            // 着陸座標で衝突が発生する場合は整数座標に着陸する
+            const intPoint = new DotMovePoint(this.x, this.y);
+            const results = this.mover().checkCollision(intPoint.x, intPoint.y, d);
+            if (results.length > 0 || !this.checkShipOrBoatLandOk(intPoint)) {
+                this._shipOrBoatTowardingLand = false;
+                return false;
             }
-
-            this.setDirectionFix(true);
-            this.setMoveSpeed(4);
-            this.setThrough(true);
-            this.mover().moveToTarget(point);
-            this.setThrough(false);
+            this._getOffVehicleIntPos = true;
+            point = intPoint;
         }
-        return false;
+
+        this.setDirectionFix(true);
+        this.setMoveSpeed(4);
+        this.setThrough(true);
+        this.mover().moveToTarget(point);
+        this.setThrough(false);
+        return true;
     };
 
-    Game_Player.prototype.isGetOffCollided = function(this: Game_Player, point) {
+    Game_Player.prototype.checkAirshipLandOk = function(pos) {
+        const rect = new DotMoveRectangle(pos.x, pos.y, this.width(), this.height());
+        const massRange = MassRange.fromRect(rect);
+        for (let ix = massRange.x; ix <= massRange.x2; ix++) {
+            for (let iy = massRange.y; iy <= massRange.y2; iy++) {
+                if (!this.vehicle()!.isLandOk(ix, iy, this.direction())) return false;
+            }
+        }
+        return !this.isGetOffCollided(pos);
+    };
+
+    Game_Player.prototype.checkShipOrBoatLandOk = function(pos) {
+        const rect = new DotMoveRectangle(pos.x, pos.y, this.width(), this.height());
+        const massRange = MassRange.fromRect(rect);
+
+        const d = this.direction();
+        let x1 = massRange.x;
+        let y1 = massRange.y;
+        let x2 = massRange.x2;
+        let y2 = massRange.y2;
+
+        switch (d) {
+            case 8:
+                y2 = y1;
+                break;
+            case 6:
+                x1 = x2;
+                break;
+            case 2:
+                y1 = y2;
+                break;
+            case 4:
+                x2 = x1;
+                break;
+        }
+
+        for (let ix = x1; ix <= x2; ix++) {
+            for (let iy = y1; iy <= y2; iy++) {
+                if (!this.vehicle()!.isLandOk(ix, iy, d)) return false;
+            }
+        }
+
+        const nextPos = DotMoveUtils.nextPointWithDirection(pos, d);
+        return !this.isGetOffCollided(nextPos);
+    };
+
+    Game_Player.prototype.isGetOffCollided = function(this: Game_Player, pos) {
         const tmpVehicleType = this._vehicleType;
         const tmpThrough = this._through;
         this._vehicleType = "walk";
         this._through = false;
-        const results = this.mover().checkCollision(point.x, point.y, this.direction());
+        const results = this.mover().checkCollision(pos.x, pos.y, this.direction());
         this._vehicleType = tmpVehicleType;
         this._through = tmpThrough;
         return results.length > 0;
@@ -2990,7 +3204,7 @@ namespace DotMoveSystem {
             this.followers().synchronize(this._realX, this._realY, this.direction());
         }
 
-        this.vehicle().getOff();
+        this.vehicle()!.getOff();
         if (this.isInAirship()) {
             this.forceMoveOffAirship();
         } else {
@@ -3003,18 +3217,18 @@ namespace DotMoveSystem {
     };
 
     Game_Player.prototype.updateTowardLandShipOrBoat = function(this: Game_Player) {
-        this.vehicle().syncWithPlayer();
+        this.vehicle()!.syncWithPlayer();
         if (!this.isMoving()) {
             if (this._getOffVehicleIntPos) {
                 // 整数座標への移動完了後は確実に座標を整数に設定する
-                this.setPositionPoint(new Point(this.x, this.y));
-                this.vehicle().syncWithPlayer();
+                this.setPositionPoint(new DotMovePoint(this.x, this.y));
+                this.vehicle()!.syncWithPlayer();
             } else {
                 // 船で実数座標に着陸した場合の座標調整を実施する
                 const d = this.direction();
                 const x = (d === 8 || d === 2) ? this._realX : this.x;
                 const y = (d === 6 || d === 4) ? this._realY : this.y;
-                this.setPositionPoint(new Point(x, y));
+                this.setPositionPoint(new DotMovePoint(x, y));
             }
             this._shipOrBoatTowardingLand = false;
             this.setDirectionFix(false);
@@ -3031,7 +3245,7 @@ namespace DotMoveSystem {
             } else if (this._vehicleGettingOff) {
                 this.updateVehicleGetOff();
             } else {
-                this.vehicle().syncWithPlayer();
+                this.vehicle()!.syncWithPlayer();
             }
         }
     };
@@ -3039,18 +3253,18 @@ namespace DotMoveSystem {
     Game_Player.prototype.updateVehicleGetOff = function(this: Game_Player) {
         // 飛行船着地中はプレイヤーと飛行船の位置を同期させる
         if (this.isInAirship()) {
-            this.vehicle().syncWithPlayer();
+            this.vehicle()!.syncWithPlayer();
         }
         if (this._gatherStart) {
-            if (!this.areFollowersGathering() && this.vehicle().isLowest()) {
+            if (!this.areFollowersGathering() && this.vehicle()!.isLowest()) {
                 if (this._getOffVehicleIntPos) {
                     // 整数座標への移動完了後は確実に座標を整数に設定する
-                    this.setPositionPoint(new Point(this.x, this.y));
+                    this.setPositionPoint(new DotMovePoint(this.x, this.y));
                 }
                 if (this.isInAirship()) {
-                    this.vehicle().syncWithPlayer();
+                    this.vehicle()!.syncWithPlayer();
                     // 飛行船着地に完了した場合、正面を向く
-                    this.vehicle().setDirectionFix(false);
+                    this.vehicle()!.setDirectionFix(false);
                     this.setDirectionFix(false);
                     this.setDirection(2);
                     for (const follower of this.followers().data()) {
@@ -3069,18 +3283,14 @@ namespace DotMoveSystem {
             if (!this.isMoving()) {
                 this.gatherFollowers();
                 this._gatherStart = true;
-                this.initCollideTriggerEventIds();
+                this.setupCollideTriggerEventIds();
             }
         }
     };
 
-    Game_Player.prototype.moveForward = function() {
-        this.moveStraight(this.direction());
-    };
-
     Game_Player.prototype.startMapEvent = function(this: Game_Player, x, y, triggers, normal) {
         if ($gameMap.isEventRunning()) return;
-        const tempData = this.tempData<PlayerTempData>();
+        const tempData = this.dotMoveTempData<PlayerDotMoveTempData>();
         const hasDecideTrigger = triggers.includes(0);
         for (const result of this.mover().checkHitCharacters(x, y, this._direction)) {
             if (!(result.targetObject instanceof Game_Event)) continue;
@@ -3122,6 +3332,33 @@ namespace DotMoveSystem {
         }
     };
 
+    Game_Player.prototype.triggerTouchAction = function() {
+        if ($gameTemp.isDestinationValid()) {
+            const direction = this.direction();
+            const x1 = this.x;
+            const y1 = this.y;
+            const x2 = $gameMap.roundXWithDirection(x1, direction);
+            const y2 = $gameMap.roundYWithDirection(y1, direction);
+            const destX = $gameTemp.destinationX();
+            const destY = $gameTemp.destinationY();
+            if (destX === x1 && destY === y1) {
+                return this.triggerTouchActionD1(x1, y1);
+            } else if (destX === x2 && destY === y2) {
+                return this.triggerTouchActionD2(x2, y2);
+            } else {
+                if (direction === 8 || direction === 2) {
+                    if (destX !== x1) return false;
+                } else {
+                    if (destY !== y1) return false;
+                }
+                const dest = new DotMovePoint(destX, destY);
+                const prev = DotMoveUtils.prevPointWithDirection(dest, direction);
+                return this.triggerTouchActionD3(prev.x, prev.y);
+            }
+        }
+        return false;
+    };
+
     Game_Player.prototype.checkEventTriggerTouchFront = function(this: Game_Player, d) {
         if (this.canStartLocalEvents()) {
             // トリガー  0: 決定ボタン 1: プレイヤーから接触 2: イベントから接触
@@ -3140,7 +3377,7 @@ namespace DotMoveSystem {
             const direction = this.direction();
             this.startMapEventFront(this._realX, this._realY, this._direction, triggers, true, false);
             if ($gameMap.isAnyEventStarting()) return;
-            let currentPoint = new Point(this._realX, this._realY);
+            let currentPoint = this.positionPoint();
             while (true) {
                 let nextPoint = DotMoveUtils.nextPointWithDirection(currentPoint, direction);
                 let nextX = Math.round(nextPoint.x);
@@ -3161,35 +3398,74 @@ namespace DotMoveSystem {
     };
 
 
-    Game_Event.prototype.createTempData = function() {
-        const tempData = new EventTempData();
+    Game_Event.prototype.createDotMoveTempData = function() {
+        const tempData = new EventDotMoveTempData();
         tempData.mover = new EventMover(this);
-        tempData.width = EventParamParser.getWidth(this);
-        tempData.height = EventParamParser.getHeight(this);
-        tempData.offsetX = EventParamParser.getOffsetX(this);
-        tempData.offsetY = EventParamParser.getOffsetY(this);
-        tempData.widthArea = EventParamParser.getWidthArea(this);
-        tempData.heightArea = EventParamParser.getHeightArea(this);
+
+        const noteWidth = this.getAnnotationValue("width");
+        if (noteWidth != null) tempData.width = parseFloat(noteWidth);
+
+        const noteHeight = this.getAnnotationValue("height");
+        if (noteHeight != null) tempData.height = parseFloat(noteHeight);
+
+        const noteOffsetX = this.getAnnotationValue("offsetX");
+        if (noteOffsetX != null) tempData.offsetX = parseFloat(noteOffsetX);
+
+        const noteOffsetY = this.getAnnotationValue("offsetY");
+        if (noteOffsetY != null) tempData.offsetY = parseFloat(noteOffsetY);
+
+        const noteWidthArea = this.getAnnotationValue("widthArea");
+        if (noteWidthArea != null) tempData.widthArea = parseFloat(noteWidthArea);
+
+        const noteHeightArea = this.getAnnotationValue("heightArea");
+        if (noteHeightArea != null) tempData.heightArea = parseFloat(noteHeightArea);
+
         return tempData;
     };
 
     Game_Event.prototype.widthArea = function() {
-        return this.tempData<EventTempData>().widthArea;
+        return this.dotMoveTempData<EventDotMoveTempData>().widthArea;
     };
 
     Game_Event.prototype.heightArea = function() {
-        return this.tempData<EventTempData>().heightArea;
+        return this.dotMoveTempData<EventDotMoveTempData>().heightArea;
     };
+
+    Game_Event.prototype.getAnnotationValue = function(name: string, page = 0): string | null {
+        const note = this.getAnnotation(page);
+        const data: any = { note };
+        DataManager.extractMetadata(data);
+        if (data.meta[name]) return data.meta[name];
+        return null;
+    };
+
+    Game_Event.prototype.getAnnotation = function(page): string {
+        const eventData = this.event();
+        if (eventData) {
+            const noteLines = [];
+            const pageList = eventData.pages[page].list;
+            for (let i = 0; i < pageList.length; i++) {
+                if (pageList[i].code === 108 || pageList[i].code === 408) {
+                    noteLines.push(pageList[i].parameters[0]);
+                } else {
+                    break;
+                }
+            }
+            return noteLines.join("\n");
+        }
+        return "";
+    }
 
     Game_Event.prototype.isCollidedWithCharacters = function(this: Game_Event, x, y, d: number = this.direction()) {
         return (
             Game_Character.prototype.isCollidedWithCharacters.call(this, x, y, d) ||
+            this.isCollidedWithFollowers(x, y, d) ||
             this.isCollidedWithPlayerCharacters(x, y, d)
         );
     };
 
     Game_Event.prototype.isCollidedWithEvents = function(this: Game_Event, x, y, d: number = this.direction()) {
-        return Game_CharacterBase.prototype.isCollidedWithEvents.call(this, x, y, d);
+        return Game_Character.prototype.isCollidedWithEvents.call(this, x, y, d);
     };
 
     Game_Event.prototype.isCollidedWithPlayerCharacters = function(this: Game_Event, x, y, d: number = this.direction()) {
@@ -3238,8 +3514,8 @@ namespace DotMoveSystem {
         this.setThrough(false);
     };
 
-    Game_Follower.prototype.createTempData = function() {
-        const tempData = new FollowerTempData();
+    Game_Follower.prototype.createDotMoveTempData = function() {
+        const tempData = new FollowerDotMoveTempData();
         tempData.mover = new FollowerMover(this);
         return tempData;
     };
@@ -3297,7 +3573,7 @@ namespace DotMoveSystem {
         const far = this.calcFar(character);
         if (far >= 1) {
             this.changeFollowerSpeed(far);
-            const tempData = this.tempData<FollowerTempData>();
+            const tempData = this.dotMoveTempData<FollowerDotMoveTempData>();
             if (far >= 5) {
                 // 前のキャラとの距離が5以上離れている場合はすり抜けを行う
                 this.setThrough(true);
@@ -3442,13 +3718,13 @@ namespace DotMoveSystem {
     Game_Vehicle.prototype.getOn = function() {
         _Game_Vehicle_getOn.call(this);
         $gamePlayer.setPositionPoint(this.positionPoint());
+        $gamePlayer.setupCollideTriggerEventIds();
     };
 
 
     const _Game_Temp_initialize = Game_Temp.prototype.initialize;
     Game_Temp.prototype.initialize = function() {
         _Game_Temp_initialize.call(this);
-        // なるべくドット移動関連の変数をセーブデータに持たせないため、ムーバーはGame_Tempに保持する。
         this._characterTempDatas = new Map();
         // イベントとの衝突判定を高速化するため、マスごとにイベントを管理する
         this._mapCharactersCache = null;
@@ -3456,18 +3732,18 @@ namespace DotMoveSystem {
         this._beforeTouchMovedPoint = null;
     };
 
-    Game_Temp.prototype.characterTempDatas = function(character) {
+    Game_Temp.prototype.characterTempData = function(character) {
         let tempData = this._characterTempDatas.get(character);
         if (tempData) return tempData;
-        tempData = character.createTempData();
+        tempData = character.createDotMoveTempData();
         this._characterTempDatas.set(character, tempData);
         return tempData;
     };
 
     Game_Temp.prototype.initCharacterTempDatas = function() {
-        this._characterTempDatas = new Map();
+        this._characterTempDatas.clear();
         for (const character of $gameMap.allCharacters()) {
-            const tempData = character.createTempData();
+            const tempData = character.createDotMoveTempData();
             this._characterTempDatas.set(character, tempData);
         }
     };
