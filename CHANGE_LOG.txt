@@ -285,6 +285,12 @@ SuperMode7.js
     2022/02/16 v0.1.0
         ・新規作成
 
+VirtualStick.js
+    2022/09/25 v1.1.3
+        ・名前変更 VirtualPad.js => VirtualPad.js
+        ・DotMoveSystem_DecideTriggerEx.jsとの併用に対応
+        ・TypeScript対応
+
 VisualizeCollisionArea
     2022/03/22 v1.1.0
         ・ドット移動機能拡張プラグインで指定した斜め当たり判定を反映する機能を追加
