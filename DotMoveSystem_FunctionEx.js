@@ -1,9 +1,10 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Dot movement system function extension v2.1.0
+@plugindesc Dot movement system function extension v2.1.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
+@base DotMoveSystem
 @help
 It is a plug-in that extends the functions of the dot movement system.
 Add the following features.
@@ -64,15 +65,25 @@ In the memo field of the event to be pushed
 <PushableEvent>
 Please describe.
 
-■ Jump with collision detection
-Jump with collision detection.
+■ Jump with hit detection
+Performs a jump with hit detection.
 Write the following script in the movement route setting.
-this.smartJump (addition value in the X-axis direction, addition value in the Y-axis direction, maximum jump height (optional));
-* The maximum jump height can be omitted. If omitted, 10 applies.
-* The presence or absence of slip-through can be omitted. If omitted, no slip-through is applied.
+this.smartJump(Added value in X-axis direction, Added value in Y-axis direction, Maximum jump height (optional), Presence/absence of slipping (optional));
+*The maximum jump height can be omitted. If omitted, 10 is applied.
+*It is possible to omit the presence or absence of passing through. If omitted, no pass-through is applied.
 
-(Example) When jumping 2 to the left and 3.5 to the top
-this.smartJump (2, -3.5);
+(Example 1) When jumping 2 to the left and 3.5 to the top
+this.smartJump(2, -3.5);
+
+(Example 2) When jumping 2 to the left and 3.5 to the top at a height of 20 and passing through
+this. smartJump(2, -3.5, 20, true);
+
+■ Jump with hit judgment in absolute coordinates
+Write the following script in the movement route setting.
+this.smartJumpAbs(X coordinate, Y coordinate, maximum jump height (optional), pass through (optional));
+
+(Example) When jumping to the coordinates of X=5, Y=10
+this.smartJumpAbs(5, 10);
 
 ■ Half-square collision detection of terrain
 By editing the plug-in parameter "HalfCollisionMassInfo"
@@ -541,9 +552,10 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v2.1.0
+@plugindesc ドット移動システム機能拡張 v2.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
+@base DotMoveSystem
 @help
 ドット移動システムの機能を拡張するプラグインです。
 次の機能を追加します。
@@ -606,12 +618,22 @@ this.setInertia(2);
 ■ 当たり判定付きジャンプ
 当たり判定付きでジャンプを行います。
 移動ルートの設定で以下のスクリプトを記述します。
-this.smartJump(X軸方向の加算値, Y軸方向の加算値, 最大のジャンプする高さ(省略可));
+this.smartJump(X軸方向の加算値, Y軸方向の加算値, 最大のジャンプする高さ(省略可), すり抜け有無(省略可));
 ※最大のジャンプする高さは省略可能です。省略した場合、10が適用されます。
 ※すり抜け有無は省略可能です。省略した場合、すり抜け無しが適用されます。
 
-(例) 左方向に2、上方向に3.5ジャンプさせる場合
+(例1) 左方向に2、上方向に3.5ジャンプさせる場合
 this.smartJump(2, -3.5);
+
+(例2) 左方向に2、上方向に3.5高さ20でジャンプさせ、すり抜けを行う場合
+this.smartJump(2, -3.5, 20, true);
+
+■ 絶対座標での当たり判定付きジャンプ
+移動ルートの設定で以下のスクリプトを記述します。
+this.smartJumpAbs(X座標, Y座標, 最大のジャンプする高さ(省略可), すり抜け有無(省略可));
+
+(例) X=5, Y=10の座標にジャンプする場合
+this.smartJumpAbs(5, 10);
 
 ■ 地形の半マス当たり判定
 プラグインパラメータ「HalfCollisionMassInfo」を編集することで、
@@ -1200,6 +1222,7 @@ var DotMoveSystem;
         this._maxAcceleration = 0;
         this._jumpXPlus = 0;
         this._jumpYPlus = 0;
+        this._smartJumpLastThrough = null;
     };
     const _Game_Player_initMembers = Game_Player.prototype.initMembers;
     Game_Player.prototype.initMembers = function () {
@@ -1489,9 +1512,11 @@ var DotMoveSystem;
     DotMoveSystem.CharacterMover.prototype.dotMoveByDistance = function (direction, distance, opt = {}) {
         this._controller.dotMoveByDistance(direction, distance);
     };
-    Game_CharacterBase.prototype.smartJump = function (xPlus, yPlus, baseJumpPeak = 10) {
+    Game_CharacterBase.prototype.smartJump = function (xPlus, yPlus, baseJumpPeak = 10, through = false) {
         this._jumpXPlus = xPlus;
         this._jumpYPlus = yPlus;
+        this._smartJumpLastThrough = this._through;
+        this._through = through;
         if (Math.abs(xPlus) > Math.abs(yPlus)) {
             if (xPlus !== 0) {
                 this.setDirection(xPlus < 0 ? 4 : 6);
@@ -1508,13 +1533,13 @@ var DotMoveSystem;
         this.resetStopCount();
         this.straighten();
     };
-    Game_CharacterBase.prototype.smartJumpAbs = function (x, y, baseJumpPeak = 10) {
+    Game_CharacterBase.prototype.smartJumpAbs = function (x, y, baseJumpPeak = 10, through = false) {
         const xPlus = x - this._realX;
         const yPlus = y - this._realY;
-        this.smartJump(xPlus, yPlus, baseJumpPeak);
+        this.smartJump(xPlus, yPlus, baseJumpPeak, through);
     };
     Game_CharacterBase.prototype.isSmartJumping = function () {
-        return this._jumpXPlus != 0 && this._jumpYPlus != 0;
+        return this._jumpXPlus !== 0 && this._jumpYPlus !== 0;
     };
     const _Game_CharacterBase_updateJump = Game_CharacterBase.prototype.updateJump;
     Game_CharacterBase.prototype.updateJump = function () {
@@ -1530,8 +1555,34 @@ var DotMoveSystem;
         if (this._jumpCount === 0) {
             this._jumpXPlus = 0;
             this._jumpYPlus = 0;
+            this._through = this._smartJumpLastThrough;
             this.setPosition(this._realX, this._realY);
         }
+    };
+    Game_Player.prototype.smartJump = function (xPlus, yPlus, baseJumpPeak = 10, through = false) {
+        Game_Character.prototype.smartJump.call(this, xPlus, yPlus, baseJumpPeak, through);
+        for (const follower of this.followers().data()) {
+            const targetX = this._realX + xPlus;
+            const targetY = this._realY + yPlus;
+            follower.smartJumpAbs(targetX, targetY, baseJumpPeak, through);
+        }
+    };
+    Game_Player.prototype.smartJumpAbs = function (x, y, baseJumpPeak = 10, through = false) {
+        Game_Character.prototype.smartJumpAbs.call(this, x, y, baseJumpPeak, through);
+        for (const follower of this.followers().data()) {
+            follower.smartJumpAbs(x, y, baseJumpPeak, through);
+        }
+    };
+    // DotMoveSystem本体側でupdateJumpを書き換えているため、こちらにも定義する。
+    const _Game_Player_updateJump = Game_Player.prototype.updateJump;
+    Game_Player.prototype.updateJump = function () {
+        if (!this.isSmartJumping())
+            _Game_Player_updateJump.call(this);
+    };
+    Game_Player.prototype.updateSmartJump = function () {
+        Game_Character.prototype.updateSmartJump.call(this);
+        if (!this.isSmartJumping())
+            this.setupCollideTriggerEventIds();
     };
     /*
      * ● 半マス通行判定設定
