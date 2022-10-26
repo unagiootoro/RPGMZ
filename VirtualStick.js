@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc virtual stick v1.1.3
+@plugindesc virtual stick v1.1.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualStickController.js
 @help
@@ -128,7 +128,7 @@ Stick fill Specifies the color at the end of the gradient.
 */
 /*:ja
 @target MV MZ
-@plugindesc 仮想スティック v1.1.3
+@plugindesc 仮想スティック v1.1.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualStickController.js
 @help
@@ -276,17 +276,35 @@ var VirtualStick;
         constructor() {
             this.reset();
         }
+        update() {
+            if (this._state === "closing")
+                this.updateClosing();
+        }
+        updateClosing() {
+            if (this._remainClosingWaitTime > 0) {
+                this._remainClosingWaitTime--;
+                if (this._remainClosingWaitTime === 0) {
+                    this._visible = false;
+                    this._point = null;
+                    this._deg = null;
+                    this._state = "close";
+                }
+            }
+        }
         reset() {
             this._VirtualStickTouched = false;
             this._touchActionResult = false;
             this._visible = false;
             this._point = null;
             this._deg = null;
+            this._state = "close";
+            this._remainClosingWaitTime = 0;
         }
         isVisible() {
             return this._visible;
         }
         open(point) {
+            this._state = "open";
             if (this._point) {
                 const far = this.calcFar(this._point, point);
                 if (far >= MARGIN) {
@@ -302,9 +320,10 @@ var VirtualStick;
             }
         }
         close() {
-            this._visible = false;
-            this._point = null;
-            this._deg = null;
+            if (this._state === "open") {
+                this._remainClosingWaitTime = VirtualStickController.CLOSING_WAIT_TIME;
+                this._state = "closing";
+            }
         }
         point() {
             return this._point;
@@ -395,6 +414,7 @@ var VirtualStick;
             return Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff, 2));
         }
     }
+    VirtualStickController.CLOSING_WAIT_TIME = 4;
     VirtualStick.VirtualStickController = VirtualStickController;
     const _DataManager_createGameObjects = DataManager.createGameObjects;
     DataManager.createGameObjects = function () {
@@ -413,6 +433,7 @@ var VirtualStick;
         this.updateVirtualStick();
     };
     Scene_Map.prototype.updateVirtualStick = function () {
+        $virtualStickController.update();
         if ($gameMap.isEventRunning() || this.isBusy()) {
             $virtualStickController.close();
         }
@@ -689,7 +710,6 @@ var VirtualStick;
         }
     }
     VirtualStick.Sprite_Stick = Sprite_Stick;
-    ;
     const _Spriteset_Map_createLowerLayer = Spriteset_Map.prototype.createLowerLayer;
     Spriteset_Map.prototype.createLowerLayer = function () {
         _Spriteset_Map_createLowerLayer.call(this);

@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc virtual stick v1.1.3
+@plugindesc virtual stick v1.1.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualStickController.js
 @help
@@ -127,7 +127,7 @@ Stick fill Specifies the color at the end of the gradient.
 */
 /*:ja
 @target MV MZ
-@plugindesc 仮想スティック v1.1.3
+@plugindesc 仮想スティック v1.1.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VirtualStickController.js
 @help
@@ -292,30 +292,56 @@ namespace VirtualStick {
     const STICK_FILL_GRAD3_COLOR = params["STICK_FILL_GRAD3_COLOR"];
 
 
+    type VirtualStickState = "open" | "closing" | "close";
+
+
     export class VirtualStickController {
+        protected static CLOSING_WAIT_TIME = 4;
+
         protected _VirtualStickTouched!: boolean;
         protected _touchActionResult!: boolean;
         protected _visible!: boolean;
         protected _point!: Point | null;
         protected _deg!: number | null;
+        protected _state!: VirtualStickState;
+        protected _remainClosingWaitTime!: number;
 
         constructor() {
             this.reset();
         }
 
-        reset() {
+        update(): void {
+            if (this._state === "closing") this.updateClosing();
+        }
+
+        updateClosing(): void {
+            if (this._remainClosingWaitTime > 0) {
+                this._remainClosingWaitTime--;
+                if (this._remainClosingWaitTime === 0) {
+                    this._visible = false;
+                    this._point = null;
+                    this._deg = null;
+                    this._state = "close";
+                }
+            }
+        }
+
+        reset(): void {
             this._VirtualStickTouched = false;
             this._touchActionResult = false;
             this._visible = false;
             this._point = null;
             this._deg = null;
+            this._state = "close";
+            this._remainClosingWaitTime = 0;
         }
 
-        isVisible() {
+        isVisible(): boolean {
             return this._visible;
         }
 
-        open(point: Point) {
+        open(point: Point): void {
+            this._state = "open";
             if (this._point) {
                 const far = this.calcFar(this._point, point);
                 if (far >= MARGIN) {
@@ -329,21 +355,22 @@ namespace VirtualStick {
             }
         }
 
-        close() {
-            this._visible = false;
-            this._point = null;
-            this._deg = null;
+        close(): void {
+            if (this._state === "open") {
+                this._remainClosingWaitTime = VirtualStickController.CLOSING_WAIT_TIME;
+                this._state = "closing";
+            }
         }
 
-        point() {
+        point(): Point | null {
             return this._point;
         }
 
-        deg() {
+        deg(): number | null {
             return this._deg;
         }
 
-        dir4() {
+        dir4(): number {
             if (!this._deg) return 0;
             const deg = this._deg;
             if ((deg >= 315 && deg < 360) || (deg >= 0 && deg < 45)) {
@@ -358,7 +385,7 @@ namespace VirtualStick {
             throw new Error(`${deg} is invalid`);
         }
 
-        dir8() {
+        dir8(): number {
             if (!this._deg) return 0;
             const deg = this._deg;
             if ((deg >= 337.5 && deg < 360) || (deg >= 0 && deg < 22.5)) {
@@ -381,23 +408,23 @@ namespace VirtualStick {
             throw new Error(`${deg} is invalid`);
         }
 
-        touchActionResult() {
+        touchActionResult(): boolean {
             return this._touchActionResult;
         }
 
-        setTouchActionResult(result: boolean) {
+        setTouchActionResult(result: boolean): void {
             this._touchActionResult = result;
         }
 
-        virtualStickTouched() {
+        virtualStickTouched(): boolean {
             return this._VirtualStickTouched;
         }
 
-        setVirtualStickTouched(touched: boolean) {
+        setVirtualStickTouched(touched: boolean): void {
             this._VirtualStickTouched = touched;
         }
 
-        calcDeg(fromPoint: Point, newPoint: Point) {
+        calcDeg(fromPoint: Point, newPoint: Point): number {
             const ox = newPoint.x - fromPoint.x;
             const oy = newPoint.y - fromPoint.y;
             const rad = Math.atan2(oy, ox);
@@ -411,7 +438,7 @@ namespace VirtualStick {
             return deg;
         }
 
-        calcFar(fromPoint: Point, newPoint: Point) {
+        calcFar(fromPoint: Point, newPoint: Point): number {
             const xDiff = newPoint.x - fromPoint.x;
             const yDiff = newPoint.y - fromPoint.y;
             if (xDiff === 0 && yDiff === 0) return 0;
@@ -439,6 +466,7 @@ namespace VirtualStick {
     };
 
     Scene_Map.prototype.updateVirtualStick = function() {
+        $virtualStickController.update();
         if ($gameMap.isEventRunning() || this.isBusy()) {
             $virtualStickController.close();
         } else {
@@ -573,7 +601,7 @@ namespace VirtualStick {
     }
 
     export class Sprite_VirtualStick extends spriteClass {
-        initialize() {
+        initialize(): void {
             super.initialize();
             this._stickSprite = null;
             this.createBitmap();
@@ -581,7 +609,7 @@ namespace VirtualStick {
             this.hide();
         }
 
-        update() {
+        update(): void {
             super.update();
             if ($virtualStickController.isVisible()) {
                 this.show();
@@ -600,7 +628,7 @@ namespace VirtualStick {
             }
         }
 
-        createBitmap() {
+        createBitmap(): void {
             if (PAD_IMAGE_FILE_NAME) {
                 this.bitmap = ImageManager.loadBitmap("img/", PAD_IMAGE_FILE_NAME);
             } else {
@@ -608,7 +636,7 @@ namespace VirtualStick {
             }
         }
 
-        createDefaultBitmap() {
+        createDefaultBitmap(): void {
             this.bitmap = new Bitmap(PAD_SIZE, PAD_SIZE);
             const ctx = this.bitmap._context;
             const pad = this.padding();
@@ -627,22 +655,22 @@ namespace VirtualStick {
             ctx.fill();
         }
 
-        createStick() {
+        createStick(): void {
             this._stickSprite = new Sprite_Stick();
             this.addChild(this._stickSprite);
         }
 
-        show() {
+        show(): void {
             super.show();
             this._stickSprite.show();
         }
 
-        hide() {
+        hide(): void {
             super.hide();
             this._stickSprite.hide();
         }
 
-        moveStickToCenter() {
+        moveStickToCenter(): void {
             const pad = this.padding();
             const cx = this.bitmap.width / 2;
             const cy = this.bitmap.height / 2;
@@ -652,7 +680,7 @@ namespace VirtualStick {
             this._stickSprite.y = y;
         }
 
-        moveStickByDeg(deg: number) {
+        moveStickByDeg(deg: number): void {
             this.moveStickToCenter();
             const rad = (deg - 90) / 180 * Math.PI;
             const pad = this.padding();
@@ -667,22 +695,22 @@ namespace VirtualStick {
             this._stickSprite.y += diffY - diffY2 - pad2;
         }
 
-        padding() {
+        padding(): number {
             return 4;
         }
     }
 
     export class Sprite_Stick extends spriteClass {
-        initialize() {
+        initialize(): void {
             super.initialize();
             this.createBitmap();
         }
 
-        update() {
+        update(): void {
             super.update();
         }
 
-        createBitmap() {
+        createBitmap(): void {
             if (STICK_IMAGE_FILE_NAME) {
                 this.bitmap = ImageManager.loadBitmap("img/", STICK_IMAGE_FILE_NAME);
             } else {
@@ -690,7 +718,7 @@ namespace VirtualStick {
             }
         }
 
-        createDefaultBitmap() {
+        createDefaultBitmap(): void {
             this.bitmap = new Bitmap(STICK_SIZE, STICK_SIZE);
             const ctx = this.bitmap._context;
             const pad = this.padding();
@@ -716,10 +744,10 @@ namespace VirtualStick {
             ctx.fill();
         }
 
-        padding() {
+        padding(): number {
             return 4;
         }
-    };
+    }
 
     const _Spriteset_Map_createLowerLayer = Spriteset_Map.prototype.createLowerLayer;
     Spriteset_Map.prototype.createLowerLayer = function() {
