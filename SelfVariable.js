@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Self variable v1.1.0
+@plugindesc Self variable v1.2.0
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -17,6 +17,18 @@ You can do it.
 
 In addition to variables, switches can also be treated as extended self-switches by adding "$"
 to the beginning of the switch name.
+
+■ Using Decimal Variables
+Prefixing a variable name with "#" treats it as a decimal variable.
+Setting example: # decimal variable
+
+A variable set to a decimal variable retains its value as a decimal even if a decimal value is assigned to it.
+For the setting of the decimal, in "Variable operation" of the event command,
+This can be done by entering a decimal value in the script field.
+
+Also, if a description such as "#$" is attached to the beginning, the variable is treated as a self variable and a decimal variable.
+can be handled. Either "#" or "$" can be written first.
+Setting example: #$ decimal self variable
 
 ■ Manipulate self-variables from plug-in commands
 "Get self-variable value" and "Set self-variable value" of the plug-in command
@@ -87,11 +99,23 @@ This plugin is available under the terms of the MIT license.
 @default 1
 @desc Specify the map ID.
 
+@arg MapIdByVariable
+@type variable
+@text Map ID (variable specification)
+@default 0
+@desc Specify the map ID with a variable. If you set the map ID value directly, specify 0 for this parameter.
+
 @arg EventId
 @type number
 @text Event ID
 @default 1
 @desc Specify the event ID.
+
+@arg EventIdByVariable
+@type variable
+@text Event ID (variable specification)
+@default 0
+@desc Specify the event ID with a variable. If you set the event ID value directly, specify 0 for this parameter.
 
 @arg SelfVariableId
 @type variable
@@ -116,11 +140,23 @@ This plugin is available under the terms of the MIT license.
 @default 1
 @desc Specify the map ID.
 
+@arg MapIdByVariable
+@type variable
+@text Map ID (variable specification)
+@default 0
+@desc Specify the map ID with a variable. If you set the map ID value directly, specify 0 for this parameter.
+
 @arg EventId
 @type number
 @text Event ID
 @default 1
 @desc Specify the event ID.
+
+@arg EventIdByVariable
+@type variable
+@text Event ID (variable specification)
+@default 0
+@desc Specify the event ID with a variable. If you set the event ID value directly, specify 0 for this parameter.
 
 @arg SelfVariableId
 @type variable
@@ -141,21 +177,62 @@ This plugin is available under the terms of the MIT license.
 @desc Specify the variable ID that stores the value to be set in the self-variable. If you specify a direct value, specify 0 for this parameter.
 
 
+@command ClearSelfVariables
+@text self variable clear
+@desc Sets all self variables corresponding to the specified map ID and event ID to 0.
+
+@arg MapId
+@type number
+@text map ID
+@default 1
+@desc Specify the map ID.
+
+@arg MapIdByVariable
+@type variable
+@text Map ID (variable specification)
+@default 0
+@desc Specify the map ID with a variable. If you set the map ID value directly, specify 0 for this parameter.
+
+@arg EventId
+@type number
+@text Event ID
+@default 1
+@desc Specify the event ID.
+
+@arg EventIdByVariable
+@type variable
+@text Event ID (variable specification)
+@default 0
+@desc Specify the event ID with a variable. If you set the event ID value directly, specify 0 for this parameter.
+
+
 @command GetExSelfSwitchValue
 @text get extended self-switch value
 @desc Gets the extended self-switch value.
 
 @arg MapId
 @type number
-@text map id
+@text map ID
 @default 1
-@desc Specifies the map ID.
+@desc Specify the map ID.
+
+@arg MapIdByVariable
+@type variable
+@text Map ID (variable specification)
+@default 0
+@desc Specify the map ID with a variable. If you set the map ID value directly, specify 0 for this parameter.
 
 @arg EventId
 @type number
-@text event ID
+@text Event ID
 @default 1
-@desc Specifies the event ID.
+@desc Specify the event ID.
+
+@arg EventIdByVariable
+@type variable
+@text Event ID (variable specification)
+@default 0
+@desc Specify the event ID with a variable. If you set the event ID value directly, specify 0 for this parameter.
 
 @arg ExSelfSwitchId
 @type switch
@@ -176,15 +253,27 @@ This plugin is available under the terms of the MIT license.
 
 @arg MapId
 @type number
-@text map id
+@text map ID
 @default 1
-@desc Specifies the map ID.
+@desc Specify the map ID.
+
+@arg MapIdByVariable
+@type variable
+@text Map ID (variable specification)
+@default 0
+@desc Specify the map ID with a variable. If you set the map ID value directly, specify 0 for this parameter.
 
 @arg EventId
 @type number
-@text event ID
+@text Event ID
 @default 1
-@desc Specifies the event ID.
+@desc Specify the event ID.
+
+@arg EventIdByVariable
+@type variable
+@text Event ID (variable specification)
+@default 0
+@desc Specify the event ID with a variable. If you set the event ID value directly, specify 0 for this parameter.
 
 @arg ExSelfSwitchId
 @type switch
@@ -205,11 +294,46 @@ This plugin is available under the terms of the MIT license.
 @desc Specifies the switch ID that stores the value to be set in the extended self-switch. When specifying a value directly, specify 0 for this parameter.
 
 
+@command ClearExSelfSwitches
+@text extended self switch clear
+@desc Turns off all extended self-switches corresponding to the specified map ID and event ID.
+
+@arg MapId
+@type number
+@text map ID
+@default 1
+@desc Specify the map ID.
+
+@arg MapIdByVariable
+@type variable
+@text Map ID (variable specification)
+@default 0
+@desc Specify the map ID with a variable. If you set the map ID value directly, specify 0 for this parameter.
+
+@arg EventId
+@type number
+@text Event ID
+@default 1
+@desc Specify the event ID.
+
+@arg EventIdByVariable
+@type variable
+@text Event ID (variable specification)
+@default 0
+@desc Specify the event ID with a variable. If you set the event ID value directly, specify 0 for this parameter.
+
+
 @param SelfVariablePrefix
 @type string
 @text self variable or extend self switch prefix
 @default $
 @desc Specifies the variable name prefix used to identify self variables or extend self switches.
+
+@param FloatVariablePrefix
+@type string
+@text decimal variable prefix
+@default #
+@desc Specifies the variable name prefix used to identify decimal variables.
 
 @param ErrorLanguage
 @type string
@@ -220,7 +344,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc セルフ変数 v1.1.0
+@plugindesc セルフ変数 v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -237,6 +361,18 @@ This plugin is available under the terms of the MIT license.
 
 また、変数だけでなくスイッチについてもスイッチ名の先頭に「$」をつけることで
 拡張セルフスイッチとして扱うことができるようになります。
+
+■ 小数変数の使用
+変数名の先頭に「#」を付けると、その変数は小数変数として扱われます。
+設定例: #小数変数
+
+小数変数に設定した変数は、小数値を代入した場合でも小数としての値が保持されるようになります。
+小数の設定については、イベントコマンドの「変数の操作」にて、
+スクリプト欄に小数の値を入力することで行うことが可能です。
+
+また、「#$」のような記載を先頭につけた場合、その変数はセルフ変数かつ小数変数として
+扱うことが可能です。「#」と「$」はどちらを先に記載してもかまいません。
+設定例: #$小数セルフ変数
 
 ■ プラグインコマンドからセルフ変数を操作する
 プラグインコマンドの「セルフ変数値取得」「セルフ変数値設定」を
@@ -308,11 +444,23 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @default 1
 @desc マップIDを指定します。
 
+@arg MapIdByVariable
+@type variable
+@text マップID(変数指定)
+@default 0
+@desc マップIDを変数で指定します。直接マップID値を設定した場合は本パラメータは0を指定してください。
+
 @arg EventId
 @type number
 @text イベントID
 @default 1
 @desc イベントIDを指定します。
+
+@arg EventIdByVariable
+@type variable
+@text イベントID(変数指定)
+@default 0
+@desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
 
 @arg SelfVariableId
 @type variable
@@ -337,11 +485,23 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @default 1
 @desc マップIDを指定します。
 
+@arg MapIdByVariable
+@type variable
+@text マップID(変数指定)
+@default 0
+@desc マップIDを変数で指定します。直接マップID値を設定した場合は本パラメータは0を指定してください。
+
 @arg EventId
 @type number
 @text イベントID
 @default 1
 @desc イベントIDを指定します。
+
+@arg EventIdByVariable
+@type variable
+@text イベントID(変数指定)
+@default 0
+@desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
 
 @arg SelfVariableId
 @type variable
@@ -362,6 +522,35 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @desc セルフ変数に設定する値を格納した変数IDを指定します。直接値を指定する場合、このパラメータは0を指定してください。
 
 
+@command ClearSelfVariables
+@text セルフ変数クリア
+@desc 指定したマップIDとイベントIDに該当する全てのセルフ変数を0にします。
+
+@arg MapId
+@type number
+@text マップID
+@default 1
+@desc マップIDを指定します。
+
+@arg MapIdByVariable
+@type variable
+@text マップID(変数指定)
+@default 0
+@desc マップIDを変数で指定します。直接マップID値を設定した場合は本パラメータは0を指定してください。
+
+@arg EventId
+@type number
+@text イベントID
+@default 1
+@desc イベントIDを指定します。
+
+@arg EventIdByVariable
+@type variable
+@text イベントID(変数指定)
+@default 0
+@desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
+
+
 @command GetExSelfSwitchValue
 @text 拡張セルフスイッチ値取得
 @desc 拡張セルフスイッチの値を取得します。
@@ -372,11 +561,24 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @default 1
 @desc マップIDを指定します。
 
+@arg MapIdByVariable
+@type variable
+@text マップID(変数指定)
+@default 0
+@desc マップIDを変数で指定します。直接マップID値を設定した場合は本パラメータは0を指定してください。
+
 @arg EventId
 @type number
 @text イベントID
 @default 1
 @desc イベントIDを指定します。
+
+@arg EventIdByVariable
+@type variable
+@text イベントID(変数指定)
+@default 0
+@desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
+
 
 @arg ExSelfSwitchId
 @type switch
@@ -401,11 +603,23 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @default 1
 @desc マップIDを指定します。
 
+@arg MapIdByVariable
+@type variable
+@text マップID(変数指定)
+@default 0
+@desc マップIDを変数で指定します。直接マップID値を設定した場合は本パラメータは0を指定してください。
+
 @arg EventId
 @type number
 @text イベントID
 @default 1
 @desc イベントIDを指定します。
+
+@arg EventIdByVariable
+@type variable
+@text イベントID(変数指定)
+@default 0
+@desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
 
 @arg ExSelfSwitchId
 @type switch
@@ -426,11 +640,46 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @desc 拡張セルフスイッチに設定する値を格納したスイッチIDを指定します。直接値を指定する場合、このパラメータは0を指定してください。
 
 
+@command ClearExSelfSwitches
+@text 拡張セルフスイッチクリア
+@desc 指定したマップIDとイベントIDに該当する全ての拡張セルフスイッチをOFFにします。
+
+@arg MapId
+@type number
+@text マップID
+@default 1
+@desc マップIDを指定します。
+
+@arg MapIdByVariable
+@type variable
+@text マップID(変数指定)
+@default 0
+@desc マップIDを変数で指定します。直接マップID値を設定した場合は本パラメータは0を指定してください。
+
+@arg EventId
+@type number
+@text イベントID
+@default 1
+@desc イベントIDを指定します。
+
+@arg EventIdByVariable
+@type variable
+@text イベントID(変数指定)
+@default 0
+@desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
+
+
 @param SelfVariablePrefix
 @type string
 @text セルフ変数/拡張セルフスイッチプレフィックス
 @default $
-@desc セルフ変数/拡張セルフスイッチの識別に使用する変数名のプレフィックスを指定します。
+@desc セルフ変数/拡張セルフスイッチの識別に使用する変数/スイッチ名のプレフィックスを指定します。
+
+@param FloatVariablePrefix
+@type string
+@text 小数変数プレフィックス
+@default #
+@desc 小数変数の識別に使用する変数名のプレフィックスを指定します。
 
 @param ErrorLanguage
 @type string
@@ -441,23 +690,25 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 
 const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
 
+var globalActiveInterpreter = null;
+var globalActiveEvent = null;
+
 (() => {
     "use strict";
 
-    let globalActiveInterpreter = null;
-    let globalActiveEvent = null;
-
-
     const PP = PluginManager.parameters(SelfVariablePluginName);
     const SelfVariablePrefix = PP.SelfVariablePrefix;
+    const FloatVariablePrefix = PP.FloatVariablePrefix;
     const ErrorLanguage = PP.ErrorLanguage;
 
 
     /* static class PluginManager */
     if (typeof PluginManager.registerCommand !== "undefined") {
         PluginManager.registerCommand(SelfVariablePluginName, "GetSelfVariableValue", function(args) {
-            const mapId = parseInt(args.MapId);
-            const eventId = parseInt(args.EventId);
+            const mapIdByVariable = parseInt(args.MapIdByVariable);
+            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
+            const eventIdByVariable = parseInt(args.EventIdByVariable);
+            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
             const selfVariableId = parseInt(args.SelfVariableId);
             const destVariableId = parseInt(args.DestVariableId);
             const key = [mapId, eventId, selfVariableId];
@@ -466,8 +717,10 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
         });
 
         PluginManager.registerCommand(SelfVariablePluginName, "SetSelfVariableValue", function(args) {
-            const mapId = parseInt(args.MapId);
-            const eventId = parseInt(args.EventId);
+            const mapIdByVariable = parseInt(args.MapIdByVariable);
+            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
+            const eventIdByVariable = parseInt(args.EventIdByVariable);
+            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
             const selfVariableId = parseInt(args.SelfVariableId);
             let value = parseInt(args.Value);
             const srcVariableId = parseInt(args.SrcVariableId);
@@ -478,9 +731,19 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
             $gameVariables.setSelfVariableValue(key, value);
         });
 
+        PluginManager.registerCommand(SelfVariablePluginName, "ClearSelfVariables", function(args) {
+            const mapIdByVariable = parseInt(args.MapIdByVariable);
+            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
+            const eventIdByVariable = parseInt(args.EventIdByVariable);
+            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            $gameVariables.clearSelfVariables(mapId, eventId);
+        });
+
         PluginManager.registerCommand(SelfVariablePluginName, "GetExSelfSwitchValue", function(args) {
-            const mapId = parseInt(args.MapId);
-            const eventId = parseInt(args.EventId);
+            const mapIdByVariable = parseInt(args.MapIdByVariable);
+            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
+            const eventIdByVariable = parseInt(args.EventIdByVariable);
+            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
             const exSelfSwitchId = parseInt(args.ExSelfSwitchId);
             const destSwitchId = parseInt(args.DestSwitchId);
             const key = [mapId, eventId, exSelfSwitchId];
@@ -488,9 +751,12 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
             $gameSwitches.setValue(destSwitchId, value);
         });
 
+        // NOTE: SetExSelfVariableValueは誤記だが旧版との互換性を考慮してこのままとする。
         PluginManager.registerCommand(SelfVariablePluginName, "SetExSelfVariableValue", function(args) {
-            const mapId = parseInt(args.MapId);
-            const eventId = parseInt(args.EventId);
+            const mapIdByVariable = parseInt(args.MapIdByVariable);
+            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
+            const eventIdByVariable = parseInt(args.EventIdByVariable);
+            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
             const exSelfSwitchId = parseInt(args.ExSelfSwitchId);
             let value = args.Value === "true";
             const srcSwitchId = parseInt(args.SrcSwitchId);
@@ -499,6 +765,14 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
                 value = $gameSwitches.value(srcSwitchId);
             }
             $gameSwitches.setExSelfSwitchValue(key, value);
+        });
+
+        PluginManager.registerCommand(SelfVariablePluginName, "ClearExSelfSwitches", function(args) {
+            const mapIdByVariable = parseInt(args.MapIdByVariable);
+            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
+            const eventIdByVariable = parseInt(args.EventIdByVariable);
+            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            $gameSwitches.clearExSelfSwitches(mapId, eventId);
         });
     }
 
@@ -521,18 +795,42 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
         }
 
         static currentExSelfSwitchKey(id) {
-            if (globalActiveInterpreter) {
-                return globalActiveInterpreter.selfVariableOrExSwitchKey(id);
-            } else if (globalActiveEvent) {
+            if (globalActiveEvent) {
                 return globalActiveEvent.selfVariableOrExSwitchKey(id);
+            } else if (globalActiveInterpreter) {
+                return globalActiveInterpreter.selfVariableOrExSwitchKey(id);
             }
             throw new Error(ErrorMessageManager.invalidSelfVariableAccess(id));
         }
 
         static checkPrefixs(name) {
-            const prefix = name.slice(0, SelfVariablePrefix.length);
-            if (prefix === SelfVariablePrefix) return true;
-            return false;
+            const results = [];
+
+            let prefix;
+            let index = 0;
+            let end = false;
+            while (!end) {
+                end = true;
+                if (SelfVariablePrefix) {
+                    prefix = name.slice(index, index + SelfVariablePrefix.length);
+                    if (prefix === SelfVariablePrefix) {
+                        results.push("SelfVariable");
+                        index += SelfVariablePrefix.length;
+                        end = false;
+                    }
+                }
+
+                if (FloatVariablePrefix) {
+                    prefix = name.slice(index, index + FloatVariablePrefix.length);
+                    if (prefix === FloatVariablePrefix) {
+                        results.push("FloatVariable");
+                        index += FloatVariablePrefix.length;
+                        end = false;
+                    }
+                }
+            }
+
+            return results;
         }
     }
 
@@ -554,21 +852,34 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
         return _Game_Variables_value.call(this, variableId);
     };
 
-    const _Game_Variables_setValue = Game_Variables.prototype.setValue;
     Game_Variables.prototype.setValue = function(variableId, value) {
         if (this.isSelfVariable(variableId)) {
             if (SelfVariableOrExSwitchUtils.isDebugScene()) return;
             const key = SelfVariableOrExSwitchUtils.currentExSelfSwitchKey(variableId);
             this.setSelfVariableValue(key, value);
-            return;
+        } else {
+            if (variableId > 0 && variableId < $dataSystem.variables.length) {
+                if (!this.isFloatVariable(variableId) && (typeof value === "number")) {
+                    value = Math.floor(value);
+                }
+                this._data[variableId] = value;
+                this.onChange();
+            }
         }
-        return _Game_Variables_setValue.call(this, variableId, value);
     };
 
     Game_Variables.prototype.isSelfVariable = function(variableId) {
         const name = $dataSystem.variables[variableId];
         if (!name) return false;
-        return SelfVariableOrExSwitchUtils.checkPrefixs(name);
+        const prefixs = SelfVariableOrExSwitchUtils.checkPrefixs(name);
+        return prefixs.includes("SelfVariable");
+    };
+
+    Game_Variables.prototype.isFloatVariable = function(variableId) {
+        const name = $dataSystem.variables[variableId];
+        if (!name) return false;
+        const prefixs = SelfVariableOrExSwitchUtils.checkPrefixs(name);
+        return prefixs.includes("FloatVariable");
     };
 
     Game_Variables.prototype.selfVariableValue = function(key) {
@@ -578,11 +889,20 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
     Game_Variables.prototype.setSelfVariableValue = function(key, value) {
         const variableId = key[2];
         if (variableId > 0 && variableId < $dataSystem.variables.length) {
-            if (typeof value === "number") {
+            if (!this.isFloatVariable(variableId) && (typeof value === "number")) {
                 value = Math.floor(value);
             }
             this._selfVariablesData[key] = value;
             this.onChange();
+        }
+    };
+
+    Game_Variables.prototype.clearSelfVariables = function(mapId, eventId) {
+        for (let variableId = 1; variableId < $dataSystem.variables.length; variableId++) {
+            const key = [mapId, eventId, variableId];
+            if (this._selfVariablesData[key] != null) {
+                delete this._selfVariablesData[key];
+            }
         }
     };
 
@@ -618,7 +938,8 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
     Game_Switches.prototype.isExSelfSwitch = function(switchId) {
         const name = $dataSystem.switches[switchId];
         if (!name) return false;
-        return SelfVariableOrExSwitchUtils.checkPrefixs(name);
+        const prefixs = SelfVariableOrExSwitchUtils.checkPrefixs(name);
+        return prefixs.includes("SelfVariable");
     };
 
     Game_Switches.prototype.exSelfSwitchValue = function(key) {
@@ -627,9 +948,18 @@ const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/
 
     Game_Switches.prototype.setExSelfSwitchValue = function(key, value) {
         const switchId = key[2];
-        if (switchId > 0 && switchId < $dataSystem.variables.length) {
+        if (switchId > 0 && switchId < $dataSystem.switches.length) {
             this._exSelfSwitchesData[key] = value;
             this.onChange();
+        }
+    };
+
+    Game_Switches.prototype.clearExSelfSwitches = function(mapId, eventId) {
+        for (let switchId = 1; switchId < $dataSystem.switches.length; switchId++) {
+            const key = [mapId, eventId, switchId];
+            if (this._exSelfSwitchesData[key] != null) {
+                delete this._exSelfSwitchesData[key];
+            }
         }
     };
 
