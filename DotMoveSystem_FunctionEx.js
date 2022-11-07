@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Dot movement system function extension v2.1.1
+@plugindesc Dot movement system function extension v2.1.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -552,7 +552,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v2.1.1
+@plugindesc ドット移動システム機能拡張 v2.1.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -1509,7 +1509,7 @@ var DotMoveSystem;
     /*
      * ● 当たり判定付きジャンプ
      */
-    DotMoveSystem.CharacterMover.prototype.dotMoveByDistance = function (direction, distance, opt = {}) {
+    DotMoveSystem.CharacterMover.prototype.dotMoveByDistance = function (direction, distance) {
         this._controller.dotMoveByDistance(direction, distance);
     };
     Game_CharacterBase.prototype.smartJump = function (xPlus, yPlus, baseJumpPeak = 10, through = false) {
@@ -1539,7 +1539,7 @@ var DotMoveSystem;
         this.smartJump(xPlus, yPlus, baseJumpPeak, through);
     };
     Game_CharacterBase.prototype.isSmartJumping = function () {
-        return this._jumpXPlus !== 0 && this._jumpYPlus !== 0;
+        return this._jumpXPlus !== 0 || this._jumpYPlus !== 0;
     };
     const _Game_CharacterBase_updateJump = Game_CharacterBase.prototype.updateJump;
     Game_CharacterBase.prototype.updateJump = function () {
@@ -1551,7 +1551,9 @@ var DotMoveSystem;
         const x = this._realX + this._jumpXPlus / (this._jumpPeak * 2);
         const y = this._realY + this._jumpYPlus / (this._jumpPeak * 2);
         const dis = new DotMoveSystem.DotMovePoint(x - this._realX, y - this._realY);
-        this.mover().dotMoveByDistance(this.direction(), dis);
+        const zero = new DotMoveSystem.DotMovePoint(0, 0);
+        const dir = DotMoveSystem.DotMoveUtils.deg2direction(zero.calcDeg(dis));
+        this.mover().dotMoveByDistance(dir, dis);
         if (this._jumpCount === 0) {
             this._jumpXPlus = 0;
             this._jumpYPlus = 0;

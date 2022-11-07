@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system function extension v2.1.1
+@plugindesc Dot movement system function extension v2.1.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -556,7 +556,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v2.1.1
+@plugindesc ドット移動システム機能拡張 v2.1.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -1637,7 +1637,7 @@ namespace DotMoveSystem {
     /*
      * ● 当たり判定付きジャンプ
      */
-    CharacterMover.prototype.dotMoveByDistance = function(this: CharacterMover, direction: number, distance: DotMovePoint, opt = {}) {
+    CharacterMover.prototype.dotMoveByDistance = function(this: CharacterMover, direction: number, distance: DotMovePoint) {
         this._controller.dotMoveByDistance(direction, distance);
     };
 
@@ -1670,7 +1670,7 @@ namespace DotMoveSystem {
 
 
     Game_CharacterBase.prototype.isSmartJumping = function() {
-        return this._jumpXPlus !== 0 && this._jumpYPlus !== 0;
+        return this._jumpXPlus !== 0 || this._jumpYPlus !== 0;
     };
 
     const _Game_CharacterBase_updateJump = Game_CharacterBase.prototype.updateJump;
@@ -1683,7 +1683,9 @@ namespace DotMoveSystem {
         const x = this._realX + this._jumpXPlus / (this._jumpPeak * 2);
         const y = this._realY + this._jumpYPlus / (this._jumpPeak * 2);
         const dis = new DotMovePoint(x - this._realX, y - this._realY);
-        this.mover().dotMoveByDistance(this.direction(), dis);
+        const zero = new DotMoveSystem.DotMovePoint(0, 0);
+        const dir = DotMoveUtils.deg2direction(zero.calcDeg(dis));
+        this.mover().dotMoveByDistance(dir, dis);
         if (this._jumpCount === 0) {
             this._jumpXPlus = 0;
             this._jumpYPlus = 0;
