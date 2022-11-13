@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Self variable v1.2.0
+@plugindesc Self variable v1.3.0
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -17,6 +17,15 @@ You can do it.
 
 In addition to variables, switches can also be treated as extended self-switches by adding "$"
 to the beginning of the switch name.
+
+■ Using common event variables
+A variable name prefixed with "%" will be treated as a common event variable.
+Setting example: %Common event variable
+
+Common event variables are variables that can only be used within common events.
+The value is initialized to 0 to call common events.
+If you call a common event within a common event,
+Values are not shared between common events.
 
 ■ Using Decimal Variables
 Prefixing a variable name with "#" treats it as a decimal variable.
@@ -41,6 +50,11 @@ by using "extended self-switch value acquisition" and "extended self-switch sett
 Plugin commands can only be used when running on MZ.
 In the case of MV, by using the function to operate self variables from the script
 The same can be achieved.
+
+When specifying "map ID" in the plug-in command, "map ID"
+If 0 is specified, the ID of the current map is applied.
+Also, if 0 is specified for "Event ID" when specifying "Event ID",
+The ID of the event that executed the plugin command is applied.
 
 ■ Manipulate self variables from scripts
 ・Acquisition of self-variables
@@ -329,6 +343,12 @@ This plugin is available under the terms of the MIT license.
 @default $
 @desc Specifies the variable name prefix used to identify self variables or extend self switches.
 
+@param CommonVariablePrefix
+@type string
+@text common variable/common switch prefix
+@default %
+@desc Specifies the variable/switch name prefix used to identify common variables/switches.
+
 @param FloatVariablePrefix
 @type string
 @text decimal variable prefix
@@ -344,7 +364,7 @@ This plugin is available under the terms of the MIT license.
 
 /*:ja
 @target MV MZ
-@plugindesc セルフ変数 v1.2.0
+@plugindesc セルフ変数 v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -361,6 +381,15 @@ This plugin is available under the terms of the MIT license.
 
 また、変数だけでなくスイッチについてもスイッチ名の先頭に「$」をつけることで
 拡張セルフスイッチとして扱うことができるようになります。
+
+■ コモンイベント変数の使用
+変数名の先頭に「%」を付けると、その変数はコモンイベント変数として扱われます。
+設定例: %コモンイベント変数
+
+コモンイベント変数はコモンイベント内だけで使用可能な変数です。
+コモンイベントを呼び出すために値が0に初期化されます。
+コモンイベント内でコモンイベントを呼び出した場合、
+コモンイベント間で値は共有されません。
 
 ■ 小数変数の使用
 変数名の先頭に「#」を付けると、その変数は小数変数として扱われます。
@@ -386,6 +415,11 @@ This plugin is available under the terms of the MIT license.
 プラグインコマンドはMZで動作させる場合のみ使用できます。
 MVの場合はスクリプトからセルフ変数を操作させる機能を使用することで
 同様のことが実現可能です。
+
+プラグインコマンドで「マップID」を指定するときに「マップID」に
+0を指定した場合は、現在のマップのIDが適用されます。
+また「イベントID」を指定するときに「イベントID」に0を指定した場合は、
+プラグインコマンドを実行したイベントのIDが適用されます。
 
 ■ スクリプトからセルフ変数を操作する
 ・セルフ変数の取得
@@ -442,7 +476,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text マップID
 @default 1
-@desc マップIDを指定します。0を指定した場合は現在のマップIDを適用します。
+@desc マップIDを指定します。
 
 @arg MapIdByVariable
 @type variable
@@ -454,7 +488,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text イベントID
 @default 1
-@desc イベントIDを指定します。0を指定した場合は現在のイベントIDを適用します。
+@desc イベントIDを指定します。
 
 @arg EventIdByVariable
 @type variable
@@ -483,7 +517,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text マップID
 @default 1
-@desc マップIDを指定します。0を指定した場合は現在のマップIDを適用します。
+@desc マップIDを指定します。
 
 @arg MapIdByVariable
 @type variable
@@ -495,7 +529,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text イベントID
 @default 1
-@desc イベントIDを指定します。0を指定した場合は現在のイベントIDを適用します。
+@desc イベントIDを指定します。
 
 @arg EventIdByVariable
 @type variable
@@ -530,7 +564,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text マップID
 @default 1
-@desc マップIDを指定します。0を指定した場合は現在のマップIDを適用します。
+@desc マップIDを指定します。
 
 @arg MapIdByVariable
 @type variable
@@ -542,7 +576,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text イベントID
 @default 1
-@desc イベントIDを指定します。0を指定した場合は現在のイベントIDを適用します。
+@desc イベントIDを指定します。
 
 @arg EventIdByVariable
 @type variable
@@ -559,7 +593,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text マップID
 @default 1
-@desc マップIDを指定します。0を指定した場合は現在のマップIDを適用します。
+@desc マップIDを指定します。
 
 @arg MapIdByVariable
 @type variable
@@ -571,7 +605,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text イベントID
 @default 1
-@desc イベントIDを指定します。0を指定した場合は現在のイベントIDを適用します。
+@desc イベントIDを指定します。
 
 @arg EventIdByVariable
 @type variable
@@ -601,7 +635,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text マップID
 @default 1
-@desc マップIDを指定します。0を指定した場合は現在のマップIDを適用します。
+@desc マップIDを指定します。
 
 @arg MapIdByVariable
 @type variable
@@ -613,7 +647,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text イベントID
 @default 1
-@desc イベントIDを指定します。0を指定した場合は現在のイベントIDを適用します。
+@desc イベントIDを指定します。
 
 @arg EventIdByVariable
 @type variable
@@ -648,7 +682,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text マップID
 @default 1
-@desc マップIDを指定します。0を指定した場合は現在のマップIDを適用します。
+@desc マップIDを指定します。
 
 @arg MapIdByVariable
 @type variable
@@ -660,7 +694,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @type number
 @text イベントID
 @default 1
-@desc イベントIDを指定します。0を指定した場合は現在のイベントIDを適用します。
+@desc イベントIDを指定します。
 
 @arg EventIdByVariable
 @type variable
@@ -674,6 +708,12 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @text セルフ変数/拡張セルフスイッチプレフィックス
 @default $
 @desc セルフ変数/拡張セルフスイッチの識別に使用する変数/スイッチ名のプレフィックスを指定します。
+
+@param CommonVariablePrefix
+@type string
+@text コモン変数/コモンスイッチプレフィックス
+@default %
+@desc コモン変数/コモンスイッチの識別に使用する変数/スイッチ名のプレフィックスを指定します。
 
 @param FloatVariablePrefix
 @type string
@@ -700,17 +740,35 @@ var globalInterpreterSequenceNumber = 0;
     const PP = PluginManager.parameters(SelfVariablePluginName);
     const SelfVariablePrefix = PP.SelfVariablePrefix;
     const FloatVariablePrefix = PP.FloatVariablePrefix;
-    const CommonVariablePrefix = "%";
+    const CommonVariablePrefix = PP.CommonVariablePrefix;
     const ErrorLanguage = PP.ErrorLanguage;
 
 
     /* static class PluginManager */
     if (typeof PluginManager.registerCommand !== "undefined") {
-        PluginManager.registerCommand(SelfVariablePluginName, "GetSelfVariableValue", function(args) {
+        function getMapId(interpreter, args) {
             const mapIdByVariable = parseInt(args.MapIdByVariable);
-            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
+            let mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
+            if (mapId === 0) return interpreter._mapId;
+            return mapId;
+        }
+
+        function getEventId(interpreter, args) {
             const eventIdByVariable = parseInt(args.EventIdByVariable);
-            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            let eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            if (eventId === 0) {
+                if (interpreter._eventId === 0) {
+                    throw new Error(ErrorMessageManager.invalidThisEvent);
+                } else {
+                    return interpreter._eventId;
+                }
+            }
+            return eventId;
+        }
+
+        PluginManager.registerCommand(SelfVariablePluginName, "GetSelfVariableValue", function(args) {
+            const mapId = getMapId(this, args);
+            const eventId = getEventId(this, args);
             const selfVariableId = parseInt(args.SelfVariableId);
             const destVariableId = parseInt(args.DestVariableId);
             const key = [mapId, eventId, selfVariableId];
@@ -719,10 +777,8 @@ var globalInterpreterSequenceNumber = 0;
         });
 
         PluginManager.registerCommand(SelfVariablePluginName, "SetSelfVariableValue", function(args) {
-            const mapIdByVariable = parseInt(args.MapIdByVariable);
-            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
-            const eventIdByVariable = parseInt(args.EventIdByVariable);
-            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            const mapId = getMapId(this, args);
+            const eventId = getEventId(this, args);
             const selfVariableId = parseInt(args.SelfVariableId);
             let value = parseInt(args.Value);
             const srcVariableId = parseInt(args.SrcVariableId);
@@ -734,18 +790,14 @@ var globalInterpreterSequenceNumber = 0;
         });
 
         PluginManager.registerCommand(SelfVariablePluginName, "ClearSelfVariables", function(args) {
-            const mapIdByVariable = parseInt(args.MapIdByVariable);
-            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
-            const eventIdByVariable = parseInt(args.EventIdByVariable);
-            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            const mapId = getMapId(this, args);
+            const eventId = getEventId(this, args);
             $gameVariables.clearSelfVariables(mapId, eventId);
         });
 
         PluginManager.registerCommand(SelfVariablePluginName, "GetExSelfSwitchValue", function(args) {
-            const mapIdByVariable = parseInt(args.MapIdByVariable);
-            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
-            const eventIdByVariable = parseInt(args.EventIdByVariable);
-            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            const mapId = getMapId(this, args);
+            const eventId = getEventId(this, args);
             const exSelfSwitchId = parseInt(args.ExSelfSwitchId);
             const destSwitchId = parseInt(args.DestSwitchId);
             const key = [mapId, eventId, exSelfSwitchId];
@@ -755,10 +807,8 @@ var globalInterpreterSequenceNumber = 0;
 
         // NOTE: SetExSelfVariableValueは誤記だが旧版との互換性を考慮してこのままとする。
         PluginManager.registerCommand(SelfVariablePluginName, "SetExSelfVariableValue", function(args) {
-            const mapIdByVariable = parseInt(args.MapIdByVariable);
-            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
-            const eventIdByVariable = parseInt(args.EventIdByVariable);
-            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            const mapId = getMapId(this, args);
+            const eventId = getEventId(this, args);
             const exSelfSwitchId = parseInt(args.ExSelfSwitchId);
             let value = args.Value === "true";
             const srcSwitchId = parseInt(args.SrcSwitchId);
@@ -770,10 +820,8 @@ var globalInterpreterSequenceNumber = 0;
         });
 
         PluginManager.registerCommand(SelfVariablePluginName, "ClearExSelfSwitches", function(args) {
-            const mapIdByVariable = parseInt(args.MapIdByVariable);
-            const mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
-            const eventIdByVariable = parseInt(args.EventIdByVariable);
-            const eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
+            const mapId = getMapId(this, args);
+            const eventId = getEventId(this, args);
             $gameSwitches.clearExSelfSwitches(mapId, eventId);
         });
     }
