@@ -1,6 +1,7 @@
+"use strict";
 /*:
 @target MV MZ
-@plugindesc Self variable v1.3.0
+@plugindesc Self variable v1.4.0
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -55,6 +56,11 @@ When specifying "map ID" in the plug-in command, "map ID"
 If 0 is specified, the ID of the current map is applied.
 Also, if 0 is specified for "Event ID" when specifying "Event ID",
 The ID of the event that executed the plugin command is applied.
+
+When clearing the self variable/extended self switch with the plugin command,
+if the argument "whether event is specified" is ON,
+the event specified by the event ID or variable will be cleared. When set to OFF,
+all events on the map will be cleared.
 
 ■ Manipulate self variables from scripts
 ・Acquisition of self-variables
@@ -207,6 +213,12 @@ This plugin is available under the terms of the MIT license.
 @default 0
 @desc Specify the map ID with a variable. If you set the map ID value directly, specify 0 for this parameter.
 
+@arg EventSpecification
+@type boolean
+@text Whether or not event is specified
+@default true
+@desc When ON is specified, the target event is specified.
+
 @arg EventId
 @type number
 @text Event ID
@@ -218,6 +230,12 @@ This plugin is available under the terms of the MIT license.
 @text Event ID (variable specification)
 @default 0
 @desc Specify the event ID with a variable. If you set the event ID value directly, specify 0 for this parameter.
+
+@arg SelfVariableId
+@type variable
+@text self variable id
+@default 0
+@desc If specified, only that self variable will be cleared.
 
 
 @command GetExSelfSwitchValue
@@ -324,6 +342,12 @@ This plugin is available under the terms of the MIT license.
 @default 0
 @desc Specify the map ID with a variable. If you set the map ID value directly, specify 0 for this parameter.
 
+@arg EventSpecification
+@type boolean
+@text Whether or not event is specified
+@default true
+@desc When ON is specified, the target event is specified.
+
 @arg EventId
 @type number
 @text Event ID
@@ -335,6 +359,12 @@ This plugin is available under the terms of the MIT license.
 @text Event ID (variable specification)
 @default 0
 @desc Specify the event ID with a variable. If you set the event ID value directly, specify 0 for this parameter.
+
+@arg ExSelfSwitchId
+@type switch
+@text extended self switch ID
+@default 0
+@desc If specified, only that extended self-switch will be cleared.
 
 
 @param SelfVariablePrefix
@@ -361,10 +391,9 @@ This plugin is available under the terms of the MIT license.
 @default en
 @desc Specifies the language for displaying errors. Normally you do not need to change this parameter.
 */
-
 /*:ja
 @target MV MZ
-@plugindesc セルフ変数 v1.3.0
+@plugindesc セルフ変数 v1.4.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -420,6 +449,10 @@ MVの場合はスクリプトからセルフ変数を操作させる機能を使
 0を指定した場合は、現在のマップのIDが適用されます。
 また「イベントID」を指定するときに「イベントID」に0を指定した場合は、
 プラグインコマンドを実行したイベントのIDが適用されます。
+
+プラグインコマンドでセルフ変数/拡張セルフスイッチをクリアする場合、
+引数「イベント指定有無」をONにした場合、イベントIDまたは変数で指定したイベントを
+対象にクリアを行います。OFFにした場合、マップ上の全てのイベントに対してクリアを行います。
 
 ■ スクリプトからセルフ変数を操作する
 ・セルフ変数の取得
@@ -572,6 +605,12 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @default 0
 @desc マップIDを変数で指定します。直接マップID値を設定した場合は本パラメータは0を指定してください。
 
+@arg EventSpecification
+@type boolean
+@text イベント指定有無
+@default true
+@desc ONを指定すると対象のイベントを指定します。
+
 @arg EventId
 @type number
 @text イベントID
@@ -583,6 +622,12 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @text イベントID(変数指定)
 @default 0
 @desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
+
+@arg SelfVariableId
+@type variable
+@text セルフ変数ID
+@default 0
+@desc 指定した場合、そのセルフ変数のみクリアの対象とします。
 
 
 @command GetExSelfSwitchValue
@@ -690,6 +735,12 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @default 0
 @desc マップIDを変数で指定します。直接マップID値を設定した場合は本パラメータは0を指定してください。
 
+@arg EventSpecification
+@type boolean
+@text イベント指定有無
+@default true
+@desc ONを指定すると対象のイベントを指定します。
+
 @arg EventId
 @type number
 @text イベントID
@@ -701,6 +752,13 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @text イベントID(変数指定)
 @default 0
 @desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
+
+@arg ExSelfSwitchId
+@type switch
+@text 拡張セルフスイッチID
+@default 0
+@desc 指定した場合、その拡張セルフスイッチのみクリアの対象とします。
+
 
 
 @param SelfVariablePrefix
@@ -727,46 +785,39 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @default ja
 @desc エラー表示の言語を指定します。通常このパラメータを変更する必要はありません。
 */
-
-const SelfVariablePluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
-
-var globalActiveInterpreter = null;
-var globalActiveEvent = null;
-var globalInterpreterSequenceNumber = 0;
-
-(() => {
-    "use strict";
-
+const SelfVariablePluginName = document.currentScript ? decodeURIComponent(document.currentScript.src.match(/^.*\/(.+)\.js$/)[1]) : "SelfVariable";
+var globalActiveInterpreter;
+var globalActiveEvent;
+var SelfVariable;
+(function (SelfVariable) {
     const PP = PluginManager.parameters(SelfVariablePluginName);
     const SelfVariablePrefix = PP.SelfVariablePrefix;
     const FloatVariablePrefix = PP.FloatVariablePrefix;
     const CommonVariablePrefix = PP.CommonVariablePrefix;
     const ErrorLanguage = PP.ErrorLanguage;
-
-
     /* static class PluginManager */
     if (typeof PluginManager.registerCommand !== "undefined") {
         function getMapId(interpreter, args) {
             const mapIdByVariable = parseInt(args.MapIdByVariable);
             let mapId = mapIdByVariable > 0 ? $gameVariables.value(mapIdByVariable) : parseInt(args.MapId);
-            if (mapId === 0) return interpreter._mapId;
+            if (mapId === 0)
+                return interpreter.mapId();
             return mapId;
         }
-
         function getEventId(interpreter, args) {
             const eventIdByVariable = parseInt(args.EventIdByVariable);
             let eventId = eventIdByVariable > 0 ? $gameVariables.value(eventIdByVariable) : parseInt(args.EventId);
             if (eventId === 0) {
-                if (interpreter._eventId === 0) {
-                    throw new Error(ErrorMessageManager.invalidThisEvent);
-                } else {
-                    return interpreter._eventId;
+                if (interpreter.eventId() === 0) {
+                    throw ErrorManager.invalidThisEvent();
+                }
+                else {
+                    return interpreter.eventId();
                 }
             }
             return eventId;
         }
-
-        PluginManager.registerCommand(SelfVariablePluginName, "GetSelfVariableValue", function(args) {
+        PluginManager.registerCommand(SelfVariablePluginName, "GetSelfVariableValue", function (args) {
             const mapId = getMapId(this, args);
             const eventId = getEventId(this, args);
             const selfVariableId = parseInt(args.SelfVariableId);
@@ -775,8 +826,7 @@ var globalInterpreterSequenceNumber = 0;
             const value = $gameVariables.selfVariableValue(key);
             $gameVariables.setValue(destVariableId, value);
         });
-
-        PluginManager.registerCommand(SelfVariablePluginName, "SetSelfVariableValue", function(args) {
+        PluginManager.registerCommand(SelfVariablePluginName, "SetSelfVariableValue", function (args) {
             const mapId = getMapId(this, args);
             const eventId = getEventId(this, args);
             const selfVariableId = parseInt(args.SelfVariableId);
@@ -788,14 +838,21 @@ var globalInterpreterSequenceNumber = 0;
             }
             $gameVariables.setSelfVariableValue(key, value);
         });
-
-        PluginManager.registerCommand(SelfVariablePluginName, "ClearSelfVariables", function(args) {
+        PluginManager.registerCommand(SelfVariablePluginName, "ClearSelfVariables", function (args) {
             const mapId = getMapId(this, args);
-            const eventId = getEventId(this, args);
-            $gameVariables.clearSelfVariables(mapId, eventId);
+            let eventId;
+            if (args.EventSpecification !== "false") {
+                eventId = getEventId(this, args);
+            }
+            let selfVariableId;
+            if (args.SelfVariableId) {
+                selfVariableId = parseInt(args.SelfVariableId);
+                if (selfVariableId === 0)
+                    selfVariableId = undefined;
+            }
+            $gameVariables.clearSelfVariables(mapId, eventId, selfVariableId);
         });
-
-        PluginManager.registerCommand(SelfVariablePluginName, "GetExSelfSwitchValue", function(args) {
+        PluginManager.registerCommand(SelfVariablePluginName, "GetExSelfSwitchValue", function (args) {
             const mapId = getMapId(this, args);
             const eventId = getEventId(this, args);
             const exSelfSwitchId = parseInt(args.ExSelfSwitchId);
@@ -804,9 +861,8 @@ var globalInterpreterSequenceNumber = 0;
             const value = $gameSwitches.exSelfSwitchValue(key);
             $gameSwitches.setValue(destSwitchId, value);
         });
-
         // NOTE: SetExSelfVariableValueは誤記だが旧版との互換性を考慮してこのままとする。
-        PluginManager.registerCommand(SelfVariablePluginName, "SetExSelfVariableValue", function(args) {
+        PluginManager.registerCommand(SelfVariablePluginName, "SetExSelfVariableValue", function (args) {
             const mapId = getMapId(this, args);
             const eventId = getEventId(this, args);
             const exSelfSwitchId = parseInt(args.ExSelfSwitchId);
@@ -818,63 +874,70 @@ var globalInterpreterSequenceNumber = 0;
             }
             $gameSwitches.setExSelfSwitchValue(key, value);
         });
-
-        PluginManager.registerCommand(SelfVariablePluginName, "ClearExSelfSwitches", function(args) {
+        PluginManager.registerCommand(SelfVariablePluginName, "ClearExSelfSwitches", function (args) {
             const mapId = getMapId(this, args);
-            const eventId = getEventId(this, args);
-            $gameSwitches.clearExSelfSwitches(mapId, eventId);
+            let eventId;
+            if (args.EventSpecification !== "false") {
+                eventId = getEventId(this, args);
+            }
+            let exSelfSwitchId;
+            if (args.ExSelfSwitchId) {
+                exSelfSwitchId = parseInt(args.ExSelfSwitchId);
+                if (exSelfSwitchId === 0)
+                    exSelfSwitchId = undefined;
+            }
+            $gameSwitches.clearExSelfSwitches(mapId, eventId, exSelfSwitchId);
         });
     }
-
-
     class ErrorManager {
+        static invalidThisEvent() {
+            let errorMessage;
+            if (ErrorLanguage === "ja") {
+                errorMessage = `このイベントではイベントID=0をプラグインコマンドとして使用することはできません。`;
+            }
+            else {
+                errorMessage = `Event ID=0 cannot be used as a plugin command for this event.`;
+            }
+            return new Error(errorMessage);
+        }
         static invalidSelfVariableAccess(variableId) {
             let errorMessage;
             if (ErrorLanguage === "ja") {
-                errorMessage = `不正なタイミングでのセルフ変数(ID:${variableId})へのアクセスが発生しました。`
-            } else {
-                errorMessage = `An access to the self variable(ID:${variableId}) occurred at an incorrect timing.`
+                errorMessage = `不正なタイミングでのセルフ変数(ID:${variableId})へのアクセスが発生しました。`;
+            }
+            else {
+                errorMessage = `An access to the self variable(ID:${variableId}) occurred at an incorrect timing.`;
             }
             return new Error(errorMessage);
         }
-
         static invalidCommonVariableAccess(variableId) {
             let errorMessage;
             if (ErrorLanguage === "ja") {
-                errorMessage =  `不正なタイミングでのコモンインベント変数(ID:${variableId})へのアクセスが発生しました。`
-            } else {
-                errorMessage =  `An access to the common event variable(ID:${variableId}) occurred at an incorrect timing.`
+                errorMessage = `不正なタイミングでのコモンインベント変数(ID:${variableId})へのアクセスが発生しました。`;
+            }
+            else {
+                errorMessage = `An access to the common event variable(ID:${variableId}) occurred at an incorrect timing.`;
             }
             return new Error(errorMessage);
         }
     }
-
-
     class SelfVariableOrExSwitchUtils {
         static isDebugScene() {
-            if (SceneManager._scene instanceof Scene_Debug) return true;
+            if (SceneManager._scene instanceof Scene_Debug)
+                return true;
             return false;
         }
-
         static currentExSelfSwitchKey(id) {
             if (globalActiveEvent) {
                 return globalActiveEvent.selfVariableOrExSwitchKey(id);
-            } else if (globalActiveInterpreter) {
+            }
+            else if (globalActiveInterpreter) {
                 return globalActiveInterpreter.selfVariableOrExSwitchKey(id);
             }
             throw ErrorManager.invalidSelfVariableAccess(id);
         }
-
-        static commonVariableOrExSwitchKey(id) {
-            if (globalActiveInterpreter) {
-                return globalActiveInterpreter.commonVariableOrExSwitchKey(id);
-            }
-            throw ErrorManager.invalidSelfVariableAccess(id);
-        }
-
         static checkPrefixs(name) {
             const results = [];
-
             let index = 0;
             let end = false;
             while (!end) {
@@ -886,7 +949,6 @@ var globalInterpreterSequenceNumber = 0;
                         end = false;
                     }
                 }
-
                 if (FloatVariablePrefix) {
                     if (this.checkPrefix(name, index, FloatVariablePrefix)) {
                         results.push("FloatVariable");
@@ -894,7 +956,6 @@ var globalInterpreterSequenceNumber = 0;
                         end = false;
                     }
                 }
-
                 if (CommonVariablePrefix) {
                     if (this.checkPrefix(name, index, CommonVariablePrefix)) {
                         results.push("CommonVariable");
@@ -903,54 +964,58 @@ var globalInterpreterSequenceNumber = 0;
                     }
                 }
             }
-
             return results;
         }
-
         static checkPrefix(name, index, expectedPrefix) {
             const prefix = name.slice(index, index + expectedPrefix.length);
             return prefix === expectedPrefix;
         }
     }
-
-
+    SelfVariable.SelfVariableOrExSwitchUtils = SelfVariableOrExSwitchUtils;
     /* class Game_Variables */
     const _Game_Variables_clear = Game_Variables.prototype.clear;
-    Game_Variables.prototype.clear = function() {
+    Game_Variables.prototype.clear = function () {
         _Game_Variables_clear.call(this);
         this._selfVariablesData = {};
     };
-
     const _Game_Variables_value = Game_Variables.prototype.value;
-    Game_Variables.prototype.value = function(variableId) {
+    Game_Variables.prototype.value = function (variableId) {
         if (this.isSelfVariable(variableId)) {
-            if (SelfVariableOrExSwitchUtils.isDebugScene()) return 0;
+            if (SelfVariableOrExSwitchUtils.isDebugScene())
+                return 0;
             const key = SelfVariableOrExSwitchUtils.currentExSelfSwitchKey(variableId);
             return this.selfVariableValue(key);
-        } else if (this.isCommonVariable(variableId)) {
-            if (SelfVariableOrExSwitchUtils.isDebugScene()) return 0;
+        }
+        else if (this.isCommonVariable(variableId)) {
+            if (SelfVariableOrExSwitchUtils.isDebugScene())
+                return 0;
             if (globalActiveInterpreter) {
                 return globalActiveInterpreter.commonVariableValue(variableId);
-            } else {
+            }
+            else {
                 throw ErrorManager.invalidCommonVariableAccess(variableId);
             }
         }
         return _Game_Variables_value.call(this, variableId);
     };
-
-    Game_Variables.prototype.setValue = function(variableId, value) {
+    Game_Variables.prototype.setValue = function (variableId, value) {
         if (this.isSelfVariable(variableId)) {
-            if (SelfVariableOrExSwitchUtils.isDebugScene()) return;
+            if (SelfVariableOrExSwitchUtils.isDebugScene())
+                return;
             const key = SelfVariableOrExSwitchUtils.currentExSelfSwitchKey(variableId);
             this.setSelfVariableValue(key, value);
-        } else if (this.isCommonVariable(variableId)) {
-            if (SelfVariableOrExSwitchUtils.isDebugScene()) return;
+        }
+        else if (this.isCommonVariable(variableId)) {
+            if (SelfVariableOrExSwitchUtils.isDebugScene())
+                return;
             if (globalActiveInterpreter) {
                 globalActiveInterpreter.setCommonVariableValue(variableId, value);
-            } else {
+            }
+            else {
                 throw ErrorManager.invalidCommonVariableAccess(variableId);
             }
-        } else {
+        }
+        else {
             if (variableId > 0 && variableId < $dataSystem.variables.length) {
                 if (!this.isFloatVariable(variableId) && (typeof value === "number")) {
                     value = Math.floor(value);
@@ -960,33 +1025,31 @@ var globalInterpreterSequenceNumber = 0;
             }
         }
     };
-
-    Game_Variables.prototype.isSelfVariable = function(variableId) {
+    Game_Variables.prototype.isSelfVariable = function (variableId) {
         const name = $dataSystem.variables[variableId];
-        if (!name) return false;
+        if (!name)
+            return false;
         const prefixs = SelfVariableOrExSwitchUtils.checkPrefixs(name);
         return prefixs.includes("SelfVariable");
     };
-
-    Game_Variables.prototype.isCommonVariable = function(variableId) {
+    Game_Variables.prototype.isCommonVariable = function (variableId) {
         const name = $dataSystem.variables[variableId];
-        if (!name) return false;
+        if (!name)
+            return false;
         const prefixs = SelfVariableOrExSwitchUtils.checkPrefixs(name);
         return prefixs.includes("CommonVariable");
     };
-
-    Game_Variables.prototype.isFloatVariable = function(variableId) {
+    Game_Variables.prototype.isFloatVariable = function (variableId) {
         const name = $dataSystem.variables[variableId];
-        if (!name) return false;
+        if (!name)
+            return false;
         const prefixs = SelfVariableOrExSwitchUtils.checkPrefixs(name);
         return prefixs.includes("FloatVariable");
     };
-
-    Game_Variables.prototype.selfVariableValue = function(key) {
+    Game_Variables.prototype.selfVariableValue = function (key) {
         return this._selfVariablesData[key] || 0;
     };
-
-    Game_Variables.prototype.setSelfVariableValue = function(key, value) {
+    Game_Variables.prototype.setSelfVariableValue = function (key, value) {
         const variableId = key[2];
         if (variableId > 0 && variableId < $dataSystem.variables.length) {
             if (!this.isFloatVariable(variableId) && (typeof value === "number")) {
@@ -996,192 +1059,171 @@ var globalInterpreterSequenceNumber = 0;
             this.onChange();
         }
     };
-
-    Game_Variables.prototype.clearSelfVariables = function(mapId, eventId) {
-        for (let variableId = 1; variableId < $dataSystem.variables.length; variableId++) {
-            const key = [mapId, eventId, variableId];
-            if (this._selfVariablesData[key] != null) {
+    Game_Variables.prototype.clearSelfVariables = function (mapId, eventId = undefined, variableId = undefined) {
+        for (const key in this._selfVariablesData) {
+            const [keyMapId, keyEventId, keyVariableId] = key.split(",").map(s => parseInt(s));
+            console.log([keyMapId, keyEventId, keyVariableId, mapId, eventId, variableId]);
+            if (keyMapId === mapId
+                && (eventId == null || keyEventId === eventId)
+                && (variableId == null || keyVariableId === variableId)) {
                 delete this._selfVariablesData[key];
             }
         }
     };
-
-
     /* class Game_Switches */
     const _Game_Switches_clear = Game_Switches.prototype.clear;
-    Game_Switches.prototype.clear = function() {
+    Game_Switches.prototype.clear = function () {
         _Game_Switches_clear.call(this);
         this._exSelfSwitchesData = {};
     };
-
     const _Game_Switches_value = Game_Switches.prototype.value;
-    Game_Switches.prototype.value = function(switchId) {
+    Game_Switches.prototype.value = function (switchId) {
         if (this.isExSelfSwitch(switchId)) {
-            if (SelfVariableOrExSwitchUtils.isDebugScene()) return 0;
+            if (SelfVariableOrExSwitchUtils.isDebugScene())
+                return false;
             const key = SelfVariableOrExSwitchUtils.currentExSelfSwitchKey(switchId);
             return this.exSelfSwitchValue(key);
-        } else if (this.isCommonSwitch(switchId)) {
-            if (SelfVariableOrExSwitchUtils.isDebugScene()) return 0;
+        }
+        else if (this.isCommonSwitch(switchId)) {
+            if (SelfVariableOrExSwitchUtils.isDebugScene())
+                return false;
             if (globalActiveInterpreter) {
                 return globalActiveInterpreter.commonSwitchValue(switchId);
-            } else {
+            }
+            else {
                 throw ErrorManager.invalidCommonVariableAccess(switchId);
             }
         }
         return _Game_Switches_value.call(this, switchId);
     };
-
     const _Game_Switches_setValue = Game_Switches.prototype.setValue;
-    Game_Switches.prototype.setValue = function(switchId, value) {
+    Game_Switches.prototype.setValue = function (switchId, value) {
         if (this.isExSelfSwitch(switchId)) {
-            if (SelfVariableOrExSwitchUtils.isDebugScene()) return;
+            if (SelfVariableOrExSwitchUtils.isDebugScene())
+                return;
             const key = SelfVariableOrExSwitchUtils.currentExSelfSwitchKey(switchId);
             this.setExSelfSwitchValue(key, value);
             return;
-        } else if (this.isCommonSwitch(switchId)) {
-            if (SelfVariableOrExSwitchUtils.isDebugScene()) return;
+        }
+        else if (this.isCommonSwitch(switchId)) {
+            if (SelfVariableOrExSwitchUtils.isDebugScene())
+                return;
             if (globalActiveInterpreter) {
                 globalActiveInterpreter.setCommonSwitchValue(switchId, value);
-            } else {
+            }
+            else {
                 throw ErrorManager.invalidCommonVariableAccess(switchId);
             }
         }
         return _Game_Switches_setValue.call(this, switchId, value);
     };
-
-    Game_Switches.prototype.isExSelfSwitch = function(switchId) {
+    Game_Switches.prototype.isExSelfSwitch = function (switchId) {
         const name = $dataSystem.switches[switchId];
-        if (!name) return false;
+        if (!name)
+            return false;
         const prefixs = SelfVariableOrExSwitchUtils.checkPrefixs(name);
         return prefixs.includes("SelfVariable");
     };
-
-    Game_Switches.prototype.isCommonSwitch = function(switchId) {
+    Game_Switches.prototype.isCommonSwitch = function (switchId) {
         const name = $dataSystem.switches[switchId];
-        if (!name) return false;
+        if (!name)
+            return false;
         const prefixs = SelfVariableOrExSwitchUtils.checkPrefixs(name);
         return prefixs.includes("CommonVariable");
     };
-
-    Game_Switches.prototype.exSelfSwitchValue = function(key) {
+    Game_Switches.prototype.exSelfSwitchValue = function (key) {
         return !!this._exSelfSwitchesData[key];
     };
-
-    Game_Switches.prototype.setExSelfSwitchValue = function(key, value) {
+    Game_Switches.prototype.setExSelfSwitchValue = function (key, value) {
         const switchId = key[2];
         if (switchId > 0 && switchId < $dataSystem.switches.length) {
             this._exSelfSwitchesData[key] = value;
             this.onChange();
         }
     };
-
-    Game_Switches.prototype.clearExSelfSwitches = function(mapId, eventId) {
-        for (let switchId = 1; switchId < $dataSystem.switches.length; switchId++) {
-            const key = [mapId, eventId, switchId];
-            if (this._exSelfSwitchesData[key] != null) {
+    Game_Switches.prototype.clearExSelfSwitches = function (mapId, eventId = undefined, switchId = undefined) {
+        for (const key in this._exSelfSwitchesData) {
+            const [keyMapId, keyEventId, keySwitchId] = key.split(",").map(s => parseInt(s));
+            if (keyMapId === mapId
+                && (eventId == null || keyEventId === eventId)
+                && (switchId == null || keySwitchId === switchId)) {
                 delete this._exSelfSwitchesData[key];
             }
         }
     };
-
-
     /* class Game_Interpreter */
-    const _Game_Interpreter_initialize = Game_Interpreter.prototype.initialize;
-    Game_Interpreter.prototype.initialize = function(depth) {
-        _Game_Interpreter_initialize.call(this, depth);
-        this._interpreterId = globalInterpreterSequenceNumber;
-        globalInterpreterSequenceNumber++;
-    };
-
     const _Game_Interpreter_clear = Game_Interpreter.prototype.clear;
-    Game_Interpreter.prototype.clear = function() {
+    Game_Interpreter.prototype.clear = function () {
         _Game_Interpreter_clear.call(this);
         this._commonVariableData = {};
         this._commonSwitchData = {};
     };
-
-    Game_Interpreter.prototype.selfVariableOrExSwitchKey = function(id) {
+    Game_Interpreter.prototype.mapId = function () {
+        return this._mapId;
+    };
+    Game_Interpreter.prototype.eventId = function () {
+        return this._eventId;
+    };
+    Game_Interpreter.prototype.selfVariableOrExSwitchKey = function (id) {
         return [this._mapId, this._eventId, id];
     };
-
-    Game_Interpreter.prototype.commonVariableOrExSwitchKey = function(id) {
-        return [this._interpreterId, id];
+    Game_Interpreter.prototype.commonVariableValue = function (variableId) {
+        return this._commonVariableData[variableId] || 0;
     };
-
-    Game_Interpreter.prototype.commonVariableValue = function(variableId) {
-        const key = this.commonVariableOrExSwitchKey(variableId);
-        return this._commonVariableData[key] || 0;
-    };
-
-    Game_Interpreter.prototype.setCommonVariableValue = function(variableId, value) {
+    Game_Interpreter.prototype.setCommonVariableValue = function (variableId, value) {
         if (variableId > 0 && variableId < $dataSystem.variables.length) {
             if (!$gameVariables.isFloatVariable(variableId) && (typeof value === "number")) {
                 value = Math.floor(value);
             }
-            const key = this.commonVariableOrExSwitchKey(variableId);
-            this._commonVariableData[key] = value;
+            this._commonVariableData[variableId] = value;
         }
     };
-
-    Game_Interpreter.prototype.commonSwitchValue = function(switchId) {
-        const key = this.commonVariableOrExSwitchKey(switchId);
-        return !!this._commonSwitchData[key];
+    Game_Interpreter.prototype.commonSwitchValue = function (switchId) {
+        return !!this._commonSwitchData[switchId];
     };
-
-    Game_Interpreter.prototype.setCommonSwitchValue = function(switchId, value) {
+    Game_Interpreter.prototype.setCommonSwitchValue = function (switchId, value) {
         if (switchId > 0 && switchId < $dataSystem.switches.length) {
-            const key = this.commonVariableOrExSwitchKey(switchId);
-            this._commonSwitchData[key] = value;
+            this._commonSwitchData[switchId] = value;
         }
     };
-
     const _Game_Interpreter_executeCommand = Game_Interpreter.prototype.executeCommand;
-    Game_Interpreter.prototype.executeCommand = function() {
+    Game_Interpreter.prototype.executeCommand = function () {
         globalActiveInterpreter = this;
         const result = _Game_Interpreter_executeCommand.call(this);
-        globalActiveInterpreter = null;
+        globalActiveInterpreter = undefined;
         return result;
     };
-
-
     /* class Game_Event */
-    Game_Event.prototype.selfVariableValue = function(variableId) {
+    Game_Event.prototype.selfVariableValue = function (variableId) {
         const key = this.selfVariableOrExSwitchKey(variableId);
         return $gameVariables.selfVariableValue(key);
     };
-
-    Game_Event.prototype.setSelfVariableValue = function(variableId, value) {
+    Game_Event.prototype.setSelfVariableValue = function (variableId, value) {
         const key = this.selfVariableOrExSwitchKey(variableId);
         $gameVariables.setSelfVariableValue(key, value);
     };
-
-    Game_Event.prototype.exSelfSwitchValue = function(switchId) {
+    Game_Event.prototype.exSelfSwitchValue = function (switchId) {
         const key = this.selfVariableOrExSwitchKey(switchId);
         return $gameSwitches.exSelfSwitchValue(key);
     };
-
-    Game_Event.prototype.setExSelfSwitchValue = function(switchId, value) {
+    Game_Event.prototype.setExSelfSwitchValue = function (switchId, value) {
         const key = this.selfVariableOrExSwitchKey(switchId);
         $gameSwitches.setExSelfSwitchValue(key, value);
     };
-
     const _Game_Event_refresh = Game_Event.prototype.refresh;
-    Game_Event.prototype.refresh = function() {
+    Game_Event.prototype.refresh = function () {
         globalActiveEvent = this;
         _Game_Event_refresh.call(this);
-        globalActiveEvent = null;
+        globalActiveEvent = undefined;
     };
-
     // 移動ルートからスクリプト経由でセルフ変数にアクセスできるようにする。
     const _Game_Event_processMoveCommand = Game_Event.prototype.processMoveCommand;
-    Game_Event.prototype.processMoveCommand = function(command) {
+    Game_Event.prototype.processMoveCommand = function (command) {
         globalActiveEvent = this;
         _Game_Event_processMoveCommand.call(this, command);
-        globalActiveEvent = null;
+        globalActiveEvent = undefined;
     };
-
-    Game_Event.prototype.selfVariableOrExSwitchKey = function(id) {
+    Game_Event.prototype.selfVariableOrExSwitchKey = function (id) {
         return [$gameMap.mapId(), this.eventId(), id];
     };
-
-})();
+})(SelfVariable || (SelfVariable = {}));
