@@ -113,7 +113,7 @@ skt_learn(1, "剣技", "強撃", false);
 <LearnCommonEventId: 1>
 と記載すると、スキル習得時にID1のコモンイベントが実行されます。
 また、
-<LearnCommonEventId: 2>
+<ForgetCommonEventId: 2>
 と記載した場合は、スキルリセットでスキルを忘れる代わりにID2のコモンイベントが実行されます。
 
 ■ プラグインコマンド
