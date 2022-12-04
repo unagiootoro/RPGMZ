@@ -274,6 +274,10 @@ SkillTree.js
         ・スキルツリーのウィンドウを開く際の速度を高速化
         ・スキルツリーを設定していないアクターはスキルツリー画面を開かないように修正
 
+SkillTree_v2beta.js
+    2022/12/04 v2.0.0-b1
+        ・ベータ版公開
+
 SkillTree_LayoutEx.js
     2022/06/05 v1.3.1
         ・SkillTree.js v1.8.0対応
@@ -286,6 +290,10 @@ SkillTreeConfig.js
         ・ヘルプ記載修正
     2022/04/24 v1.0.0
         ・コンフィグファイルもバージョン管理するように修正
+
+SkillTreeConfig_v2beta.js
+    2022/12/04 v2.0.0-b1
+        ・ベータ版公開
 
 SmoothCamera.js
     2021/08/01 v1.0.2
