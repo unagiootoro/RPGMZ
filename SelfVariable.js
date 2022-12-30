@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Self variable v1.4.0
+@plugindesc Self variable v1.4.1
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -393,7 +393,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc セルフ変数 v1.4.0
+@plugindesc セルフ変数 v1.4.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -1062,7 +1062,6 @@ var SelfVariable;
     Game_Variables.prototype.clearSelfVariables = function (mapId, eventId = undefined, variableId = undefined) {
         for (const key in this._selfVariablesData) {
             const [keyMapId, keyEventId, keyVariableId] = key.split(",").map(s => parseInt(s));
-            console.log([keyMapId, keyEventId, keyVariableId, mapId, eventId, variableId]);
             if (keyMapId === mapId
                 && (eventId == null || keyEventId === eventId)
                 && (variableId == null || keyVariableId === variableId)) {

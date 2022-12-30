@@ -236,6 +236,8 @@ ScrollFix.js
         ・新規作成
 
 SelfVariable.js
+    2022/12/30 v1.4.1
+        ・バグ修正
     2022/12/04 v1.4.0
         ・TypeScript対応
         ・セルフ変数クリア処理を更新
