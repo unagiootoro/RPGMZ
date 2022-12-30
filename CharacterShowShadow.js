@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MZ
-@plugindesc キャラクター影表示 v1.0.0
+@plugindesc キャラクター影表示 v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterShowShadow.js
 @help
@@ -241,6 +241,7 @@ var SimpleShadow;
         }
         initialize(character) {
             super.initialize();
+            this.hide();
             this.bitmap = ImageManager.loadBitmap("img/", PP.ShadowImageFileName);
             this.anchor.x = 0.5;
             this.anchor.y = 1;
@@ -291,18 +292,24 @@ var SimpleShadow;
             for (const characterSprite of this._characterSprites) {
                 const character = characterSprite.character();
                 if (!shadowSpriteCharacter.includes(character)) {
-                    const shadowSprite = new Sprite_Shadow(character);
-                    this._tilemap.addChild(shadowSprite);
-                    this._characterShadowSprites.push(shadowSprite);
+                    this.createShadowSprite(character);
                 }
             }
             for (const shadowSprite of this._characterShadowSprites.concat()) {
                 const character = shadowSprite.character();
                 if (!spriteCharacters.includes(character)) {
-                    this._tilemap.removeChild(shadowSprite);
-                    this._characterShadowSprites = this._characterShadowSprites.filter(sprite => sprite === shadowSprite);
+                    this.removeShadowSprite(shadowSprite);
                 }
             }
+        }
+        createShadowSprite(character) {
+            const shadowSprite = new Sprite_Shadow(character);
+            this._tilemap.addChild(shadowSprite);
+            this._characterShadowSprites.push(shadowSprite);
+        }
+        removeShadowSprite(shadowSprite) {
+            this._tilemap.removeChild(shadowSprite);
+            this._characterShadowSprites = this._characterShadowSprites.filter(sprite => sprite !== shadowSprite);
         }
     }
     Spriteset_Map_Mixin._createLowerLayer = Spriteset_Map.prototype.createLowerLayer;

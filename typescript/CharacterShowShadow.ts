@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc キャラクター影表示 v1.0.0
+@plugindesc キャラクター影表示 v1.0.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterShowShadow.js
 @help
@@ -273,6 +273,7 @@ namespace SimpleShadow {
 
         initialize(character: Game_CharacterBase) {
             super.initialize();
+            this.hide();
             this.bitmap = ImageManager.loadBitmap("img/", PP.ShadowImageFileName);
             this.anchor.x = 0.5;
             this.anchor.y = 1;
@@ -339,18 +340,26 @@ namespace SimpleShadow {
             for (const characterSprite of this._characterSprites) {
                 const character = characterSprite.character();
                 if (!shadowSpriteCharacter.includes(character)) {
-                    const shadowSprite = new Sprite_Shadow(character);
-                    this._tilemap.addChild(shadowSprite);
-                    this._characterShadowSprites.push(shadowSprite);
+                    this.createShadowSprite(character);
                 }
             }
             for (const shadowSprite of this._characterShadowSprites.concat()) {
                 const character = shadowSprite.character();
                 if (!spriteCharacters.includes(character)) {
-                    this._tilemap.removeChild(shadowSprite);
-                    this._characterShadowSprites = this._characterShadowSprites.filter(sprite => sprite === shadowSprite);
+                    this.removeShadowSprite(shadowSprite);
                 }
             }
+        }
+
+        private createShadowSprite(character: Game_CharacterBase): void {
+            const shadowSprite = new Sprite_Shadow(character);
+            this._tilemap.addChild(shadowSprite);
+            this._characterShadowSprites.push(shadowSprite);
+        }
+
+        private removeShadowSprite(shadowSprite: Sprite_Shadow): void {
+            this._tilemap.removeChild(shadowSprite);
+            this._characterShadowSprites = this._characterShadowSprites.filter(sprite => sprite !== shadowSprite);
         }
     }
 
