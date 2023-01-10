@@ -1,8 +1,9 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system decision trigger extension v1.0.0
+@plugindesc Dot movement system decision trigger extension v1.1.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_DecideTriggerEx.js
+@base DotMoveSystem
 @help
 A plugin that extends the decision trigger extension of the dot moving system.
 By using this plugin, the event triggered by the decision button
@@ -198,9 +199,10 @@ Specifies the window skin file name. If empty, use standard Window.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム 決定トリガー拡張 v1.0.0
+@plugindesc ドット移動システム 決定トリガー拡張 v1.1.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_DecideTriggerEx.js
+@base DotMoveSystem
 @help
 ドット移動システムの決定トリガー拡張を拡張するプラグインです。
 このプラグインを使用することで決定ボタンによって起動するイベントの
@@ -208,7 +210,7 @@ Specifies the window skin file name. If empty, use standard Window.
 また、プレイヤーが起動可能範囲に入った際にイベントにポップアップを表示することもできます。
 ポップアップはフキダシアイコン、アイコン、ピクチャ、ウィンドウから選択することが可能です。
 
-※ 本プラグインを導入する場合、「DotMoveSystem.js v2.1.0」以降が必要になります。
+※ 本プラグインを導入する場合、「DotMoveSystem.js v2.2.0」以降が必要になります。
 
 【使用方法】
 ■ ポップアップの表示設定について
@@ -402,8 +404,8 @@ declare namespace DotMoveSystem {
     }
 
     interface EventDotMoveTempData {
-        get decideTriggerArea(): DotMoveSystem.DecideTriggerArea | undefined;
-        set decideTriggerArea(_decideTriggerArea: DotMoveSystem.DecideTriggerArea | undefined);
+        get decideTriggerArea(): DotMoveSystem.DecideTriggerEx.DecideTriggerArea | undefined;
+        set decideTriggerArea(_decideTriggerArea: DotMoveSystem.DecideTriggerEx.DecideTriggerArea | undefined);
     }
 }
 
@@ -429,7 +431,8 @@ declare interface Game_Event {
     _popupWindowTextFontFace: string;
     _popupWindowSkinFileName: string;
 
-    changePopupParams(popupParams: DotMoveSystem.PopupParameter): void;
+    isLocked(): boolean;
+    changePopupParams(popupParams: DotMoveSystem.DecideTriggerEx.PopupParameter): void;
     updateDecideBalloon(): void;
     isNeedPopupObject(): boolean;
     setDecidablePopupVisible(visible: boolean): void;
@@ -463,7 +466,7 @@ declare interface Scene_Map {
 }
 
 declare interface Spriteset_Map {
-    _popupObjects: Map<Game_Event, DotMoveSystem.IPopupObject>;
+    _popupObjects: Map<Game_Event, DotMoveSystem.DecideTriggerEx.IPopupObject>;
 
     characterSprites(): Sprite_Character[];
 }
@@ -475,7 +478,7 @@ declare interface Game_Interpreter {
 
 const DotMoveSystem_DecideTriggerExPluginName = document.currentScript ? decodeURIComponent((document.currentScript as HTMLScriptElement).src.match(/^.*\/(.+)\.js$/)![1]) : "DotMoveSystem_DecideTriggerEx";
 
-namespace DotMoveSystem {
+namespace DotMoveSystem.DecideTriggerEx {
     function mixin(dest: { prototype: any }, src: { prototype: any }) {
         for (const name of Object.getOwnPropertyNames(src.prototype)) {
             if (name === "constructor") continue;
@@ -636,7 +639,7 @@ namespace DotMoveSystem {
         constructor(type: string, owner: Game_Event);
 
         constructor(...args: any[]) {
-            super(...args);
+            super(...args as []);
         }
 
         initialize(...args: any[]): void {
@@ -669,8 +672,8 @@ namespace DotMoveSystem {
 
         private _decideTriggerCollidedEventIds!: number[];
 
-        initialize(): void {
-            PlayerDotMoveTempData_Mixin._initialize.call(this);
+        initialize(character: Game_Player): void {
+            PlayerDotMoveTempData_Mixin._initialize.call(this, character);
             this._decideTriggerCollidedEventIds = [];
         }
 
@@ -748,8 +751,7 @@ namespace DotMoveSystem {
 
         checkDecideTriggerEventInternal(x: number, y: number, d: number): number[] {
             const eventIds = [];
-            for (const result of this.mover().checkHitCharacters(x, y, d)) {
-                if (!(result.targetObject instanceof DecideTriggerArea)) continue;
+            for (const result of this.mover().checkHitCharacters(x, y, d, DecideTriggerArea)) {
                 const event = result.targetObject.owner;
                 if (!event) continue;
                 if (!this.isTowardDirectionToCharacter(event)) continue;
@@ -765,8 +767,7 @@ namespace DotMoveSystem {
                 eventIds.push(event.eventId());
             }
 
-            for (const result of this.mover().checkHitCharacters(x, y, this._direction)) {
-                if (!(result.targetObject instanceof Game_Event)) continue;
+            for (const result of this.mover().checkHitCharacters(x, y, this._direction, Game_Event)) {
                 const event = result.targetObject;
                 if (!(event.isTriggerIn([0]) && !event.isNormalPriority())) continue;
                 if (result.collisionLengthX() >= event.widthArea() && result.collisionLengthY() >= event.heightArea()) {
@@ -868,6 +869,10 @@ namespace DotMoveSystem {
             if (this._popupDelayTime > 0) this._popupDelayTime--;
             const tempData = this.dotMoveTempData<DotMoveSystem.EventDotMoveTempData>();
             tempData.decideTriggerArea!.update();
+        }
+
+        isLocked(): boolean {
+            return this._locked;
         }
 
         changePopupIcon(iconIndex: number): void {
@@ -978,34 +983,22 @@ namespace DotMoveSystem {
         }
 
         resetPopupSetting(): void {
-            const notePopupIcon = this.getAnnotationValue("popupIcon", 0);
-            if (notePopupIcon) this._popupIcon = parseInt(notePopupIcon);
+            const values = this.getAnnotationValues(0);
 
-            const notePopupBalloon = this.getAnnotationValue("popupBalloon", 0);
-            if (notePopupBalloon) this._decidableBalloonId = parseInt(notePopupBalloon);
+            if (values.popupIcon) this._popupIcon = parseInt(values.popupIcon);
+            if (values.popupBalloon) this._decidableBalloonId = parseInt(values.popupBalloon);
+            if (values.popupImage) this._popupImageFileName = values.popupImage.replace(/^\s+/, "");
+            if (values.popupWindowText) this._popupWindowText = values.popupWindowText.replace(/^\s+/, "");
+            if (values.popupWindowTextFontSize) this._popupWindowTextFontSize = parseInt(values.popupWindowTextFontSize);
+            if (values.popupWindowTextFontFace) this._popupWindowTextFontFace = values.popupWindowTextFontFace.replace(/^\s+/, "");
 
-            const notePopupImage = this.getAnnotationValue("popupImage", 0);
-            if (notePopupImage) this._popupImageFileName = notePopupImage.replace(/^\s+/, "");
-
-            const notePopupWindowText = this.getAnnotationValue("popupWindowText", 0);
-            if (notePopupWindowText) this._popupWindowText = notePopupWindowText.replace(/^\s+/, "");
-
-            const notePopupWindowTextFontSize = this.getAnnotationValue("popupWindowTextFontSize", 0);
-            if (notePopupWindowTextFontSize) this._popupWindowTextFontSize = parseInt(notePopupWindowTextFontSize);
-
-            const notePopupWindowTextFontFace = this.getAnnotationValue("popupWindowTextFontFace", 0);
-            if (notePopupWindowTextFontFace) this._popupWindowTextFontFace = notePopupWindowTextFontFace.replace(/^\s+/, "");
-
-            const notePopupWindowSkin = this.getAnnotationValue("popupWindowSkin", 0);
-            if (notePopupWindowSkin) {
-                this._popupWindowSkinFileName = notePopupWindowSkin.replace(/^\s+/, "");
+            if (values.popupWindowSkin) {
+                this._popupWindowSkinFileName = values.popupWindowSkin.replace(/^\s+/, "");
             } else {
                 this._popupWindowSkinFileName = PP.defaultPopupParameter.windowSkinFileName;
             }
 
-            const noteUnuseDefault = this.getAnnotationValue("unuseDefault", 0);
-
-            if (!this.isNeedPopupObject() && this._decidableBalloonId === 0 && !noteUnuseDefault) {
+            if (!this.isNeedPopupObject() && this._decidableBalloonId === 0 && !values.unuseDefault) {
                 this._popupIcon = PP.defaultPopupParameter.iconNumber;
                 this._decidableBalloonId = PP.defaultPopupParameter.balloonId;
                 this._popupImageFileName = PP.defaultPopupParameter.imageFileName;
@@ -1051,10 +1044,10 @@ namespace DotMoveSystem {
     class Game_Map_Mixin extends Game_Map {
         private static _allCharacters = Game_Map.prototype.allCharacters;
 
-        allCharacters(): Game_CharacterBase[] {
-            const characters: Game_CharacterBase[] = Game_Map_Mixin._allCharacters.call(this);
+        allCharacters(): Set<Game_CharacterBase> {
+            const characters: Set<Game_CharacterBase> = Game_Map_Mixin._allCharacters.call(this);
             for (const event of this.events()) {
-                characters.push(event.dotMoveTempData<DotMoveSystem.EventDotMoveTempData>().decideTriggerArea!);
+                characters.add(event.dotMoveTempData<DotMoveSystem.EventDotMoveTempData>().decideTriggerArea!);
             }
             return characters;
         }
@@ -1271,7 +1264,7 @@ namespace DotMoveSystem {
         onClick() {
             if (this._character instanceof Game_Event) {
                 $gamePlayer.startMapDecideEventByTouch(this._character);
-                if (this._character._locked) {
+                if (this._character.isLocked()) {
                     $gameTemp.clearDestination();
                 }
             }

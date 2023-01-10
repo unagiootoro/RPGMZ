@@ -134,6 +134,8 @@ DotMoveSystem_ConflictPatch.js
         ・DotMoveSystem.js v2.1.0に対応
 
 DotMoveSystem_DecideTriggerEx.js
+    2023/01/11 v2.2.0
+        ・DotMoveSystem.js v2.2.0に対応
     2022/09/25 v1.0.0
         ・新規作成
 
