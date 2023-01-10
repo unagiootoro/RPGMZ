@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Self variable v1.4.1
+@plugindesc Self variable v1.5.0
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -60,6 +60,18 @@ When clearing the self variable/extended self switch with the plugin command,
 if the argument "whether event is specified" is ON,
 the event specified by the event ID or variable will be cleared. When set to OFF,
 all events on the map will be cleared.
+
+■ Batch setting of self-variables/extended self-switches using event tags
+If you set an event tag to an event, the plug-in command "Set self variable value by event tag" will be displayed.
+Or with the event tag specified by "Extended self-switch value setting by event tag"
+Self variables or extended self switches can be set for all events.
+Multiple event tags can be set.
+When setting an event tag, please describe it as follows in the first annotation of page 0 of the event.
+<et: event tag>
+
+Example: When setting event tags "ET1" and "ET2"
+<et: ET1>
+<et: ET2>
 
 ■ Manipulate self variables from scripts
 ・Acquisition of self-variables
@@ -392,7 +404,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc セルフ変数 v1.4.1
+@plugindesc セルフ変数 v1.5.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -452,6 +464,18 @@ MVの場合はスクリプトからセルフ変数を操作させる機能を使
 プラグインコマンドでセルフ変数/拡張セルフスイッチをクリアする場合、
 引数「イベント指定有無」をONにした場合、イベントIDまたは変数で指定したイベントを
 対象にクリアを行います。OFFにした場合、マップ上の全てのイベントに対してクリアを行います。
+
+■ イベントタグによるセルフ変数/拡張セルフスイッチの一括設定
+イベントにイベントタグを設定するとプラグインコマンド「イベントタグによるセルフ変数値設定」
+または「イベントタグによる拡張セルフスイッチ値設定」によって指定したイベントタグを持つ
+イベント全てに対してセルフ変数または拡張セルフスイッチを設定することができます。
+イベントタグは複数設定することも可能です。
+イベントタグを設定する場合、イベントの0ページ目の最初の注釈に以下のように記載してください。
+<et: イベントタグ>
+
+例: イベントタグ"ET1"と"ET2"を設定する場合
+<et: ET1>
+<et: ET2>
 
 ■ スクリプトからセルフ変数を操作する
 ・セルフ変数の取得
@@ -568,6 +592,35 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @text イベントID(変数指定)
 @default 0
 @desc イベントIDを変数で指定します。直接イベントID値を設定した場合は本パラメータは0を指定してください。
+
+@arg SelfVariableId
+@type variable
+@text セルフ変数ID
+@default 1
+@desc セルフ変数IDを指定します。
+
+@arg Value
+@type number
+@text 設定値
+@default 0
+@desc セルフ変数に設定する値を指定します。
+
+@arg SrcVariableId
+@type variable
+@text 設定値格納変数ID
+@default 0
+@desc セルフ変数に設定する値を格納した変数IDを指定します。直接値を指定する場合、このパラメータは0を指定してください。
+
+
+@command SetSelfVariableValueByEventTags
+@text イベントタグによるセルフ変数値設定
+@desc 指定したイベントタグを持つイベント全てにセルフ変数の値を設定します。
+
+@arg EventTags
+@type string[]
+@text イベントタグ
+@default []
+@desc 対象となるイベントタグを指定します。
 
 @arg SelfVariableId
 @type variable
@@ -718,6 +771,34 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @desc 拡張セルフスイッチに設定する値を格納したスイッチIDを指定します。直接値を指定する場合、このパラメータは0を指定してください。
 
 
+@command SetExSelfSwitchValueByEventTags
+@text イベントタグによる拡張セルフスイッチ値設定
+@desc 指定したイベントタグを持つイベント全てにセルフ変数の値を設定します。
+
+@arg EventTags
+@type string[]
+@text イベントタグ
+@default []
+@desc 対象となるイベントタグを指定します。
+
+@arg ExSelfSwitchId
+@type switch
+@text 拡張セルフスイッチID
+@default 1
+@desc 拡張セルフスイッチIDを指定します。
+
+@arg Value
+@type boolean
+@text 設定値
+@default true
+@desc 拡張セルフスイッチに設定する値を指定します。
+@arg SrcSwitchId
+@type switch
+@text 設定値格納スイッチID
+@default 0
+@desc 拡張セルフスイッチに設定する値を格納したスイッチIDを指定します。直接値を指定する場合、このパラメータは0を指定してください。
+
+
 @command ClearExSelfSwitches
 @text 拡張セルフスイッチクリア
 @desc 指定したマップIDとイベントIDに該当する全ての拡張セルフスイッチをOFFにします。
@@ -793,6 +874,7 @@ declare interface Game_Variables {
     isFloatVariable(variableId: number): boolean;
     selfVariableValue(key: [number, number, number]): number;
     setSelfVariableValue(key: [number, number, number], value: number): void;
+    setSelfVariableValueByEventTags(eventTags: string[], variableId: number, value: number): void;
     clearSelfVariables(mapId: number, eventId?: number, selfVariableId?: number): void;
 }
 
@@ -803,6 +885,7 @@ declare interface Game_Switches {
     isCommonSwitch(switchId: number): boolean;
     exSelfSwitchValue(key: [number, number, number]): boolean;
     setExSelfSwitchValue(key: [number, number, number], value: boolean): void;
+    setExSelfSwitchValueByEventTags(eventTags: string[], selfSwitchId: number, value: boolean): void;
     clearExSelfSwitches(mapId: number, eventId?: number, selfSwitchId?: number): void;
 }
 
@@ -820,11 +903,19 @@ declare interface Game_Interpreter {
 }
 
 declare interface Game_Event {
+    _eventTags: string[];
+
     selfVariableValue(variableId: number): number;
     setSelfVariableValue(variableId: number, value: number): void;
     exSelfSwitchValue(switchId: number): boolean;
     setExSelfSwitchValue(switchId: number, value: boolean): void;
     selfVariableOrExSwitchKey(id: number): [number, number, number];
+    eventTags(): string[];
+    parseEventTags(): string[];
+    addEventTag(eventTag: string): void;
+    hasEventTag(eventTag: string): boolean;
+    getAnnotationValues(page: number): { [key: string]: string; };
+    getAnnotation(page: number): string;
 }
 
 
@@ -888,6 +979,17 @@ namespace SelfVariable {
             $gameVariables.setSelfVariableValue(key as any, value);
         });
 
+        PluginManager.registerCommand(SelfVariablePluginName, "SetSelfVariableValueByEventTags", function(this: Game_Interpreter, args: any) {
+            const eventTags = JSON.parse(args.EventTags);
+            const selfVariableId = parseInt(args.SelfVariableId);
+            let value = parseInt(args.Value);
+            const srcVariableId = parseInt(args.SrcVariableId);
+            if (srcVariableId > 0) {
+                value = $gameVariables.value(srcVariableId);
+            }
+            $gameVariables.setSelfVariableValueByEventTags(eventTags, selfVariableId, value);
+        });
+
         PluginManager.registerCommand(SelfVariablePluginName, "ClearSelfVariables", function(this: Game_Interpreter, args: any) {
             const mapId = getMapId(this, args);
             let eventId;
@@ -924,6 +1026,17 @@ namespace SelfVariable {
                 value = $gameSwitches.value(srcSwitchId);
             }
             $gameSwitches.setExSelfSwitchValue(key as any, value);
+        });
+
+        PluginManager.registerCommand(SelfVariablePluginName, "SetExSelfSwitchValueByEventTags", function(this: Game_Interpreter, args: any) {
+            const eventTags = JSON.parse(args.EventTags);
+            const exSelfSwitchId = parseInt(args.ExSelfSwitchId);
+            let value = args.Value === "true";
+            const srcSwitchId = parseInt(args.SrcSwitchId);
+            if (srcSwitchId > 0) {
+                value = $gameSwitches.value(srcSwitchId);
+            }
+            $gameSwitches.setExSelfSwitchValueByEventTags(eventTags, exSelfSwitchId, value);
         });
 
         PluginManager.registerCommand(SelfVariablePluginName, "ClearExSelfSwitches", function(this: Game_Interpreter, args: any) {
@@ -1115,6 +1228,17 @@ namespace SelfVariable {
         }
     };
 
+    Game_Variables.prototype.setSelfVariableValueByEventTags = function(eventTags, variableId, value) {
+        for (const event of $gameMap.events()) {
+            for (const tag of eventTags) {
+                if (event.eventTags().includes(tag)) {
+                    event.setSelfVariableValue(variableId, value);
+                    break;
+                }
+            }
+        }
+    };
+
     Game_Variables.prototype.clearSelfVariables = function(mapId, eventId = undefined, variableId = undefined) {
         for (const key in this._selfVariablesData) {
             const [keyMapId, keyEventId, keyVariableId] = key.split(",").map(s => parseInt(s));
@@ -1195,6 +1319,17 @@ namespace SelfVariable {
         }
     };
 
+    Game_Switches.prototype.setExSelfSwitchValueByEventTags = function(eventTags, selfSwitchId, value) {
+        for (const event of $gameMap.events()) {
+            for (const tag of eventTags) {
+                if (event.eventTags().includes(tag)) {
+                    event.setExSelfSwitchValue(selfSwitchId, value);
+                    break;
+                }
+            }
+        }
+    };
+
     Game_Switches.prototype.clearExSelfSwitches = function(mapId, eventId = undefined, switchId = undefined) {
         for (const key in this._exSelfSwitchesData) {
             const [keyMapId, keyEventId, keySwitchId] = key.split(",").map(s => parseInt(s));
@@ -1259,6 +1394,60 @@ namespace SelfVariable {
 
 
     /* class Game_Event */
+    const _Game_Event_initialize = Game_Event.prototype.initialize;
+    Game_Event.prototype.initialize = function(...args: any[]): void {
+        _Game_Event_initialize.call(this, ...args);
+        this._eventTags = this.parseEventTags();
+    }
+
+    Game_Event.prototype.parseEventTags = function() {
+        let eventTags = new Set<string>();
+        const note = this.getAnnotation(0);
+        const reg = /\<et\s*\:\s*(.+)\>/sg;
+        while (true) {
+            const matchData = reg.exec(note);
+            if (!matchData) break;
+            eventTags.add(matchData[1]);
+        }
+        return [...eventTags];
+    }
+
+    Game_Event.prototype.eventTags = function() {
+        return this._eventTags;
+    }
+
+    Game_Event.prototype.addEventTag = function(eventTag: string): void {
+        if (!this.hasEventTag(eventTag)) this._eventTags.push(eventTag);
+    }
+
+    Game_Event.prototype.hasEventTag = function(eventTag) {
+        return this._eventTags.includes(eventTag);
+    }
+
+    Game_Event.prototype.getAnnotationValues = function(page) {
+        const note = this.getAnnotation(page);
+        const data: any = { note };
+        DataManager.extractMetadata(data);
+        return data.meta;
+    }
+
+    Game_Event.prototype.getAnnotation = function(page) {
+        const eventData = this.event();
+        if (eventData) {
+            const noteLines = [];
+            const pageList = eventData.pages[page].list;
+            for (let i = 0; i < pageList.length; i++) {
+                if (pageList[i].code === 108 || pageList[i].code === 408) {
+                    noteLines.push(pageList[i].parameters[0]);
+                } else {
+                    break;
+                }
+            }
+            return noteLines.join("\n");
+        }
+        return "";
+    }
+
     Game_Event.prototype.selfVariableValue = function(variableId) {
         const key = this.selfVariableOrExSwitchKey(variableId);
         return $gameVariables.selfVariableValue(key);
