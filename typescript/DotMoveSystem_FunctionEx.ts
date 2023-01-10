@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system function extension v2.1.2
+@plugindesc Dot movement system function extension v2.2.0
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -11,13 +11,14 @@ Add the following features.
 ・ Adjustment of movement speed
 ・ Addition of acceleration
 ・ Addition of inertia
+・ Wall slide permission/prohibition switching when moving diagonally
 ・ Press an event
 ・ Change of behavior when immersing in an event
 ・ Jump with collision detection
 ・ Half-square collision detection of terrain
 ・ Triangular mass collision detection of terrain
 
-※ When installing this plugin, "DotMoveSystem.js v2.1.0" or later is required.
+※ When installing this plugin, "DotMoveSystem.js v2.2.0" or later is required.
 
 【How to use】
 ■ Change player size
@@ -35,7 +36,7 @@ Specify. The moving speed specifies the moving speed per frame.
 this.setDpf(0.01);
 
 If you want to cancel the movement speed adjustment and reflect the movement speed specified by the event command,
-this.setDpf(null);
+this.setDpf(undefined);
 Specify.
 
 ■ Addition of acceleration
@@ -58,9 +59,17 @@ When set to 1, acceleration and inertia increase / decrease are the same.
 (Example) When decelerating 2 times in 1 frame
 this.setInertia(2);
 
+■ Enable/disable wall slide when moving diagonally
+In the travel route script
+this.setEnableWallSlide(false);
+If you specify , wall slipping due to diagonal movement can be prohibited.
+
+You can also re-allow wall sliding with the following settings.
+this.setEnableWallSlide(true);
+
 ■ Press an event
 Add the ability to press an event.
-In the memo field of the event to be pushed
+In the memo field of the event being pushed or in the annotation on the 0th page of the event
 <PushableEvent>
 Please describe.
 
@@ -83,6 +92,13 @@ this.smartJumpAbs(X coordinate, Y coordinate, maximum jump height (optional), pa
 
 (Example) When jumping to the coordinates of X=5, Y=10
 this.smartJumpAbs(5, 10);
+
+■ Jump with hit judgment by specified angle and distance
+Write the following script in the movement route setting.
+this.smartJumpByDeg(angle, distance, maximum jump height (optional), pass through (optional));
+
+(Example) When you are away from jumping for 2.5 squares in the direction of an angle of 30 degrees
+this.smartJumpByDeg(30, 2.5);
 
 ■ Half-square collision detection of terrain
 By editing the plug-in parameter "HalfCollisionMassInfo"
@@ -553,10 +569,9 @@ Set the terrain tag ID for collision detection in the lower right direction.
 @desc
 Set the terrain tag ID for collision detection in the upper right triangle direction.
 */
-
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v2.1.2
+@plugindesc ドット移動システム機能拡張 v2.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -567,12 +582,13 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 ・移動速度の調整
 ・加速度の追加
 ・慣性の追加
+・斜め移動時の壁スライド許可/禁止切り替え
 ・イベントを押す
 ・当たり判定付きジャンプ
 ・地形の半マス当たり判定
 ・地形の三角マス当たり判定
 
-※ 本プラグインを導入する場合、「DotMoveSystem.js v2.1.0」以降が必要になります。
+※ 本プラグインを導入する場合、「DotMoveSystem.js v2.2.0」以降が必要になります。
 
 【使用方法】
 ■ プレイヤーサイズの変更
@@ -590,7 +606,7 @@ this.setDpf(移動速度);
 this.setDpf(0.01);
 
 なお、移動速度の調整をキャンセルしてイベントコマンドで指定する移動速度を反映する場合、
-this.setDpf(null);
+this.setDpf(undefined);
 と指定します。
 
 ■ 加速度の追加
@@ -613,9 +629,17 @@ this.setInertia(慣性);
 (例) 1フレームに2減速する場合
 this.setInertia(2);
 
+■ 斜め移動時の壁スライド許可/禁止切り替え
+移動ルートのスクリプトで
+this.setEnableWallSlide(false);
+を指定すると斜め移動による壁ずりを禁止することができます。
+
+また、以下の設定で壁ずりを再度許可することも可能です。
+this.setEnableWallSlide(true);
+
 ■ イベントを押す
 イベントを押す機能を追加します。
-押される側のイベントのメモ欄に
+押される側のイベントのメモ欄またはイベント0ページ目の注釈に
 <PushableEvent>
 と記載してください。
 
@@ -638,6 +662,13 @@ this.smartJumpAbs(X座標, Y座標, 最大のジャンプする高さ(省略可)
 
 (例) X=5, Y=10の座標にジャンプする場合
 this.smartJumpAbs(5, 10);
+
+■ 指定した角度と距離による当たり判定付きジャンプ
+移動ルートの設定で以下のスクリプトを記述します。
+this.smartJumpByDeg(角度, 距離, 最大のジャンプする高さ(省略可), すり抜け有無(省略可));
+
+(例) 角度30度の方向へ2.5マス分ジャンプ留守場合
+this.smartJumpByDeg(30, 2.5);
 
 ■ 地形の半マス当たり判定
 プラグインパラメータ「HalfCollisionMassInfo」を編集することで、
@@ -1112,38 +1143,37 @@ this.smartJumpAbs(5, 10);
 const DotMoveSystem_FunctionExPluginName = document.currentScript ? decodeURIComponent((document.currentScript as HTMLScriptElement).src.match(/^.*\/(.+)\.js$/)![1]) : "DotMoveSystem_FunctionEx";
 
 declare interface Game_CharacterBase {
-    _dpf: number | null;
+    _dpf?: number;
     _acceleration: number;
     _inertia: number;
     _accelerationPlus: number;
     _maxAcceleration: number;
+    _enableWallSlide: boolean;
     _currentDpf: number;
-    _jumpXPlus: number;
-    _jumpYPlus: number;
-    _smartJumpLastThrough: boolean | null;
+    _jumpXPlus?: number;
+    _jumpYPlus?: number;
+    _smartJumpLastThrough?: boolean;
 
+    canPushEvent(): boolean;
     originDistancePerFrame(): number;
     updateCurrentDpf(): void;
-    setDpf(dpf: number | null): void;
+    setDpf(dpf: number | undefined): void;
     setAcc(maxAcc: number, accPlus: number): void;
     setInertia(inertia: number): void;
     isNeedUpdateAcceleration(): boolean;
     updateAcceleration(): void;
     cancelAcceleration(): void;
     smartJump(xPlus: number, yPlus: number, baseJumpPeak?: number, through?: boolean): void;
+    smartJumpByDeg(deg: number, far: number, baseJumpPeak: number, through: boolean): void;
     smartJumpAbs(x: number, y: number, baseJumpPeak?: number, through?: boolean): void;
     isSmartJumping(): boolean;
     updateSmartJump(): void;
     realDpf(): number;
+    isEnabledWallSlide(): boolean;
+    setEnableWallSlide(bool: boolean): void;
 }
 
 declare interface Game_Player {
-    _width: number;
-    _height: number;
-    _offsetX: number;
-    _offsetY: number;
-    _slideLengthX: number;
-    _slideLengthY: number;
     _transferOffsetX: number;
     _transferOffsetY: number;
     _enableTransferOffset: boolean;
@@ -1152,31 +1182,31 @@ declare interface Game_Player {
 }
 
 declare interface Game_Follower {
-    _width: number;
-    _height: number;
-    _offsetX: number;
-    _offsetY: number;
-    _slideLengthX: number;
-    _slideLengthY: number;
     _transferOffsetX: number;
     _transferOffsetY: number;
 
     calcFollowerDpf(precedingCharacterFar: number): number;
 }
 
+declare interface Game_Event {
+    _pushableEvent?: boolean;
+
+    isPushableEvent(): boolean;
+}
+
 declare namespace DotMoveSystem {
-    interface CharacterCollisionCheckProcess {
+    interface CharacterCollisionChecker {
         checkEventsPrepare(): number[];
         getMassRects(x: number, y: number): DotMoveRectangle[];
         getMassCollisionType(x: number, y: number): number;
-        checkCollisionMassLeftUp(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<TriangleMassInfo>[];
-        checkCollisionMassDownLeft(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<TriangleMassInfo>[];
-        checkCollisionMassRightDown(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<TriangleMassInfo>[];
-        checkCollisionMassUpRight(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<TriangleMassInfo>[];
+        checkCollisionMassLeftUp(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<FunctionEx.TriangleMassInfo>[];
+        checkCollisionMassDownLeft(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<FunctionEx.TriangleMassInfo>[];
+        checkCollisionMassRightDown(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<FunctionEx.TriangleMassInfo>[];
+        checkCollisionMassUpRight(subjectRect: DotMoveRectangle, d: number, ix: number, iy: number): CollisionResult<FunctionEx.TriangleMassInfo>[];
         calcMassTriangle(id: number, characterRect: DotMoveRectangle, direction: number, ix: number, iy: number): DotMoveRectangle;
     }
 
-    interface CharacterController {
+    interface CharacterDotMoveProcess {
         checkCollisionResultIsAllTriangleMass(collisionResults: CollisionResult<unknown>[], type: number): boolean;
     }
 
@@ -1185,73 +1215,87 @@ declare namespace DotMoveSystem {
         _changeDirectionCount: number;
         _direction8: number;
         _reserveChangeDirection: boolean;
-        _reserveSetDirection: number | null;
+        _reserveSetDirection?: number;
 
-        dotMoveByDirection(direction: number, opt?: { changeDir?: boolean }): void;
+        dotMoveByDirection(direction: number, dpf?: number, opt?: { changeDir?: boolean }): void;
         updateChangeDirection(): void;
         setDirection8(direction8: number): void;
         direction8(): number;
         changeDirectionWhenDotMove(direction: number): void;
-        dotMoveByDistance(this: CharacterMover, direction: number, distance: DotMovePoint): void;
     }
 
-    interface PlayerMover {
+    interface CharacterMover {
         eventPushProcess(): void;
     }
 }
 
-namespace DotMoveSystem {
-    class PluginParamsParser {
+namespace DotMoveSystem.FunctionEx {
+    export class PluginParamsParser {
         private _predictEnable: boolean;
-
-        static parse(params: any, typeData: any, predictEnable: boolean = true) {
+    
+        static parse(params: any, typeData: any = {}, predictEnable: boolean = true) {
             return new PluginParamsParser(predictEnable).parse(params, typeData);
         }
-
+    
         constructor(predictEnable = true) {
             this._predictEnable = predictEnable;
         }
-
-        parse(params: any, typeData: any, loopCount: number = 0): any {
-            if (++loopCount > 255) throw new Error("endless loop error");
+    
+        parse(params: any, typeData: any = {}): any {
             const result: any = {};
-            for (const name in typeData) {
-                if (params[name] === "" || params[name] === undefined) {
-                    result[name] = null;
-                } else {
-                    result[name] = this.convertParam(params[name], typeData[name], loopCount);
-                }
-            }
-            if (!this._predictEnable) return result;
-            if (typeof params === "object" && !(params instanceof Array)) {
-                for (const name in params) {
-                    if (result[name]) continue;
-                    const param = params[name];
-                    const type = this.predict(param);
-                    result[name] = this.convertParam(param, type, loopCount);
-                }
+            for (const name in params) {
+                const expandedParam = this.expandParam(params[name]);
+                result[name] = this.convertParam(expandedParam, typeData[name]);
             }
             return result;
         }
-
-        convertParam(param: any, type: any, loopCount: number): any {
-            if (typeof type === "string") {
-                return this.cast(param, type);
-            } else if (typeof type === "object" && type instanceof Array) {
-                const aryParam = JSON.parse(param);
-                if (type[0] === "string") {
-                    return aryParam.map((strParam: string) => this.cast(strParam, type[0]));
-                } else {
-                    return aryParam.map((strParam: string) => this.parse(JSON.parse(strParam), type[0]), loopCount);
+    
+        expandParam(strParam: string, loopCount = 0) {
+            if (++loopCount > 255) throw new Error("endless loop error");
+            if (strParam.match(/^\s*\[.*\]\s*$/)) {
+                const aryParam = JSON.parse(strParam);
+                return aryParam.map((data: any) => this.expandParam(data), loopCount + 1);
+            } else if (strParam.match(/^\s*\{.*\}\s*$/)) {
+                const result: any = {};
+                const objParam = JSON.parse(strParam);
+                for (const name in objParam) {
+                    result[name] = this.expandParam(objParam[name], loopCount + 1);
                 }
-            } else if (typeof type === "object") {
-                return this.parse(JSON.parse(param), type, loopCount);
+                return result;
+            }
+            return strParam;
+        }
+    
+        convertParam(param: any, type: any, loopCount: number = 0): any {
+            if (++loopCount > 255) throw new Error("endless loop error");
+            if (typeof param === "string") {
+                return this.cast(param, type);
+            } else if (typeof param === "object" && param instanceof Array) {
+                if (!((param == null) || (typeof param === "object" && param instanceof Array))) {
+                    throw new Error(`Invalid array type: ${type}`);
+                }
+                return param.map((data: any, i) => {
+                    const dataType: any = type == null ? undefined : type[i];
+                    return this.convertParam(data, dataType, loopCount + 1)
+                });
+            } else if (typeof param === "object") {
+                if (!((param == null) || (typeof param === "object"))) {
+                    throw new Error(`Invalid object type: ${type}`);
+                }
+                const result: any = {};
+                for (const name in param) {
+                    const dataType = type == null ? undefined : type[name];
+                    result[name] = this.convertParam(param[name], dataType, loopCount + 1);
+                }
+                return result;
             } else {
-                throw new Error(`${type} is not string or object`);
+                throw new Error(`Invalid param: ${param}`);
             }
         }
-
+    
         cast(param: any, type: any): any {
+            if (param == null || param === "") return undefined;
+            if (type == null) type = "any";
             switch (type) {
                 case "any":
                     if (!this._predictEnable) throw new Error("Predict mode is disable");
@@ -1267,7 +1311,7 @@ namespace DotMoveSystem {
                     throw new Error(`Unknow type: ${type}`);
             }
         }
-
+    
         predict(param: any): string {
             if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
                 return "number";
@@ -1277,7 +1321,7 @@ namespace DotMoveSystem {
                 return "string";
             }
         }
-    }
+    }    
 
 
     const typeDefine = {
@@ -1314,14 +1358,11 @@ namespace DotMoveSystem {
     const _Game_CharacterBase_initMembers = Game_CharacterBase.prototype.initMembers;
     Game_CharacterBase.prototype.initMembers = function() {
         _Game_CharacterBase_initMembers.call(this);
-        this._dpf = null;
         this._acceleration = 0;
         this._inertia = 1;
         this._accelerationPlus = 0;
         this._maxAcceleration = 0;
-        this._jumpXPlus = 0;
-        this._jumpYPlus = 0;
-        this._smartJumpLastThrough = null;
+        this._enableWallSlide = true;
     };
 
 
@@ -1339,6 +1380,11 @@ namespace DotMoveSystem {
         this._enableTransferOffset = true;
     };
 
+    if (!Game_Follower.prototype.hasOwnProperty("initMembers")) {
+        Game_Follower.prototype.initMembers = function() {
+            Game_Character.prototype.initMembers.call(this);
+        };
+    }
 
     const _Game_Follower_initMembers = Game_Follower.prototype.initMembers;
     Game_Follower.prototype.initMembers = function() {
@@ -1374,30 +1420,6 @@ namespace DotMoveSystem {
     /*
      * ● プレイヤーサイズの変更機能
      */
-    Game_Player.prototype.width = function(this: Game_Player) {
-        return this._width;
-    };
-
-    Game_Player.prototype.height = function(this: Game_Player) {
-        return this._height;
-    };
-
-    Game_Player.prototype.offsetX = function(this: Game_Player) {
-        return this._offsetX;
-    };
-
-    Game_Player.prototype.offsetY = function(this: Game_Player) {
-        return this._offsetY;
-    };
-
-    Game_Player.prototype.slideLengthX = function(this: Game_Player) {
-        return this._slideLengthX;
-    };
-
-    Game_Player.prototype.slideLengthY = function(this: Game_Player) {
-        return this._slideLengthY;
-    };
-
     Game_Player.prototype.setEnableTransferOffset = function(bool) {
         this._enableTransferOffset = bool;
     };
@@ -1407,30 +1429,6 @@ namespace DotMoveSystem {
         _Game_Player_reserveTransfer.call(this, mapId, x, y, d, fadeType);
         this._newX = x + this._transferOffsetX;
         this._newY = y + this._transferOffsetY;
-    };
-
-    Game_Follower.prototype.width = function(this: Game_Follower) {
-        return this._width;
-    };
-
-    Game_Follower.prototype.height = function(this: Game_Follower) {
-        return this._height;
-    };
-
-    Game_Follower.prototype.offsetX = function(this: Game_Follower) {
-        return this._offsetX;
-    };
-
-    Game_Follower.prototype.offsetY = function(this: Game_Follower) {
-        return this._offsetY;
-    };
-
-    Game_Follower.prototype.slideLengthX = function(this: Game_Follower) {
-        return this._slideLengthX;
-    };
-
-    Game_Follower.prototype.slideLengthY = function(this: Game_Follower) {
-        return this._slideLengthY;
     };
 
     /*
@@ -1443,11 +1441,11 @@ namespace DotMoveSystem {
             this._changeDirectionCount++;
             if (this._changeDirectionCount >= 3) {
                 this._reserveChangeDirection = false;
-                const deg = DotMoveUtils.direction2deg(direction);
-                const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
+                const deg = Degree.fromDirection(direction);
+                const direction4 = deg.toDirection4(this._character.direction());
                 this.setDirection8(direction);
                 this.setDirection(direction4);
-                this._reserveSetDirection = null;
+                this._reserveSetDirection = undefined;
             }
         }
     };
@@ -1462,21 +1460,20 @@ namespace DotMoveSystem {
     };
 
     const _CharacterMover_dotMoveByDeg = CharacterMover.prototype.dotMoveByDeg;
-    CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: true }) {
+    CharacterMover.prototype.dotMoveByDeg = function(this: CharacterMover, deg, dpf = this._character.distancePerFrame(), opt = { changeDir: true }) {
         if (opt.changeDir) {
-            const direction = DotMoveUtils.deg2direction(deg);
-            this.changeDirectionWhenDotMove(direction);
+            this.changeDirectionWhenDotMove(deg.toDirection8());
         }
-        _CharacterMover_dotMoveByDeg.call(this, deg);
+        _CharacterMover_dotMoveByDeg.call(this, deg, dpf);
     };
 
     const _CharacterMover_dotMoveByDirection = CharacterMover.prototype.dotMoveByDirection;
-    CharacterMover.prototype.dotMoveByDirection = function(direction, opt: { changeDir?: boolean } = {}) {
+    CharacterMover.prototype.dotMoveByDirection = function(this: CharacterMover, direction, dpf = this._character.distancePerFrame(), opt: { changeDir?: boolean } = {}) {
         const changeDir = opt.changeDir == null ? true : opt.changeDir;
         if (changeDir) {
             this.changeDirectionWhenDotMove(direction);
         }
-        _CharacterMover_dotMoveByDirection.call(this, direction);
+        _CharacterMover_dotMoveByDirection.call(this, direction, dpf);
     };
 
     CharacterMover.prototype.changeDirectionWhenDotMove = function(this: CharacterMover, direction) {
@@ -1485,8 +1482,8 @@ namespace DotMoveSystem {
             this._changeDirectionCount = 0;
             this._reserveChangeDirection = true;
             this.setDirection8(direction);
-            const deg = DotMoveUtils.direction2deg(direction);
-            const direction4 = DotMoveUtils.deg2direction4(deg, this._character.direction());
+            const deg = Degree.fromDirection(direction);
+            const direction4 = deg.toDirection4(this._character.direction());
             this.setDirection(direction4);
         }
     };
@@ -1496,7 +1493,7 @@ namespace DotMoveSystem {
 
     Game_CharacterBase.prototype.distancePerFrame = function() {
         if (this._dpf == null) return this.originDistancePerFrame();
-        if (this.isNeedUpdateAcceleration() && this._moverData.targetCount > 1) return this.originDistancePerFrame();
+        // if (this.isNeedUpdateAcceleration() && this._moverData.targetFar > 1) return this.originDistancePerFrame();
         return this._currentDpf;
     };
 
@@ -1536,10 +1533,12 @@ namespace DotMoveSystem {
                     this._acceleration++;
                 }
             } else {
-                if (this._acceleration > 0) {
+                if (!this.isMoving() && this._acceleration > 0) {
                     this._acceleration -= this._inertia;
                     if (this._acceleration < 0) this._acceleration = 0;
-                    this.mover<CharacterMover>().dotMoveByDirection(this.mover<CharacterMover>().direction8(), { changeDir: false });
+                    // TODO: 暫定
+                    // this.mover().dotMoveByDirection(this.mover().direction8(), { changeDir: false });
+                    this.mover().dotMoveByDirection(this.direction(), undefined, { changeDir: false });
                 }
             }
         }
@@ -1586,7 +1585,7 @@ namespace DotMoveSystem {
         if ($gamePlayer.distancePerFrame()) {
             this.setDpf(this.calcFollowerDpf(precedingCharacterFar));
         } else {
-            this.setDpf(null);
+            this.setDpf(undefined);
             this.setMoveSpeed(this.calcFollowerSpeed(precedingCharacterFar));
         }
     };
@@ -1611,41 +1610,116 @@ namespace DotMoveSystem {
     };
 
     /*
-     * ● イベントを押す
+     * ● 壁スライド許可/禁止切り替え
      */
-    const _PlayerMover_moveProcess = PlayerMover.prototype.moveProcess;
-    PlayerMover.prototype.moveProcess = function() {
-        // プレイヤー移動の前にイベントを動かし、その後でプレイヤーを動かす
-        this.eventPushProcess();
-        _PlayerMover_moveProcess.call(this);
+    CharacterDotMoveProcess.prototype.dotMoveByDeg = function(this: CharacterDotMoveProcess, deg, dpf = this._character.distancePerFrame()) {
+        this._dpf = dpf;
+        const direction = deg.toDirection8();
+        const distance = this.calcDistance(deg);
+        let movedPoint = this.calcMovedPoint(direction, distance);
+        const realPoint = this._character.positionPoint();
+        const margin = this._character.distancePerFrame() / DotMoveUtils.MOVED_MARGIN_UNIT;
+
+        let moved = true;
+        if (this.reachPoint(realPoint, movedPoint, margin)) moved = false;
+
+        if (moved && !this._character.isEnabledWallSlide()) {
+            const targetPoint = realPoint.add(distance);
+            if (!this.reachPoint(targetPoint, movedPoint, margin)) {
+                // 座標の矯正が行われた場合、矯正していない軸は壁ずりが発生したとみなし、座標の更新をキャンセルする。
+                if (Math.abs(targetPoint.x - movedPoint.x) <= margin) {
+                    movedPoint.x = realPoint.x;
+                }
+                if (Math.abs(targetPoint.y - movedPoint.y) <= margin) {
+                    movedPoint.y = realPoint.y;
+                }
+                if (this.reachPoint(realPoint, movedPoint, margin)) moved = false;
+            }
+        }
+
+        movedPoint.x = $gameMap.roundX(movedPoint.x);
+        movedPoint.y = $gameMap.roundY(movedPoint.y);
+        this._character.setPositionPoint(movedPoint);
+        return moved;
     };
 
-    PlayerMover.prototype.eventPushProcess = function(this: PlayerMover) {
+    Game_CharacterBase.prototype.isEnabledWallSlide = function() {
+        return this._enableWallSlide;
+    };
+
+    Game_CharacterBase.prototype.setEnableWallSlide = function(bool) {
+        this._enableWallSlide = bool;
+    };
+
+    /*
+     * ● イベントを押す
+     */
+    const _CharacterMover_continuousMoveProcess = CharacterMover.prototype.continuousMoveProcess;
+    CharacterMover.prototype.continuousMoveProcess = function(this: CharacterMover) {
+        // プレイヤー移動の前にイベントを動かし、その後でプレイヤーを動かす
+        this.eventPushProcess();
+        _CharacterMover_continuousMoveProcess.call(this);
+    };
+
+    const _CharacterMover_dotMoveByDeg_2 = CharacterMover.prototype.dotMoveByDeg;
+    CharacterMover.prototype.dotMoveByDeg = function(this: CharacterMover, deg, dpf = this._character.distancePerFrame()) {
+        if (this._moverData.stopping) return;
+        this.eventPushProcess();
+        _CharacterMover_dotMoveByDeg_2.call(this, deg, dpf);
+    };
+
+    CharacterMover.prototype.eventPushProcess = function(this: CharacterMover) {
+        if (!this._character.canPushEvent()) return;
         const pos = this._character.positionPoint();
         const dpf = this._character.distancePerFrame();
         const margin = dpf / 2;
         const dir = this._character.direction();
-        for (const result of this.checkHitCharactersStepDir(pos.x, pos.y, dir)) {
-            if (!(result.targetObject instanceof Game_Event)) continue;
+        for (const result of this.checkHitCharactersStepDir(pos.x, pos.y, dir, Game_Event)) {
             const event = result.targetObject;
-            if (!event.event().meta.PushableEvent) continue;
-            if (!(result.collisionLengthX() >= margin && result.collisionLengthY() >= margin)) continue;
-            event.mover<PlayerMover>().dotMoveByDirection(dir);
+            if (event.isPushableEvent()) {
+                if (!(result.collisionLengthX() >= margin && result.collisionLengthY() >= margin)) continue;
+                event.mover().dotMoveByDirection(dir);
+            }
+        }
+    };
+
+    Game_CharacterBase.prototype.canPushEvent = function() {
+        return false;
+    };
+
+    Game_Player.prototype.canPushEvent = function() {
+        return true;
+    };
+
+    Game_Event.prototype.isPushableEvent = function() {
+        if (this._pushableEvent == null) return false;
+        return this._pushableEvent;
+    };
+
+    const _Game_Event_initialize = Game_Event.prototype.initialize;
+    Game_Event.prototype.initialize = function(mapId, eventId) {
+        _Game_Event_initialize.call(this, mapId, eventId);
+        if (this.event()!.meta.PushableEvent) {
+            this._pushableEvent = true;
+        } else {
+            const values = this.getAnnotationValues(0);
+            if (values.PushableEvent) {
+                this._pushableEvent = true;
+            }
         }
     };
 
     /*
      * ● 当たり判定付きジャンプ
      */
-    CharacterMover.prototype.dotMoveByDistance = function(this: CharacterMover, direction: number, distance: DotMovePoint) {
-        this._controller.dotMoveByDistance(direction, distance);
-    };
-
     Game_CharacterBase.prototype.smartJump = function(this: Game_CharacterBase, xPlus, yPlus, baseJumpPeak = 10, through = false) {
         this._jumpXPlus = xPlus;
         this._jumpYPlus = yPlus;
         this._smartJumpLastThrough = this._through;
-        this._through = through;
+        // 既にすり抜けの場合、すり抜け無効にはしない。
+        if (!(this._through && !through)) {
+            this._through = through;
+        }
         if (Math.abs(xPlus) > Math.abs(yPlus)) {
             if (xPlus !== 0) {
                 this.setDirection(xPlus < 0 ? 4 : 6);
@@ -1662,6 +1736,11 @@ namespace DotMoveSystem {
         this.straighten();
     };
 
+    Game_CharacterBase.prototype.smartJumpByDeg = function(this: Game_CharacterBase, deg, far, baseJumpPeak = 10, through = false) {
+        const dis = DotMoveUtils.calcDistance(new Degree(deg), far);
+        this.smartJump(dis.x, dis.y, baseJumpPeak, through);
+    };
+
     Game_CharacterBase.prototype.smartJumpAbs = function(this: Game_CharacterBase, x, y, baseJumpPeak = 10, through = false) {
         const xPlus = x - this._realX;
         const yPlus = y - this._realY;
@@ -1670,7 +1749,7 @@ namespace DotMoveSystem {
 
 
     Game_CharacterBase.prototype.isSmartJumping = function() {
-        return this._jumpXPlus !== 0 || this._jumpYPlus !== 0;
+        return this._jumpXPlus != null || this._jumpYPlus != null;
     };
 
     const _Game_CharacterBase_updateJump = Game_CharacterBase.prototype.updateJump;
@@ -1680,15 +1759,16 @@ namespace DotMoveSystem {
 
     Game_CharacterBase.prototype.updateSmartJump = function(this: Game_CharacterBase) {
         this._jumpCount--;
-        const x = this._realX + this._jumpXPlus / (this._jumpPeak * 2);
-        const y = this._realY + this._jumpYPlus / (this._jumpPeak * 2);
-        const dis = new DotMovePoint(x - this._realX, y - this._realY);
-        const zero = new DotMoveSystem.DotMovePoint(0, 0);
-        const dir = DotMoveUtils.deg2direction(zero.calcDeg(dis));
-        this.mover().dotMoveByDistance(dir, dis);
+        if (this._jumpXPlus! !== 0 || this._jumpYPlus! !== 0) {
+            const x = this._realX + this._jumpXPlus! / (this._jumpPeak * 2);
+            const y = this._realY + this._jumpYPlus! / (this._jumpPeak * 2);
+            const dis = new DotMovePoint(x - this._realX, y - this._realY);
+            const zero = new DotMovePoint();
+            this.mover().dotMoveByDeg(zero.calcDeg(dis), zero.calcFar(dis));
+        }
         if (this._jumpCount === 0) {
-            this._jumpXPlus = 0;
-            this._jumpYPlus = 0;
+            this._jumpXPlus = undefined;
+            this._jumpYPlus = undefined;
             this._through = this._smartJumpLastThrough!;
             this.setPosition(this._realX, this._realY);
         }
@@ -1711,12 +1791,6 @@ namespace DotMoveSystem {
         }
     };
 
-    // DotMoveSystem本体側でupdateJumpを書き換えているため、こちらにも定義する。
-    const _Game_Player_updateJump = Game_Player.prototype.updateJump;
-    Game_Player.prototype.updateJump = function() {
-        if (!this.isSmartJumping()) _Game_Player_updateJump.call(this);
-    };
-
     Game_Player.prototype.updateSmartJump = function() {
         Game_Character.prototype.updateSmartJump.call(this);
         if (!this.isSmartJumping()) this.setupCollideTriggerEventIds();
@@ -1726,7 +1800,7 @@ namespace DotMoveSystem {
     /*
      * ● 半マス通行判定設定
      */
-    CharacterCollisionCheckProcess.prototype.getMassRects = function(x, y): DotMoveRectangle[] {
+    CharacterCollisionChecker.prototype.getMassRects = function(x, y) {
         switch (this.getMassCollisionType(x, y)) {
             case 1:
                 return [new DotMoveRectangle(x, y, 1, 0.5)];
@@ -1756,7 +1830,7 @@ namespace DotMoveSystem {
         return [new DotMoveRectangle(x, y, 1, 1)];
     };
 
-    CharacterCollisionCheckProcess.prototype.getMassCollisionType = function(x, y) {
+    CharacterCollisionChecker.prototype.getMassCollisionType = function(x, y) {
         const regionId = $gameMap.regionId(x, y);
         const terrainTag = $gameMap.terrainTag(x, y);
         if (regionId > 0) {
@@ -1834,15 +1908,15 @@ namespace DotMoveSystem {
         return 0;
     };
 
-    const _CharacterCollisionCheckProcess_isNoTargetMass = CharacterCollisionCheckProcess.prototype.isNoCheckMass;
-    CharacterCollisionCheckProcess.prototype.isNoCheckMass = function(this: CharacterCollisionCheckProcess, ix, iy, d, massRange) {
+    const _CharacterCollisionChecker_isNoTargetMass = CharacterCollisionChecker.prototype.isNoCheckMass;
+    CharacterCollisionChecker.prototype.isNoCheckMass = function(this: CharacterCollisionChecker, ix, iy, d, massRange) {
         if (this.getMassCollisionType(ix, iy) >= 1 && this.getMassCollisionType(ix, iy) <= END_TRIANGLE_ID) {
             return false;
         }
-        return _CharacterCollisionCheckProcess_isNoTargetMass.call(this, ix, iy, d, massRange);
+        return _CharacterCollisionChecker_isNoTargetMass.call(this, ix, iy, d, massRange);
     }
 
-    CharacterCollisionCheckProcess.prototype.checkCollisionMass = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+    CharacterCollisionChecker.prototype.checkCollisionMass = function(this: CharacterCollisionChecker, subjectRect, d, ix, iy) {
         const results = [];
         if (!this.checkPassMass(ix, iy, d)) {
             const massRects = this.getMassRects(ix, iy);
@@ -1854,7 +1928,7 @@ namespace DotMoveSystem {
         return results;
     }
 
-    CharacterCollisionCheckProcess.prototype.checkPassMass = function(this: CharacterCollisionCheckProcess, ix, iy, d) {
+    CharacterCollisionChecker.prototype.checkPassMass = function(this: CharacterCollisionChecker, ix, iy, d) {
         if (!$gameMap.isValid(ix, iy)) {
             return false;
         }
@@ -1876,16 +1950,16 @@ namespace DotMoveSystem {
         return true;
     };
 
-    const _CharacterCollisionChecker_checkCollisionXCliff = CharacterCollisionCheckProcess.prototype.checkCollisionXCliff;
-    CharacterCollisionCheckProcess.prototype.checkCollisionXCliff = function(subjectRect, x1, x2, iy, d) {
+    const _CharacterCollisionChecker_checkCollisionXCliff = CharacterCollisionChecker.prototype.checkCollisionXCliff;
+    CharacterCollisionChecker.prototype.checkCollisionXCliff = function(subjectRect, x1, x2, iy, d) {
         if (this.getMassCollisionType(x1, iy) >= 1 && this.getMassCollisionType(x1, iy) <= END_TRIANGLE_ID && this.getMassCollisionType(x2, iy) >= 1 && this.getMassCollisionType(x2, iy) <= END_TRIANGLE_ID) {
             return [];
         }
         return _CharacterCollisionChecker_checkCollisionXCliff.call(this, subjectRect, x1, x2, iy, d);
     };
 
-    const _CharacterCollisionChecker_checkCollisionYCliff = CharacterCollisionCheckProcess.prototype.checkCollisionYCliff;
-    CharacterCollisionCheckProcess.prototype.checkCollisionYCliff = function(subjectRect, y1, y2, ix, d) {
+    const _CharacterCollisionChecker_checkCollisionYCliff = CharacterCollisionChecker.prototype.checkCollisionYCliff;
+    CharacterCollisionChecker.prototype.checkCollisionYCliff = function(subjectRect, y1, y2, ix, d) {
         if (this.getMassCollisionType(ix, y1) >= 1 && this.getMassCollisionType(ix, y1) <= END_TRIANGLE_ID && this.getMassCollisionType(ix, y2) >= 1 && this.getMassCollisionType(ix, y2) <= END_TRIANGLE_ID) {
             return [];
         }
@@ -1907,7 +1981,7 @@ namespace DotMoveSystem {
         }
     }
 
-    CharacterCollisionCheckProcess.prototype.calcMassTriangle = function(id, characterRect, direction, ix, iy) {
+    CharacterCollisionChecker.prototype.calcMassTriangle = function(id, characterRect, direction, ix, iy) {
         switch (id) {
             case LEFT_UP_TRIANGLE_ID:
                 if (direction === 8) {
@@ -1957,8 +2031,8 @@ namespace DotMoveSystem {
         throw new Error(`Calc triangle failed. (id=${id}, direction=${direction})`);
     };
 
-    const _CharacterCollisionChecker_checkCollisionCliff = CharacterCollisionCheckProcess.prototype.checkCollisionCliff;
-    CharacterCollisionCheckProcess.prototype.checkCollisionCliff = function(subjectRect, massRange, d) {
+    const _CharacterCollisionChecker_checkCollisionCliff = CharacterCollisionChecker.prototype.checkCollisionCliff;
+    CharacterCollisionChecker.prototype.checkCollisionCliff = function(subjectRect, massRange, d) {
         for (let ix = massRange.x; ix < massRange.x2; ix++) {
             for (let iy = massRange.y; iy < massRange.y2; iy++) {
                 const ix2 = $gameMap.roundX(ix);
@@ -1970,8 +2044,8 @@ namespace DotMoveSystem {
         return _CharacterCollisionChecker_checkCollisionCliff.call(this, subjectRect, massRange, d);
     };
 
-    const _CharacterCollisionChecker_checkCollisionMass = CharacterCollisionCheckProcess.prototype.checkCollisionMass;
-    CharacterCollisionCheckProcess.prototype.checkCollisionMass = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+    const _CharacterCollisionChecker_checkCollisionMass = CharacterCollisionChecker.prototype.checkCollisionMass;
+    CharacterCollisionChecker.prototype.checkCollisionMass = function(this: CharacterCollisionChecker, subjectRect, d, ix, iy) {
         const id = this.getMassCollisionType(ix, iy);
 
         if (this.checkPassMass(ix, iy, d)) return [];
@@ -1995,7 +2069,7 @@ namespace DotMoveSystem {
         return _CharacterCollisionChecker_checkCollisionMass.call(this, subjectRect, d, ix, iy);
     };
 
-    CharacterCollisionCheckProcess.prototype.checkCollisionMassLeftUp = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+    CharacterCollisionChecker.prototype.checkCollisionMassLeftUp = function(this: CharacterCollisionChecker, subjectRect, d, ix, iy) {
         const massRect = new DotMoveRectangle(ix, iy, 1, 1);
         const pos = new DotMovePoint(this._origX, this._origY);
         const triangleMassInfo = new TriangleMassInfo(ix, iy);
@@ -2039,7 +2113,7 @@ namespace DotMoveSystem {
         return [];
     };
 
-    CharacterCollisionCheckProcess.prototype.checkCollisionMassDownLeft = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+    CharacterCollisionChecker.prototype.checkCollisionMassDownLeft = function(this: CharacterCollisionChecker, subjectRect, d, ix, iy) {
         const massRect = new DotMoveRectangle(ix, iy, 1, 1);
         const pos = new DotMovePoint(this._origX, this._origY);
         const triangleMassInfo = new TriangleMassInfo(ix, iy);
@@ -2083,7 +2157,7 @@ namespace DotMoveSystem {
         return [];
     };
 
-    CharacterCollisionCheckProcess.prototype.checkCollisionMassRightDown = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+    CharacterCollisionChecker.prototype.checkCollisionMassRightDown = function(this: CharacterCollisionChecker, subjectRect, d, ix, iy) {
         const massRect = new DotMoveRectangle(ix, iy, 1, 1);
         const pos = new DotMovePoint(this._origX, this._origY);
         const triangleMassInfo = new TriangleMassInfo(ix, iy);
@@ -2127,7 +2201,7 @@ namespace DotMoveSystem {
         return [];
     };
 
-    CharacterCollisionCheckProcess.prototype.checkCollisionMassUpRight = function(this: CharacterCollisionCheckProcess, subjectRect, d, ix, iy) {
+    CharacterCollisionChecker.prototype.checkCollisionMassUpRight = function(this: CharacterCollisionChecker, subjectRect, d, ix, iy) {
         const massRect = new DotMoveRectangle(ix, iy, 1, 1);
         const pos = new DotMovePoint(this._origX, this._origY);
         const triangleMassInfo = new TriangleMassInfo(ix, iy);
@@ -2171,16 +2245,16 @@ namespace DotMoveSystem {
         return [];
     };
 
-    CharacterController.prototype.calcUp = function(this: CharacterController, dis) {
+    CharacterDotMoveProcess.prototype.calcUp = function(this: CharacterDotMoveProcess, dis) {
         const pos = this._character.positionPoint();
         const collisionResults = this.checkCollision(pos.x, pos.y + dis.y, 8);
 
         if (collisionResults.length >= 1) {
             if (this.checkCollisionResultIsAllTriangleMass(collisionResults, LEFT_UP_TRIANGLE_ID)) {
-                const dis2 = this.calcDistance(45);
+                const dis2 = this.calcDistance(Degree.UP_RIGHT);
                 return this.calcUpRight(dis2);
             } else if (this.checkCollisionResultIsAllTriangleMass(collisionResults, UP_RIGHT_TRIANGLE_ID)) {
-                const dis2 = this.calcDistance(315);
+                const dis2 = this.calcDistance(Degree.LEFT_UP);
                 return this.calcLeftUp(dis2);
             }
         }
@@ -2197,16 +2271,16 @@ namespace DotMoveSystem {
         }
     };
 
-    CharacterController.prototype.calcRight = function(this: CharacterController, dis) {
+    CharacterDotMoveProcess.prototype.calcRight = function(this: CharacterDotMoveProcess, dis) {
         const pos = this._character.positionPoint();
         const collisionResults = this.checkCollision(pos.x + dis.x, pos.y, 6);
 
         if (collisionResults.length >= 1) {
             if (this.checkCollisionResultIsAllTriangleMass(collisionResults, UP_RIGHT_TRIANGLE_ID)) {
-                const dis2 = this.calcDistance(135);
+                const dis2 = this.calcDistance(Degree.RIGHT_DOWN);
                 return this.calcRightDown(dis2);
             } else if (this.checkCollisionResultIsAllTriangleMass(collisionResults, RIGHT_DOWN_TRIANGLE_ID)) {
-                const dis2 = this.calcDistance(45);
+                const dis2 = this.calcDistance(Degree.UP_RIGHT);
                 return this.calcUpRight(dis2);
             }
         }
@@ -2223,16 +2297,16 @@ namespace DotMoveSystem {
         }
     };
 
-    CharacterController.prototype.calcDown = function(this: CharacterController, dis) {
+    CharacterDotMoveProcess.prototype.calcDown = function(this: CharacterDotMoveProcess, dis) {
         const pos = this._character.positionPoint();
         const collisionResults = this.checkCollision(pos.x, pos.y + dis.y, 2);
 
         if (collisionResults.length >= 1) {
             if (this.checkCollisionResultIsAllTriangleMass(collisionResults, DOWN_LEFT_TRIANGLE_ID)) {
-                const dis2 = this.calcDistance(135);
+                const dis2 = this.calcDistance(Degree.RIGHT_DOWN);
                 return this.calcRightDown(dis2);
             } else if (this.checkCollisionResultIsAllTriangleMass(collisionResults, RIGHT_DOWN_TRIANGLE_ID)) {
-                const dis2 = this.calcDistance(225);
+                const dis2 = this.calcDistance(Degree.DOWN_LEFT);
                 return this.calcDownLeft(dis2);
             }
         }
@@ -2249,16 +2323,16 @@ namespace DotMoveSystem {
         }
     };
 
-    CharacterController.prototype.calcLeft = function(this: CharacterController, dis) {
+    CharacterDotMoveProcess.prototype.calcLeft = function(this: CharacterDotMoveProcess, dis) {
         const pos = this._character.positionPoint();
         const collisionResults = this.checkCollision(pos.x + dis.x, pos.y, 4);
 
         if (collisionResults.length >= 1) {
             if (this.checkCollisionResultIsAllTriangleMass(collisionResults, LEFT_UP_TRIANGLE_ID)) {
-                const dis2 = this.calcDistance(225);
+                const dis2 = this.calcDistance(Degree.DOWN_LEFT);
                 return this.calcDownLeft(dis2);
             } else if (this.checkCollisionResultIsAllTriangleMass(collisionResults, DOWN_LEFT_TRIANGLE_ID)) {
-                const dis2 = this.calcDistance(315);
+                const dis2 = this.calcDistance(Degree.LEFT_UP);
                 return this.calcLeftUp(dis2);
             }
         }
@@ -2275,7 +2349,7 @@ namespace DotMoveSystem {
         }
     };
 
-    CharacterController.prototype.checkCollisionResultIsAllTriangleMass = function(this: CharacterController, collisionResults, type) {
+    CharacterDotMoveProcess.prototype.checkCollisionResultIsAllTriangleMass = function(this: CharacterDotMoveProcess, collisionResults, type) {
         return collisionResults.every(res => {
             return (res.targetObject instanceof TriangleMassInfo) && res.targetObject.type === type;
         });
