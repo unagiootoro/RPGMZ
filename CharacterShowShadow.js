@@ -1,7 +1,89 @@
 "use strict";
 /*:
 @target MZ
-@plugindesc キャラクター影表示 v1.0.1
+@plugindesc character shadow display v1.0.2
+@author Unagi Otoro
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterShowShadow.js
+@help
+This plugin introduces a simple shadow display function.
+
+【How to use】
+Add the characters you want to display shadows to the plug-in parameter "Shadow display character list"
+Once registered, the character will be able to display shadows.
+In the shadow display character list, "character file name" and
+You have to specify the "character index",
+Specify the following for each:
+
+[character file name]
+Specify the image file name of the character for shadow display.
+
+[Character Index]
+When using an image with 4*2 characters registered, which position image
+Specify whether to use it with a number from 0 to 7. 0 to 3 are the first row,
+4 to 7 are the second row.
+If -1 is specified, all indexes will be shadowed.
+In the case of a single character image (those with $ at the beginning of the file name),
+This setting is not used.
+
+
+Also, in the notes section of the event or the first comment on the first page of the event
+<showShadow>
+Regardless of the setting of "Shadow display character list"
+Show shadows. Conversely, to hide shadows
+<hideShadow>
+will be described.
+
+It is also possible to switch the shadow display / non-display from the script.
+In the travel route script
+this.showShadow();
+You can display shadows by writing If you want to hide
+this.hideShadow();
+Please write
+
+【License】
+This plugin is available under the terms of the MIT license.
+
+@param ShowShadowCharacterList
+@text shadow display character list
+@type struct<ShowShadowCharacter>[]
+@default[]
+@desc
+Register a list of characters for shadow display.
+
+@param ShadowImageFileName
+@text shadow image file name
+@type file
+@dir img
+@default system/Shadow1
+@desc
+Specifies the file name of the shadow image.
+
+@param ShadowYOffset
+@text shadow Y coordinate offset
+@type number
+@default 6
+@desc
+Specifies the Y coordinate offset of the shadow image.
+*/
+/*~struct~ShowShadowCharacter:
+@param CharacterFileName
+@text character file name
+@type file
+@dir img/characters
+@desc
+Specifies the file name of the character.
+
+@param CharacterIndex
+@text character index
+@type number
+@default -1
+@min-1
+@desc
+Specifies the character index. Specify -1 to target all indexes.
+*/
+/*:ja
+@target MZ
+@plugindesc キャラクター影表示 v1.0.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterShowShadow.js
 @help
