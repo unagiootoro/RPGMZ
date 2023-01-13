@@ -1,9 +1,15 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc item composition plugin v2.1.1
+@plugindesc item composition plugin v2.1.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
+
+@param RecipeInfos
+@text recipe information
+@type struct<RecipeInfo>[]
+@desc
+Specify recipe information.
 
 @param EnabledMenuAlchemy
 @text Enable composite menu
@@ -307,7 +313,7 @@ Specifies the ID of the armor. Specify 0 if Type is not armor.
 */
 /*:ja
 @target MV MZ
-@plugindesc アイテム合成プラグイン v2.1.1
+@plugindesc アイテム合成プラグイン v2.1.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AlchemySystem.js
 
