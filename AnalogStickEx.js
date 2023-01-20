@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc アナログスティック拡張 v1.1.3
+@plugindesc アナログスティック拡張 v1.1.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/AnalogStickEx.js
 
@@ -167,7 +167,7 @@ Input._getStickState = function(stickType) {
         return [0, 0];
     }
     let rad = Math.atan2(y, x);
-    if (Number.isNaN(rad)) rad = 0;
+    if (Number.isNaN(rad)) return [0, 0];
     let power = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
     power = power > 1 ? 1 : power;
     return [rad, power];
@@ -188,9 +188,9 @@ Object.defineProperty(Input, "rightStick", {
 });
 
 let STICK_MODE;
-if (typeof VirtualPadPluginName !== "undefined") {
-    const virtualPadPluginParams = PluginManager.parameters(VirtualPadPluginName)
-    STICK_MODE = parseInt(virtualPadPluginParams["STICK_MODE"]);
+if (typeof VirtualStickPluginName !== "undefined") {
+    const virtualStickPluginParams = PluginManager.parameters(VirtualStickPluginName)
+    STICK_MODE = parseInt(virtualStickPluginParams["STICK_MODE"]);
 }
 
 class AnalogStickUtils {
@@ -258,26 +258,26 @@ Game_Player.prototype.moveByInput = function() {
                 if (DotMoveAnalogStickUtils.isEnabledMove360()) {
                     this.dotMoveByDeg(deg);
                 } else {
-                    direction = DotMoveUtils.deg2direction(deg);
+                    direction = new DotMoveSystem.Degree(deg).toDirection8();
                     this.executeMove(direction);
                 }
+                return;
             }
-            return;
         } else if (direction > 0) {
             $gameTemp.clearDestination();
         } else {
-            if (typeof VirtualPadPluginName !== "undefined") {
+            if (typeof VirtualStickPluginName !== "undefined") {
                 if (STICK_MODE === 1) {
-                    direction = $virtualPad.dir8();
+                    direction = $virtualStickController.dir8();
                 } else if (STICK_MODE === 2) {
-                    deg = $virtualPad.deg();
+                    deg = $virtualStickController.deg();
                     if (typeof DotMoveSystemPluginName !== "undefined") {
                         if (deg != null) this.dotMoveByDeg(deg);
                     } else {
                         throw new Error("DotMoveSystem.js is not installed.");
                     }
                 } else {
-                    direction = $virtualPad.dir4();
+                    direction = $virtualStickController.dir4();
                 }
             } else {
                 if ($gameTemp.isDestinationValid()) {
