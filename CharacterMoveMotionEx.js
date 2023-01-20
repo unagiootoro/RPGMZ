@@ -1,6 +1,7 @@
+"use strict";
 /*:
 @target MV MZ
-@plugindesc Character movement motion expansion v1.1.0
+@plugindesc Character movement motion expansion v1.2.0
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterMoveMotionEx.js
 @help
@@ -68,7 +69,6 @@ This plugin is available under the terms of the MIT license.
 @desc
 Register a list of character movement motions.
 */
-
 /*~struct~CharacterMoveMotion:
 @param WalkMotion
 @text walking motion
@@ -100,8 +100,6 @@ Specifies the diagonal walking motion.
 @desc
 Specifies diagonal dash motion.
 */
-
-
 /*~struct~Motion:
 @param CharacterFileName
 @text character file name
@@ -125,11 +123,9 @@ Specifies the character's index.
 @desc
 Specifies the motion playback speed in frames.
 */
-
-
 /*:ja
 @target MV MZ
-@plugindesc キャラクター移動モーション拡張 v1.1.0
+@plugindesc キャラクター移動モーション拡張 v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterMoveMotionEx.js
 @help
@@ -197,7 +193,6 @@ Specifies the motion playback speed in frames.
 @desc
 キャラクター移動モーションの一覧を登録します。
 */
-
 /*~struct~CharacterMoveMotion:ja
 @param WalkMotion
 @text 歩行モーション
@@ -229,8 +224,6 @@ Specifies the motion playback speed in frames.
 @desc
 斜めダッシュモーションを指定します。
 */
-
-
 /*~struct~Motion:ja
 @param CharacterFileName
 @text キャラクターファイル名
@@ -254,561 +247,534 @@ Specifies the motion playback speed in frames.
 @desc
 モーションの再生速度をフレーム単位で指定します。
 */
-
-const CharacterMoveMotionEx = {};
-
-(() => {
-"use strict";
-
-const pluginName = document.currentScript ? document.currentScript.src.match(/^.*\/(.+)\.js$/)[1] : "CharacterMoveMotionEx";
-
-class PluginParamsParser {
-    static parse(params, typeData, predictEnable = true) {
-        return new PluginParamsParser(predictEnable).parse(params, typeData);
-    }
-
-    constructor(predictEnable = true) {
-        this._predictEnable = predictEnable;
-    }
-
-    parse(params, typeData, loopCount = 0) {
-        if (++loopCount > 255) throw new Error("endless loop error");
-        const result = {};
-        for (const name in typeData) {
-            if (params[name] === "" || params[name] === undefined) {
-                result[name] = null;
-            } else {
-                result[name] = this.convertParam(params[name], typeData[name], loopCount);
-            }
+const CharacterMoveMotionExPluginName = document.currentScript ? decodeURIComponent(document.currentScript.src.match(/^.*\/(.+)\.js$/)[1]) : "CharacterMoveMotionEx";
+var CharacterMoveMotionEx;
+(function (CharacterMoveMotionEx) {
+    class PluginParamsParser {
+        constructor(predictEnable = true) {
+            this._predictEnable = predictEnable;
         }
-        if (!this._predictEnable) return result;
-        if (typeof params === "object" && !(params instanceof Array)) {
+        static parse(params, typeData = {}, predictEnable = true) {
+            return new PluginParamsParser(predictEnable).parse(params, typeData);
+        }
+        parse(params, typeData = {}) {
+            const result = {};
             for (const name in params) {
-                if (result[name]) continue;
-                const param = params[name];
-                const type = this.predict(param);
-                result[name] = this.convertParam(param, type, loopCount);
+                const expandedParam = this.expandParam(params[name]);
+                result[name] = this.convertParam(expandedParam, typeData[name]);
             }
+            return result;
         }
-        return result;
-    }
-
-    convertParam(param, type, loopCount) {
-        if (typeof type === "string") {
-            return this.cast(param, type);
-        } else if (typeof type === "object" && type instanceof Array) {
-            const aryParam = JSON.parse(param);
-            if (type[0] === "string") {
-                return aryParam.map(strParam => this.cast(strParam, type[0]));
-            } else {
-                return aryParam.map(strParam => this.parse(JSON.parse(strParam), type[0]), loopCount);
+        expandParam(strParam, loopCount = 0) {
+            if (++loopCount > 255)
+                throw new Error("endless loop error");
+            if (strParam.match(/^\s*\[.*\]\s*$/)) {
+                const aryParam = JSON.parse(strParam);
+                return aryParam.map((data) => this.expandParam(data), loopCount + 1);
             }
-        } else if (typeof type === "object") {
-            return this.parse(JSON.parse(param), type, loopCount);
-        } else {
-            throw new Error(`${type} is not string or object`);
-        }
-    }
-
-    cast(param, type) {
-        switch(type) {
-        case "any":
-            if (!this._predictEnable) throw new Error("Predict mode is disable");
-            return this.cast(param, this.predict(param));
-        case "string":
-            return param;
-        case "number":
-            if (param.match(/^\-?\d+\.\d+$/)) return parseFloat(param);
-            return parseInt(param);
-        case "boolean":
-            return param === "true";
-        default:
-            throw new Error(`Unknow type: ${type}`);
-        }
-    }
-
-    predict(param) {
-        if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
-            return "number";
-        } else if (param === "true" || param === "false") {
-            return "boolean";
-        } else {
-            return "string";
-        }
-    }
-}
-
-
-const typeDefine = {
-    CharacterMoveMotionList: [{
-        WalkMotion: {},
-        WaitMotion: {},
-        DashMotion: {},
-        DiagonalWalkMotion: {},
-        DiagonalDashMotion: {},
-    }],
-};
-const PP = PluginParamsParser.parse(PluginManager.parameters(pluginName), typeDefine);
-
-const MotionType = {
-    WALK: 0,
-    WAIT: 1,
-    DASH: 2,
-    DIAGONAL_WALK: 3,
-    DIAGONAL_DASH: 4,
-};
-
-if (typeof DotMoveSystemPluginName !== "undefined") {
-    const { DotMoveUtils, CharacterMover } = DotMoveSystemClassAlias;
-
-    const _CharacterMover_dotMoveByDeg = CharacterMover.prototype.dotMoveByDeg;
-    CharacterMover.prototype.dotMoveByDeg = function(deg, opt = { changeDir: true }) {
-        _CharacterMover_dotMoveByDeg.call(this, deg, opt);
-        const dir = DotMoveUtils.deg2direction(deg);
-        if (this._character.isMoved()) this._character.moveMotionChangeProcess(dir);
-    };
-
-    const _CharacterMover_dotMoveByDirection = CharacterMover.prototype.dotMoveByDirection;
-    CharacterMover.prototype.dotMoveByDirection = function(direction, opt = { changeDir: true }) {
-        _CharacterMover_dotMoveByDirection.call(this, direction, opt);
-        if (this._character.isMoved()) this._character.moveMotionChangeProcess(direction);
-    };
-} else {
-    const _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
-    Game_CharacterBase.prototype.moveStraight = function(d) {
-        _Game_CharacterBase_moveStraight.call(this, d);
-        if (this.isMovementSucceeded()) this.moveMotionChangeProcess(d);
-    };
-
-    const _Game_CharacterBase_moveDiagonally = Game_CharacterBase.prototype.moveDiagonally;
-    Game_CharacterBase.prototype.moveDiagonally = function(horz, vert) {
-        _Game_CharacterBase_moveDiagonally.call(this, horz, vert);
-        let d = this.direction();
-        if (horz === 6 && vert === 8) {
-            d = 9;
-        } else if (horz === 6 && vert === 2) {
-            d = 3;
-        } else if (horz === 4 && vert === 2) {
-            d = 1;
-        } else if (horz === 4 && vert === 8) {
-            d = 7;
-        }
-        if (this.isMovementSucceeded()) this.moveMotionChangeProcess(d);
-    };
-}
-
-
-class MoveMotionUtils {
-    static getNumPattern(characterName) {
-        const matchData = characterName.match(/_M(\d+)$/)
-        if (matchData) return parseInt(matchData[1]);
-        return 3;
-    }
-
-    static getOriginalPattern(numPattern) {
-        return Math.floor(numPattern / 2);
-    }
-}
-
-
-class MoveMotionController {
-    constructor(character) {
-        this._character = character;
-        this._motion = MotionType.WAIT;
-        this._lastMotion = MotionType.WALK; // 初回更新でWAITへの遷移を発生させるため、WALKとする。
-        this._numPattern = 3;
-        this._waitReserve = false; // WAITへの遷移を1フレーム遅延させる。
-        this._waitMotionDelay = 1;
-        this._needReset = true;
-    }
-
-    update() {
-        this.updateResetMotionImage();
-        this.updateEndDashMotion();
-        this.updateMotionNonmoved();
-        this.updateChangeMotionImage();
-    }
-
-    moveMotionChangeProcess(direction) {
-        this.motionChangeProcessWhenWalk();
-        this.motionChangeProcessWhenDash();
-        this.motionChangeProcessWhenDiagonal(direction);
-    }
-
-    motionChangeProcessWhenWalk() {
-        if (this._character.isMoving()) {
-            if (this._motion === MotionType.WAIT) {
-                this._motion = MotionType.WALK;
-            }
-        }
-    }
-
-    motionChangeProcessWhenDash() {
-        let nextMotion = null;
-        if ($gamePlayer.isDashing()) {
-            if (this._motion === MotionType.DIAGONAL_WALK) {
-                nextMotion = MotionType.DIAGONAL_DASH;
-            } else if (this._motion === MotionType.WAIT || MotionType.WALK) {
-                nextMotion = MotionType.DASH;
-            }
-        } else {
-            if (this._motion === MotionType.DIAGONAL_DASH) {
-                nextMotion = MotionType.DIAGONAL_WALK;
-            } else if (this._motion === MotionType.DASH) {
-                nextMotion = MotionType.WALK;
-            }
-        }
-        if (nextMotion != null) this._motion = nextMotion;
-    }
-
-    motionChangeProcessWhenDiagonal(direction) {
-        if ([9, 3, 1, 7].includes(direction)) {
-            this._diagonalMoveDirection = direction;
-            if (this._motion === MotionType.DASH) {
-                this._motion = MotionType.DIAGONAL_DASH;
-            } else if (this._motion === MotionType.WALK || MotionType.WAIT) {
-                this._motion = MotionType.DIAGONAL_WALK;
-            }
-        } else {
-            if (this._motion === MotionType.DIAGONAL_DASH) {
-                this._motion = MotionType.DASH;
-            } else if (this._motion === MotionType.DIAGONAL_WALK) {
-                this._motion = MotionType.WALK;
-            }
-        }
-    }
-
-    // セーブデータを読み込んだときはsetImageはコールされないので、初回updateで現在のchanracterNameと
-    // characterIndexを用いてsetImageを実行する。
-    updateResetMotionImage() {
-        if (this._needReset) {
-            this._needReset = false;
-            this._character.setImage(this._character.characterName(), this._character.characterIndex());
-        }
-    }
-
-    updateEndDashMotion() {
-        if (this._motion === MotionType.DASH && !$gamePlayer.isDashing()) {
-            this._motion = MotionType.WALK;
-        }
-    }
-
-    updateMotionNonmoved() {
-        let needWait = false;
-        if (typeof DotMoveSystemPluginName !== "undefined") {
-            if (!this._character.isMoved()) {
-                needWait = true;
-            }
-        } else {
-            if (!this._character.isMoving()) {
-                needWait = true;
-            }
-        }
-
-        if (needWait) {
-            if (this._waitReserve) {
-                this._motion = MotionType.WAIT;
-                this._waitReserve = false;
-            } else {
-                this._waitReserve = true;
-            }
-        } else {
-            this._waitReserve = false;
-        }
-    }
-
-    updateChangeMotionImage() {
-        if (this._lastMotion !== this._motion) {
-            const motionData = this.getMotionData();
-            if (motionData) {
-                if (!(this.isDiagonalMotion() && this._character.isDirectionFixed())) {
-                    this._character.changeMotionImage(motionData.CharacterFileName, motionData.CharacterIndex);
+            else if (strParam.match(/^\s*\{.*\}\s*$/)) {
+                const result = {};
+                const objParam = JSON.parse(strParam);
+                for (const name in objParam) {
+                    result[name] = this.expandParam(objParam[name], loopCount + 1);
                 }
+                return result;
             }
-            this._lastMotion = this._motion;
+            return strParam;
         }
-    }
-
-    getMotionData() {
-        const characterMoveMotion = this.findMoveMotion();
-        if (!characterMoveMotion) return null;
-        const motion = this.getMotionType();
-        switch (motion) {
-        case MotionType.WALK:
-            return characterMoveMotion.WalkMotion;
-        case MotionType.WAIT:
-            return characterMoveMotion.WaitMotion;
-        case MotionType.DASH:
-            return characterMoveMotion.DashMotion;
-        case MotionType.DIAGONAL_WALK:
-            return characterMoveMotion.DiagonalWalkMotion;
-        case MotionType.DIAGONAL_DASH:
-            return characterMoveMotion.DiagonalDashMotion;
-        }
-        throw new Error(`invalid motion(${motion})`);
-    }
-
-    getMotionType() {
-        const characterMoveMotion = this.findMoveMotion();
-        if (!characterMoveMotion) return MotionType.WALK;
-        switch (this._motion) {
-        case MotionType.WALK:
-            return MotionType.WALK;
-        case MotionType.WAIT:
-            if (characterMoveMotion.WaitMotion && characterMoveMotion.WaitMotion.CharacterFileName !== "") {
-                return MotionType.WAIT;
-            } else {
-                return MotionType.WALK;
+        convertParam(param, type, loopCount = 0) {
+            if (++loopCount > 255)
+                throw new Error("endless loop error");
+            if (typeof param === "string") {
+                return this.cast(param, type);
             }
-        case MotionType.DASH:
-            if (characterMoveMotion.DashMotion && characterMoveMotion.DashMotion.CharacterFileName !== "") {
-                return MotionType.DASH;
-            } else {
-                return MotionType.WALK;
-            }
-        case MotionType.DIAGONAL_WALK:
-            if (characterMoveMotion.DiagonalWalkMotion && characterMoveMotion.DiagonalWalkMotion.CharacterFileName !== "") {
-                return MotionType.DIAGONAL_WALK;
-            } else {
-                return MotionType.WALK;
-            }
-        case MotionType.DIAGONAL_DASH:
-            if (characterMoveMotion.DiagonalDashMotion && characterMoveMotion.DiagonalDashMotion.CharacterFileName !== "") {
-                return MotionType.DIAGONAL_DASH;
-            } else if (characterMoveMotion.DashMotion) {
-                return MotionType.DASH;
-            } else if (characterMoveMotion.DiagonalWalkMotion) {
-                return MotionType.DIAGONAL_WALK;
-            } else {
-                return MotionType.WALK;
-            }
-        }
-        throw new Error(`invalid motion(${this._motion})`);
-    }
-
-    findMoveMotion() {
-        for (const characterMoveMotion of PP.CharacterMoveMotionList) {
-            const walkMotion = characterMoveMotion.WalkMotion;
-            if (walkMotion.CharacterFileName === this._character.straightWalkCharacterName()) {
-                if (ImageManager.isBigCharacter(this._character.straightWalkCharacterName())) {
-                    return characterMoveMotion;
-                } else if (walkMotion.CharacterIndex === this._character.straightWalkCharacterIndex()) {
-                    return characterMoveMotion;
+            else if (typeof param === "object" && param instanceof Array) {
+                if (!((param == null) || (typeof param === "object" && param instanceof Array))) {
+                    throw new Error(`Invalid array type: ${type}`);
                 }
+                return param.map((data, i) => {
+                    const dataType = type == null ? undefined : type[i];
+                    return this.convertParam(data, dataType, loopCount + 1);
+                });
+            }
+            else if (typeof param === "object") {
+                if (!((param == null) || (typeof param === "object"))) {
+                    throw new Error(`Invalid object type: ${type}`);
+                }
+                const result = {};
+                for (const name in param) {
+                    const dataType = type == null ? undefined : type[name];
+                    result[name] = this.convertParam(param[name], dataType, loopCount + 1);
+                }
+                return result;
+            }
+            else {
+                throw new Error(`Invalid param: ${param}`);
             }
         }
-        return null;
+        cast(param, type) {
+            if (param == null || param === "")
+                return undefined;
+            if (type == null)
+                type = "any";
+            switch (type) {
+                case "any":
+                    if (!this._predictEnable)
+                        throw new Error("Predict mode is disable");
+                    return this.cast(param, this.predict(param));
+                case "string":
+                    return param;
+                case "number":
+                    if (param.match(/^\-?\d+\.\d+$/))
+                        return parseFloat(param);
+                    return parseInt(param);
+                case "boolean":
+                    return param === "true";
+                default:
+                    throw new Error(`Unknow type: ${type}`);
+            }
+        }
+        predict(param) {
+            if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
+                return "number";
+            }
+            else if (param === "true" || param === "false") {
+                return "boolean";
+            }
+            else {
+                return "string";
+            }
+        }
     }
-
-    isNeedWaitAnimation() {
-        return this.getMotionType() === MotionType.WAIT;
+    CharacterMoveMotionEx.PluginParamsParser = PluginParamsParser;
+    const PP = PluginParamsParser.parse(PluginManager.parameters(CharacterMoveMotionExPluginName));
+    const MotionType = {
+        WALK: 0,
+        WAIT: 1,
+        DASH: 2,
+        DIAGONAL_WALK: 3,
+        DIAGONAL_DASH: 4,
+    };
+    if (typeof DotMoveSystemPluginName !== "undefined") {
+        const { CharacterMover } = DotMoveSystem;
+        const _CharacterMover_dotMoveByDeg = CharacterMover.prototype.dotMoveByDeg;
+        CharacterMover.prototype.dotMoveByDeg = function (deg, dpf = this._character.distancePerFrame(), opt = { changeDir: true }) {
+            // TODO: 暫定
+            _CharacterMover_dotMoveByDeg.call(this, deg, dpf, opt);
+            if (this._character.isMoved())
+                this._character.moveMotionChangeProcess(deg.toDirection8());
+        };
     }
-
-    motionSpeed() {
-        const motionData = this.getMotionData();
-        if (!motionData || motionData.MotionSpeed == null) return 3;
-        return motionData.MotionSpeed;
+    else {
+        const _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
+        Game_CharacterBase.prototype.moveStraight = function (d) {
+            _Game_CharacterBase_moveStraight.call(this, d);
+            if (this.isMovementSucceeded())
+                this.moveMotionChangeProcess(d);
+        };
+        const _Game_CharacterBase_moveDiagonally = Game_CharacterBase.prototype.moveDiagonally;
+        Game_CharacterBase.prototype.moveDiagonally = function (horz, vert) {
+            _Game_CharacterBase_moveDiagonally.call(this, horz, vert);
+            let d = this.direction();
+            if (horz === 6 && vert === 8) {
+                d = 9;
+            }
+            else if (horz === 6 && vert === 2) {
+                d = 3;
+            }
+            else if (horz === 4 && vert === 2) {
+                d = 1;
+            }
+            else if (horz === 4 && vert === 8) {
+                d = 7;
+            }
+            if (this.isMovementSucceeded())
+                this.moveMotionChangeProcess(d);
+        };
     }
-
-    numPattern() {
-        return this._numPattern;
-    }
-
-    setNumPattern(numPattern) {
-        this._numPattern = numPattern;
-    }
-
-    isDiagonalMotion() {
-        const motionType = this.getMotionType();
-        return motionType === MotionType.DIAGONAL_WALK || motionType === MotionType.DIAGONAL_DASH;
-    }
-
-    diagonalMoveDirection() {
-        return this._diagonalMoveDirection;
-    }
-}
-
-
-const _Game_CharacterBase_initMembers = Game_CharacterBase.prototype.initMembers;
-Game_CharacterBase.prototype.initMembers = function() {
-    _Game_CharacterBase_initMembers.call(this);
-    this._straightWalkCharacterName = "";
-    this._straightWalkCharacterIndex = 0;
-};
-
-Game_CharacterBase.prototype.moveMotionController = function() {
-    return $gameTemp.moveMotionController(this);
-};
-
-Game_CharacterBase.prototype.moveMotionChangeProcess = function(direction) {
-    this.moveMotionController().moveMotionChangeProcess(direction);
-};
-
-Game_CharacterBase.prototype.updateMotion = function() {
-    this.moveMotionController().update();
-};
-
-const _Game_CharacterBase_setImage = Game_CharacterBase.prototype.setImage;
-Game_CharacterBase.prototype.setImage = function(characterName, characterIndex) {
-    _Game_CharacterBase_setImage.call(this, characterName, characterIndex);
-    this._straightWalkCharacterName = characterName;
-    this._straightWalkCharacterIndex = characterIndex;
-    const numPattern = MoveMotionUtils.getNumPattern(characterName);
-    this.moveMotionController().setNumPattern(numPattern);
-};
-
-Game_CharacterBase.prototype.changeMotionImage = function(characterName, characterIndex) {
-    this._characterName = characterName;
-    this._characterIndex = characterIndex;
-    const numPattern = MoveMotionUtils.getNumPattern(characterName);
-    this.moveMotionController().setNumPattern(numPattern);
-};
-
-Game_CharacterBase.prototype.straightWalkCharacterName = function() {
-    return this._straightWalkCharacterName;
-};
-
-Game_CharacterBase.prototype.straightWalkCharacterIndex = function() {
-    return this._straightWalkCharacterIndex;
-};
-
-Game_CharacterBase.prototype.numPattern = function() {
-    return this.moveMotionController().numPattern();
-};
-
-Game_CharacterBase.prototype.straighten = function() {
-    if (this.hasWalkAnime() || this.hasStepAnime() || this.moveMotionController().isNeedWaitAnimation()) {
-        this._pattern = this.originalPattern();
-    }
-    this._animationCount = 0;
-};
-
-Game_CharacterBase.prototype.updateAnimationCount = function() {
-    if (this.isMoving() && this.hasWalkAnime()) {
-        this._animationCount += 1.5;
-    } else if (this.hasStepAnime() || !this.isOriginalPattern() || this.moveMotionController().isNeedWaitAnimation()) {
-        this._animationCount++;
-    }
-};
-
-Game_CharacterBase.prototype.animationWait = function() {
-    return Math.round((9 - this.realMoveSpeed()) * this.moveMotionController().motionSpeed());
-};
-
-Game_CharacterBase.prototype.isOriginalPattern = function() {
-    return this.pattern() === this.originalPattern();
-};
-
-Game_CharacterBase.prototype.originalPattern = function() {
-    return MoveMotionUtils.getOriginalPattern(this.numPattern());
-};
-
-Game_CharacterBase.prototype.resetPattern = function() {
-    this.setPattern(this.originalPattern());
-};
-
-Game_CharacterBase.prototype.updatePattern = function() {
-    this._pattern = (this._pattern + 1) % this.maxPattern();
-};
-
-Game_CharacterBase.prototype.maxPattern = function() {
-    return this.numPattern() * 2 - 2;
-};
-
-Game_CharacterBase.prototype.pattern = function() {
-    if (this._pattern < this.numPattern()) {
-        return this._pattern;
-    } else {
-        return this.numPattern() - (this._pattern - this.numPattern()) - 1;
-    }
-};
-
-Game_CharacterBase.prototype.isDiagonalMotion = function() {
-    if (this.isDirectionFixed()) return false;
-    return this.moveMotionController().isDiagonalMotion();
-};
-
-Game_CharacterBase.prototype.diagonalMoveDirection = function() {
-    return this.moveMotionController().diagonalMoveDirection();
-};
-
-
-const _Game_Player_update = Game_Player.prototype.update;
-Game_Player.prototype.update = function(sceneActive) {
-    _Game_Player_update.call(this, sceneActive);
-    this.updateMotion();
-};
-
-
-const _Game_Followers_update = Game_Followers.prototype.update;
-Game_Followers.prototype.update = function() {
-    _Game_Followers_update.call(this);
-    for (const follower of this._data) {
-        follower.updateMotion();
-    }
-};
-
-
-const _Game_Temp_initialize = Game_Temp.prototype.initialize;
-Game_Temp.prototype.initialize = function () {
-    _Game_Temp_initialize.call(this);
-    this._moveMotionControllers = new Map();
-};
-
-Game_Temp.prototype.moveMotionController = function(character) {
-    let controller = this._moveMotionControllers.get(character);
-    if (controller) return controller;
-    controller = new MoveMotionController(character);
-    this._moveMotionControllers.set(character, controller);
-    return controller;
-};
-
-
-Sprite_Character.prototype.patternWidth = function() {
-    if (this._tileId > 0) {
-        return $gameMap.tileWidth();
-    } else if (this._isBigCharacter) {
-        return this.bitmap.width / this._character.numPattern();
-    } else {
-        return this.bitmap.width / (this._character.numPattern() * 4);
-    }
-};
-
-const _Sprite_Character_characterPatternY = Sprite_Character.prototype.characterPatternY;
-Sprite_Character.prototype.characterPatternY = function() {
-    if (this._character.isDiagonalMotion()) {
-        switch (this._character.diagonalMoveDirection()) {
-        case 1:
-            return 0;
-        case 7:
-            return 1;
-        case 3:
-            return 2;
-        case 9:
+    class MoveMotionUtils {
+        static getNumPattern(characterName) {
+            const matchData = characterName.match(/_M(\d+)$/);
+            if (matchData)
+                return parseInt(matchData[1]);
             return 3;
-        default:
-            throw new Error(`invalid direction(${this._character.diagonalMoveDirection()})`);
         }
-    } else {
-        return _Sprite_Character_characterPatternY.call(this);
+        static getOriginalPattern(numPattern) {
+            return Math.floor(numPattern / 2);
+        }
     }
-};
-
-
-Window_Base.prototype.drawCharacter = function(characterName, characterIndex, x, y) {
-    const numPattern = MoveMotionUtils.getNumPattern(characterName);
-    const bitmap = ImageManager.loadCharacter(characterName);
-    const big = ImageManager.isBigCharacter(characterName);
-    const pw = bitmap.width / (big ? numPattern : numPattern * 4);
-    const ph = bitmap.height / (big ? 4 : 8);
-    const n = big ? 0: characterIndex;
-    const orig = MoveMotionUtils.getOriginalPattern(numPattern);
-    const sx = ((n % 4) * 3 + orig) * pw;
-    const sy = Math.floor(n / 4) * 4 * ph;
-    this.contents.blt(bitmap, sx, sy, pw, ph, x - pw / 2, y - ph);
-};
-
-CharacterMoveMotionEx.MoveMotionUtils = MoveMotionUtils;
-CharacterMoveMotionEx.MoveMotionController = MoveMotionController;
-
-})();
+    class MoveMotionController {
+        constructor(character) {
+            this._character = character;
+            this._motion = MotionType.WAIT;
+            this._lastMotion = MotionType.WALK; // 初回更新でWAITへの遷移を発生させるため、WALKとする。
+            this._numPattern = 3;
+            this._waitReserve = false; // WAITへの遷移を1フレーム遅延させる。
+            this._waitMotionDelay = 1;
+            this._needReset = true;
+            this._diagonalMoveDirection = 0;
+        }
+        update() {
+            this.updateResetMotionImage();
+            this.updateEndDashMotion();
+            this.updateMotionNonmoved();
+            this.updateChangeMotionImage();
+        }
+        moveMotionChangeProcess(direction) {
+            this.motionChangeProcessWhenWalk();
+            this.motionChangeProcessWhenDash();
+            this.motionChangeProcessWhenDiagonal(direction);
+        }
+        motionChangeProcessWhenWalk() {
+            if (this._character.isMoving()) {
+                if (this._motion === MotionType.WAIT) {
+                    this._motion = MotionType.WALK;
+                }
+            }
+        }
+        motionChangeProcessWhenDash() {
+            let nextMotion;
+            if ($gamePlayer.isDashing()) {
+                if (this._motion === MotionType.DIAGONAL_WALK) {
+                    nextMotion = MotionType.DIAGONAL_DASH;
+                }
+                else if (this._motion === MotionType.WAIT || this._motion === MotionType.WALK) {
+                    nextMotion = MotionType.DASH;
+                }
+            }
+            else {
+                if (this._motion === MotionType.DIAGONAL_DASH) {
+                    nextMotion = MotionType.DIAGONAL_WALK;
+                }
+                else if (this._motion === MotionType.DASH) {
+                    nextMotion = MotionType.WALK;
+                }
+            }
+            if (nextMotion != null)
+                this._motion = nextMotion;
+        }
+        motionChangeProcessWhenDiagonal(direction) {
+            if ([9, 3, 1, 7].includes(direction)) {
+                this._diagonalMoveDirection = direction;
+                if (this._motion === MotionType.DASH) {
+                    this._motion = MotionType.DIAGONAL_DASH;
+                }
+                else if (this._motion === MotionType.WALK || MotionType.WAIT) {
+                    this._motion = MotionType.DIAGONAL_WALK;
+                }
+            }
+            else {
+                if (this._motion === MotionType.DIAGONAL_DASH) {
+                    this._motion = MotionType.DASH;
+                }
+                else if (this._motion === MotionType.DIAGONAL_WALK) {
+                    this._motion = MotionType.WALK;
+                }
+            }
+        }
+        // セーブデータを読み込んだときはsetImageはコールされないので、初回updateで現在のchanracterNameと
+        // characterIndexを用いてsetImageを実行する。
+        updateResetMotionImage() {
+            if (this._needReset) {
+                this._needReset = false;
+                this._character.setImage(this._character.characterName(), this._character.characterIndex());
+            }
+        }
+        updateEndDashMotion() {
+            if (this._motion === MotionType.DASH && !$gamePlayer.isDashing()) {
+                this._motion = MotionType.WALK;
+            }
+        }
+        updateMotionNonmoved() {
+            let needWait = false;
+            if (typeof DotMoveSystemPluginName !== "undefined") {
+                if (!this._character.isMoved()) {
+                    needWait = true;
+                }
+            }
+            else {
+                if (!this._character.isMoving()) {
+                    needWait = true;
+                }
+            }
+            if (needWait) {
+                if (this._waitReserve) {
+                    this._motion = MotionType.WAIT;
+                    this._waitReserve = false;
+                }
+                else {
+                    this._waitReserve = true;
+                }
+            }
+            else {
+                this._waitReserve = false;
+            }
+        }
+        updateChangeMotionImage() {
+            if (this._lastMotion !== this._motion) {
+                const motionData = this.getMotionData();
+                if (motionData) {
+                    if (!(this.isDiagonalMotion() && this._character.isDirectionFixed())) {
+                        this._character.changeMotionImage(motionData.CharacterFileName, motionData.CharacterIndex);
+                    }
+                }
+                this._lastMotion = this._motion;
+            }
+        }
+        getMotionData() {
+            const characterMoveMotion = this.findMoveMotion();
+            if (!characterMoveMotion)
+                return undefined;
+            const motion = this.getMotionType();
+            switch (motion) {
+                case MotionType.WALK:
+                    return characterMoveMotion.WalkMotion;
+                case MotionType.WAIT:
+                    return characterMoveMotion.WaitMotion;
+                case MotionType.DASH:
+                    return characterMoveMotion.DashMotion;
+                case MotionType.DIAGONAL_WALK:
+                    return characterMoveMotion.DiagonalWalkMotion;
+                case MotionType.DIAGONAL_DASH:
+                    return characterMoveMotion.DiagonalDashMotion;
+            }
+            throw new Error(`invalid motion(${motion})`);
+        }
+        getMotionType() {
+            const characterMoveMotion = this.findMoveMotion();
+            if (!characterMoveMotion)
+                return MotionType.WALK;
+            switch (this._motion) {
+                case MotionType.WALK:
+                    return MotionType.WALK;
+                case MotionType.WAIT:
+                    if (characterMoveMotion.WaitMotion && characterMoveMotion.WaitMotion.CharacterFileName != null) {
+                        console.log(characterMoveMotion.WaitMotion);
+                        return MotionType.WAIT;
+                    }
+                    else {
+                        return MotionType.WALK;
+                    }
+                case MotionType.DASH:
+                    if (characterMoveMotion.DashMotion && characterMoveMotion.DashMotion.CharacterFileName != null) {
+                        return MotionType.DASH;
+                    }
+                    else {
+                        return MotionType.WALK;
+                    }
+                case MotionType.DIAGONAL_WALK:
+                    if (characterMoveMotion.DiagonalWalkMotion && characterMoveMotion.DiagonalWalkMotion.CharacterFileName != null) {
+                        return MotionType.DIAGONAL_WALK;
+                    }
+                    else {
+                        return MotionType.WALK;
+                    }
+                case MotionType.DIAGONAL_DASH:
+                    if (characterMoveMotion.DiagonalDashMotion && characterMoveMotion.DiagonalDashMotion.CharacterFileName != null) {
+                        return MotionType.DIAGONAL_DASH;
+                    }
+                    else if (characterMoveMotion.DashMotion) {
+                        return MotionType.DASH;
+                    }
+                    else if (characterMoveMotion.DiagonalWalkMotion) {
+                        return MotionType.DIAGONAL_WALK;
+                    }
+                    else {
+                        return MotionType.WALK;
+                    }
+            }
+            throw new Error(`invalid motion(${this._motion})`);
+        }
+        findMoveMotion() {
+            for (const characterMoveMotion of PP.CharacterMoveMotionList) {
+                const walkMotion = characterMoveMotion.WalkMotion;
+                if (walkMotion.CharacterFileName === this._character.straightWalkCharacterName()) {
+                    if (ImageManager.isBigCharacter(this._character.straightWalkCharacterName())) {
+                        return characterMoveMotion;
+                    }
+                    else if (walkMotion.CharacterIndex === this._character.straightWalkCharacterIndex()) {
+                        return characterMoveMotion;
+                    }
+                }
+            }
+            return undefined;
+        }
+        isNeedWaitAnimation() {
+            return this.getMotionType() === MotionType.WAIT;
+        }
+        motionSpeed() {
+            const motionData = this.getMotionData();
+            if (!motionData || motionData.MotionSpeed == null)
+                return 3;
+            return motionData.MotionSpeed;
+        }
+        numPattern() {
+            return this._numPattern;
+        }
+        setNumPattern(numPattern) {
+            this._numPattern = numPattern;
+        }
+        isDiagonalMotion() {
+            const motionType = this.getMotionType();
+            return motionType === MotionType.DIAGONAL_WALK || motionType === MotionType.DIAGONAL_DASH;
+        }
+        diagonalMoveDirection() {
+            return this._diagonalMoveDirection;
+        }
+    }
+    CharacterMoveMotionEx.MoveMotionController = MoveMotionController;
+    const _Game_CharacterBase_initMembers = Game_CharacterBase.prototype.initMembers;
+    Game_CharacterBase.prototype.initMembers = function () {
+        _Game_CharacterBase_initMembers.call(this);
+        this._straightWalkCharacterName = "";
+        this._straightWalkCharacterIndex = 0;
+    };
+    Game_CharacterBase.prototype.moveMotionController = function () {
+        return $gameTemp.moveMotionController(this);
+    };
+    Game_CharacterBase.prototype.moveMotionChangeProcess = function (direction) {
+        this.moveMotionController().moveMotionChangeProcess(direction);
+    };
+    Game_CharacterBase.prototype.updateMotion = function () {
+        this.moveMotionController().update();
+    };
+    const _Game_CharacterBase_setImage = Game_CharacterBase.prototype.setImage;
+    Game_CharacterBase.prototype.setImage = function (characterName, characterIndex) {
+        _Game_CharacterBase_setImage.call(this, characterName, characterIndex);
+        this._straightWalkCharacterName = characterName;
+        this._straightWalkCharacterIndex = characterIndex;
+        const numPattern = MoveMotionUtils.getNumPattern(characterName);
+        this.moveMotionController().setNumPattern(numPattern);
+    };
+    Game_CharacterBase.prototype.changeMotionImage = function (characterName, characterIndex) {
+        this._characterName = characterName;
+        this._characterIndex = characterIndex;
+        const numPattern = MoveMotionUtils.getNumPattern(characterName);
+        this.moveMotionController().setNumPattern(numPattern);
+    };
+    Game_CharacterBase.prototype.straightWalkCharacterName = function () {
+        return this._straightWalkCharacterName;
+    };
+    Game_CharacterBase.prototype.straightWalkCharacterIndex = function () {
+        return this._straightWalkCharacterIndex;
+    };
+    Game_CharacterBase.prototype.numPattern = function () {
+        return this.moveMotionController().numPattern();
+    };
+    Game_CharacterBase.prototype.straighten = function () {
+        if (this.hasWalkAnime() || this.hasStepAnime() || this.moveMotionController().isNeedWaitAnimation()) {
+            this._pattern = this.originalPattern();
+        }
+        this._animationCount = 0;
+    };
+    Game_CharacterBase.prototype.updateAnimationCount = function () {
+        if (this.isMoving() && this.hasWalkAnime()) {
+            this._animationCount += 1.5;
+        }
+        else if (this.hasStepAnime() || !this.isOriginalPattern() || this.moveMotionController().isNeedWaitAnimation()) {
+            this._animationCount++;
+        }
+    };
+    Game_CharacterBase.prototype.animationWait = function () {
+        return Math.round((9 - this.realMoveSpeed()) * this.moveMotionController().motionSpeed());
+    };
+    Game_CharacterBase.prototype.isOriginalPattern = function () {
+        return this.pattern() === this.originalPattern();
+    };
+    Game_CharacterBase.prototype.originalPattern = function () {
+        return MoveMotionUtils.getOriginalPattern(this.numPattern());
+    };
+    Game_CharacterBase.prototype.resetPattern = function () {
+        this.setPattern(this.originalPattern());
+    };
+    Game_CharacterBase.prototype.updatePattern = function () {
+        this._pattern = (this._pattern + 1) % this.maxPattern();
+    };
+    Game_CharacterBase.prototype.maxPattern = function () {
+        return this.numPattern() * 2 - 2;
+    };
+    Game_CharacterBase.prototype.pattern = function () {
+        if (this._pattern < this.numPattern()) {
+            return this._pattern;
+        }
+        else {
+            return this.numPattern() - (this._pattern - this.numPattern()) - 1;
+        }
+    };
+    Game_CharacterBase.prototype.isDiagonalMotion = function () {
+        if (this.isDirectionFixed())
+            return false;
+        return this.moveMotionController().isDiagonalMotion();
+    };
+    Game_CharacterBase.prototype.diagonalMoveDirection = function () {
+        return this.moveMotionController().diagonalMoveDirection();
+    };
+    const _Game_Player_update = Game_Player.prototype.update;
+    Game_Player.prototype.update = function (sceneActive) {
+        _Game_Player_update.call(this, sceneActive);
+        this.updateMotion();
+    };
+    const _Game_Followers_update = Game_Followers.prototype.update;
+    Game_Followers.prototype.update = function () {
+        _Game_Followers_update.call(this);
+        for (const follower of this._data) {
+            follower.updateMotion();
+        }
+    };
+    const _Game_Temp_initialize = Game_Temp.prototype.initialize;
+    Game_Temp.prototype.initialize = function () {
+        _Game_Temp_initialize.call(this);
+        this._moveMotionControllers = new Map();
+    };
+    Game_Temp.prototype.moveMotionController = function (character) {
+        let controller = this._moveMotionControllers.get(character);
+        if (controller)
+            return controller;
+        controller = new MoveMotionController(character);
+        this._moveMotionControllers.set(character, controller);
+        return controller;
+    };
+    Sprite_Character.prototype.patternWidth = function () {
+        if (this._tileId > 0) {
+            return $gameMap.tileWidth();
+        }
+        else if (this._isBigCharacter) {
+            return this.bitmap.width / this._character.numPattern();
+        }
+        else {
+            return this.bitmap.width / (this._character.numPattern() * 4);
+        }
+    };
+    const _Sprite_Character_characterPatternY = Sprite_Character.prototype.characterPatternY;
+    Sprite_Character.prototype.characterPatternY = function () {
+        if (this._character.isDiagonalMotion()) {
+            switch (this._character.diagonalMoveDirection()) {
+                case 1:
+                    return 0;
+                case 7:
+                    return 1;
+                case 3:
+                    return 2;
+                case 9:
+                    return 3;
+                default:
+                    throw new Error(`invalid direction(${this._character.diagonalMoveDirection()})`);
+            }
+        }
+        else {
+            return _Sprite_Character_characterPatternY.call(this);
+        }
+    };
+    Window_Base.prototype.drawCharacter = function (characterName, characterIndex, x, y) {
+        const numPattern = MoveMotionUtils.getNumPattern(characterName);
+        const bitmap = ImageManager.loadCharacter(characterName);
+        const big = ImageManager.isBigCharacter(characterName);
+        const pw = bitmap.width / (big ? numPattern : numPattern * 4);
+        const ph = bitmap.height / (big ? 4 : 8);
+        const n = big ? 0 : characterIndex;
+        const orig = MoveMotionUtils.getOriginalPattern(numPattern);
+        const sx = ((n % 4) * 3 + orig) * pw;
+        const sy = Math.floor(n / 4) * 4 * ph;
+        this.contents.blt(bitmap, sx, sy, pw, ph, x - pw / 2, y - ph);
+    };
+})(CharacterMoveMotionEx || (CharacterMoveMotionEx = {}));

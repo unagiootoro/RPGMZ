@@ -36,6 +36,8 @@ AnalogStickEx.js
         ・新規作成
 
 CharacterMoveMotionEx.js
+    2023/01/20 v1.2.0
+        ・DotMoveSystem.js v2.2.0に対応
     2022/09/04 v1.1.0
         ・待機モーションに対応
         ・モーション再生時間の変更機能を追加
