@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 当たり判定可視化 v1.1.0
+@plugindesc 当たり判定可視化 v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VisualizeCollisionArea.js
 @help
@@ -73,7 +73,7 @@ class Sprite_CollisionArea extends Sprite {
             this.bitmap = new Bitmap($gameMap.width() * $gameMap.tileWidth(), $gameMap.height() * $gameMap.tileHeight());
         }
     
-        const massCollisionTableGenerator = new MassCollisionTableGenerator();
+        const massCollisionTableGenerator = new MassCollisionTableGenerator($gamePlayer);
         const massCollisionTable = massCollisionTableGenerator.createMassCollisionTable();
         for (const massInfos of massCollisionTable) {
             if (!massInfos) continue;
@@ -112,52 +112,70 @@ class Sprite_CollisionArea extends Sprite {
 
 
 class MassCollisionTableGenerator {
+    constructor(character) {
+        this._character = character;
+    }
+
     createMassCollisionTable() {
-        const checkedTable = new Array($gameMap.height() * $gameMap.width());
+        const passTable = this.computePassTable();
         const massCollisionTable = new Array($gameMap.height() * $gameMap.width());
-        let loopCount = 0;
-    
-        const checkMassRect = (x, y) => {
-            if (++loopCount > 4096) {
-                throw new Error("マップが巨大すぎるため、衝突判定マップの作成に失敗しました。");
-            }
-            for (const direction of [8, 6, 2, 4]) {
-                const x2 = $gameMap.roundXWithDirection(x, direction);
-                const y2 = $gameMap.roundYWithDirection(y, direction);
-                if (!(x2 >= 0 && x2 < $gameMap.width() && y2 >= 0 && y2 < $gameMap.height())) continue;
-                const nextPos = y2 * $gameMap.width() + x2;
-                if (this.checkPassMass(x, y, direction)) {
-                    if (massCollisionTable[nextPos]) {
-                        massCollisionTable[nextPos] = null;
-                        checkedTable[nextPos] = true;
-                    } else {
-                        if (checkedTable[nextPos]) continue;
-                    }
-                } else {
-                    checkedTable[nextPos] = true;
-                    continue;
-                }
-                checkMassRect(x2, y2);
-            }
-        };
-    
+
         for (let y = 0; y < $gameMap.height(); y++) {
             for (let x = 0; x < $gameMap.width(); x++) {
                 const pos = y * $gameMap.width() + x;
-                massCollisionTable[pos] = this.getMassInfos(x, y);
+                if (!passTable[pos]) {
+                    massCollisionTable[pos] = this.getMassInfos(x, y);
+                }
             }
         }
-    
-        checkMassRect($gamePlayer.x, $gamePlayer.y);
-    
+
         return massCollisionTable;
+    }
+
+    computePassTable() {
+        const openList = [];
+        const passTable = new Array($gameMap.height() * $gameMap.width());
+
+        const posStart = this._character.y * $gameMap.width() + this._character.x;
+        openList.push(posStart);
+        passTable[posStart] = 1;
+
+        while (openList.length > 0) {
+            const pos1 = openList[0];
+            const x1 = pos1 % $gameMap.width();
+            const y1 = Math.floor(pos1 / $gameMap.width());
+
+            openList.splice(0, 1);
+
+            for (const direction of [8, 6, 2, 4]) {
+                const x2 = $gameMap.roundXWithDirection(x1, direction);
+                const y2 = $gameMap.roundYWithDirection(y1, direction);
+
+                if (!$gameMap.isValid(x2, y2)) continue;
+
+                const pos2 = y2 * $gameMap.width() + x2;
+
+                if (passTable[pos2] != null) continue;
+
+                if (this._character.canPass(x1, y1, direction)) {
+                    passTable[pos2] = true;
+                    if (!openList.includes(pos2)) {
+                        openList.push(pos2);
+                    }
+                } else {
+                    passTable[pos2] = false;
+                }
+            }
+        }
+
+        return passTable;
     }
 
     getMassInfos(x, y) {
         if (typeof DotMoveSystem_FunctionExPluginName === "undefined") {
             return [new MassInfo("rect", new Rectangle(x, y, 1, 1))];
         } else {
-            const collisionChecker = $gamePlayer.mover()._controller._collisionChecker;
+            const collisionChecker = new DotMoveSystem.CharacterCollisionChecker($gamePlayer);
             const id = collisionChecker.getMassCollisionType(x, y);
             if (id === 13) {
                 return [new MassInfo("triangle", new Triangle(x, y, x + 1, y, x, y + 1))];

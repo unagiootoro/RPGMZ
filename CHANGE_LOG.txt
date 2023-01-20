@@ -28,7 +28,7 @@ AlchemySystem.js
         ・メモ欄解析失敗時のエラーメッセージを修正
 
 AnalogStickEx.js
-    2022/01/20 v1.1.4
+    2023/01/20 v1.1.4
         ・DotMoveSystem.js v2.2.0に対応
     2021/08/01 v1.1.3
         ・DotMoveSystem.js v1.7.4に対応
@@ -51,7 +51,7 @@ CharacterMoveMotionEx.js
         ・新規作成
 
 CharacterShowShadow.js
-    2022/01/11 v1.0.2
+    2023/01/11 v1.0.2
         ・英語版ヘルプに対応
     2022/12/30 v1.0.1
         ・バグ修正
@@ -63,7 +63,7 @@ ContinuousAnimation.js
         ・新規作成
 
 DotMoveSystem.js
-    2022/01/11 v2.2.0
+    2023/01/11 v2.2.0
         ・キャラクターのサイズをスクリプトで動的に変更できるように修正
         ・その他バグ修正
         ・ソースコードリファクタリング
@@ -350,7 +350,9 @@ VirtualStick.js
         ・DotMoveSystem_DecideTriggerEx.jsとの併用に対応
         ・TypeScript対応
 
-VisualizeCollisionArea
+VisualizeCollisionArea.js
+    2023/01/20 v1.2.0
+        ・巨大マップでもエラーにならないように性能を強化
     2022/03/22 v1.1.0
         ・ドット移動機能拡張プラグインで指定した斜め当たり判定を反映する機能を追加
     2021/12/10 v1.0.0
