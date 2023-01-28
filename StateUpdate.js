@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 更新可能ステート v1.1.0
+@plugindesc 更新可能ステート v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/StateUpdate.js
 
@@ -107,6 +107,8 @@ Game_Battler.prototype.updateCurrentState = function(receiveStateId) {
             this.eraseState(stateId);
             if (stateInfo.targetStateId === 0) return null;
             this.addNewState(stateInfo.targetStateId);
+            this.refresh();
+            this.resetStateCounts(stateInfo.targetStateId);
             return resultStateId;
         }
     }
