@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc XY座標スクロール v1.1.2
+@plugindesc XY座標スクロール v1.2.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/XYScroll.js
 @help
@@ -11,9 +11,21 @@ XY座標を指定してスクロールできるようにするプラグインで
 ■スクロールの実行
 プラグインコマンド「スクロール開始」を実行してスクロールを行います。
 
+■相対座標へのスクロール
+プラグインコマンド「相対スクロール開始」を実行すると
+現在の画面表示位置からの相対座標へスクロールを行います。
+
+■画面位置の記憶と記憶位置へのスクロール
+プラグインコマンド「現在画面位置記憶」を実行することで
+現在の画面の座標を記憶します。その後で「記憶位置にスクロール」を実行すると
+先ほど記憶した画面位置へスクロールを行います。
+
 ■スクリプトでスクロールを実行する
 次のようにすることでスクリプトからスクロールを実行することもできます。
 $gameMap.startScrollXY(x, y, scrollSpeed);
+
+相対座標によるスクロールの実行を行う場合は以下のように記述します。
+$gameMap.startRelativeScrollXY(relX, relY, scrollSpeed);
 
 スクロールの完了有無は次のスクリプトで取得することができます。
 $gameMap.isXyScrolling()
@@ -77,6 +89,84 @@ trueを設定すると、スクロール状態をセーブデータに保存し�
 @default false
 @desc
 trueを設定すると、スクロール完了まで待機します。
+
+
+@command StartRelativeScroll
+@text 相対スクロール開始
+@desc
+相対スクロールを開始します。
+
+@arg RELATIVE_X
+@text 相対X座標
+@type number
+@min -255
+@default 0
+@desc
+スクロール先のX座標を指定します。
+
+@arg RELATIVE_Y
+@text 相対Y座標
+@type number
+@min -255
+@default 0
+@desc
+スクロール先のY座標を指定します。
+
+@arg RELATIVE_X_BY_VARIABLE_ID
+@text 相対X座標(変数指定)
+@type variable
+@default 0
+@desc
+スクロール先のX座標を変数で指定します。
+
+@arg RELATIVE_Y_BY_VARIABLE_ID
+@text 相対Y座標(変数指定)
+@type variable
+@default 0
+@desc
+スクロール先のY座標を変数で指定します。
+
+@arg SCROLL_SPEED
+@text スクロール速度
+@type number
+@default 1
+@decimals 2
+@desc
+スクロール速度を指定します。1フレームにスクロールするピクセル値を指定してください。
+
+@arg WAIT_END_SCROLL
+@text スクロール完了まで待機
+@type boolean
+@default false
+@desc
+trueを設定すると、スクロール完了まで待機します。
+
+
+@command SaveDisplayPosition
+@text 現在画面位置記憶
+@desc
+現在のスクロール位置を記憶します。
+
+
+@command ScrollToSavedDisplayPosition
+@text 記憶位置にスクロール
+@desc
+現在画面位置記憶で記憶した位置にスクロールします。
+
+@arg SCROLL_SPEED
+@text スクロール速度
+@type number
+@default 1
+@decimals 2
+@desc
+スクロール速度を指定します。1フレームにスクロールするピクセル値を指定してください。
+
+@arg WAIT_END_SCROLL
+@text スクロール完了まで待機
+@type boolean
+@default false
+@desc
+trueを設定すると、スクロール完了まで待機します。
 */
 
 const XYScrollPluginName = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
@@ -99,9 +189,37 @@ PluginManager.registerCommand(XYScrollPluginName, "StartScroll", function(args) 
         y = $gameVariables.value(yByVariableId);
     }
     const scrollSpeed = parseFloat(args.SCROLL_SPEED);
-    const waitEndScroll = args.WAIT_END_SCROLL === "true"
+    const waitEndScroll = args.WAIT_END_SCROLL === "true";
     if (waitEndScroll) this._needXyScrollWait = true;
     $gameMap.startScrollXY(x, y, scrollSpeed);
+});
+
+PluginManager.registerCommand(XYScrollPluginName, "StartRelativeScroll", function(args) {
+    let relX = parseInt(args.RELATIVE_X);
+    let relY = parseInt(args.RELATIVE_Y);
+    const relXByVariableId = parseInt(args.RELATIVE_X_BY_VARIABLE_ID);
+    const relYByVariableId = parseInt(args.RELATIVE_Y_BY_VARIABLE_ID);
+    if (relXByVariableId > 0) {
+        relX = $gameVariables.value(relXByVariableId);
+    }
+    if (relYByVariableId > 0) {
+        relY = $gameVariables.value(relYByVariableId);
+    }
+    const scrollSpeed = parseFloat(args.SCROLL_SPEED);
+    const waitEndScroll = args.WAIT_END_SCROLL === "true";
+    if (waitEndScroll) this._needXyScrollWait = true;
+    $gameMap.startRelativeScrollXY(relX, relY, scrollSpeed);
+});
+
+PluginManager.registerCommand(XYScrollPluginName, "SaveDisplayPosition", function() {
+    $gameMap.saveDisplayPosition();
+});
+
+PluginManager.registerCommand(XYScrollPluginName, "ScrollToSavedDisplayPosition", function(args) {
+    const scrollSpeed = parseFloat(args.SCROLL_SPEED);
+    const waitEndScroll = args.WAIT_END_SCROLL === "true";
+    if (waitEndScroll) this._needXyScrollWait = true;
+    $gameMap.scrollToSavedDisplayPosition(scrollSpeed);
 });
 
 class ScreenScroller {
@@ -178,7 +296,8 @@ window.ScreenScroller = ScreenScroller;
 const _Game_Temp_initialize = Game_Temp.prototype.initialize;
 Game_Temp.prototype.initialize = function() {
     _Game_Temp_initialize.call(this);
-    this._screenScroller = null;
+    this._screenScroller = undefined;
+    this._savedDisplayPosition = undefined;
 };
 
 Game_Temp.prototype.screenScroller = function() {
@@ -196,11 +315,29 @@ Game_Map.prototype.initialize = function() {
 };
 
 Game_Map.prototype.startScrollXY = function(x, y, scrollSpeed) {
+    const fromPoint = new Point(this._displayX, this._displayY);
     const centerX = x - $gamePlayer.centerX();
     const centerY = y - $gamePlayer.centerY();
-    const fromPoint = { x: this._displayX, y: this._displayY };
-    const targetPoint = { x: centerX, y: centerY }
+    const targetPoint = new Point(centerX, centerY);
     this.screenScroller().startScroll(fromPoint, targetPoint, scrollSpeed);
+};
+
+Game_Map.prototype.startRelativeScrollXY = function(relX, relY, scrollSpeed) {
+    const fromPoint = new Point(this._displayX, this._displayY);
+    const targetPoint = new Point(this._displayX + relX, this._displayY + relY);
+    this.screenScroller().startScroll(fromPoint, targetPoint, scrollSpeed);
+};
+
+Game_Map.prototype.saveDisplayPosition = function() {
+    this._savedDisplayPosition = new Point(this._displayX, this._displayY);
+};
+
+Game_Map.prototype.scrollToSavedDisplayPosition = function(scrollSpeed) {
+    if (this._savedDisplayPosition) {
+        const fromPoint = new Point(this._displayX, this._displayY);
+        const targetPoint = new Point(this._savedDisplayPosition.x, this._savedDisplayPosition.y);
+        this.screenScroller().startScroll(fromPoint, targetPoint, scrollSpeed);
+    }
 };
 
 const _Game_Map_update = Game_Map.prototype.update;
@@ -229,25 +366,23 @@ Game_Interpreter.prototype.initialize = function(depth) {
 };
 
 // XYスクロール完了待機が必要な場合、スクロール完了まで待機する
-const _Game_Interpreter_command357 = Game_Interpreter.prototype.command357;
-Game_Interpreter.prototype.command357 = function(params) {
-    const pluginName = params[0];
-    if (pluginName === XYScrollPluginName) {
-        if (this._needXyScrollWait) {
-            if ($gameMap.isXyScrolling()) {
-                return false;
-            } else {
-                this._needXyScrollWait = false;
-                return true;
-            }
-        } else {
-            _Game_Interpreter_command357.call(this, params);
-            if (this._needXyScrollWait) return false;
+const _Game_Interpreter_updateWait = Game_Interpreter.prototype.updateWait;
+Game_Interpreter.prototype.updateWait = function() {
+    const result = _Game_Interpreter_updateWait.call(this);
+    if (result) return true;
+    return this.updateWait_XYScroll();
+};
+
+Game_Interpreter.prototype.updateWait_XYScroll = function() {
+    if (this._needXyScrollWait) {
+        if ($gameMap.isXyScrolling()) {
             return true;
+        } else {
+            this._needXyScrollWait = false;
+            return false;
         }
-    } else {
-        return _Game_Interpreter_command357.call(this, params);
     }
+    return false;
 };
 
 })();
