@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v2.2.0
+@plugindesc Dot movement system v2.2.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -147,7 +147,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v2.2.0
+@plugindesc ドット移動システム v2.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -361,9 +361,6 @@ declare interface Game_CharacterBase {
     moveCallback(moved: boolean, dpf: number): void;
     canPass(x: number, y: number, d: number, opt?: { needCheckCharacters?: boolean }): boolean;
     canPassDiagonally(x: number, y: number, horz: number, vert: number, opt?: { needCheckCharacters?: boolean }): boolean;
-    isCollidedWithFollowers(x: number, y: number, d?: number): boolean;
-    isCollidedWithEvents(x: number, y: number, d?: number): boolean;
-    isCollidedWithVehicles(x: number, y: number, d?: number): boolean;
     isCollidedWithCharacters(x: number, y: number, d?: number): boolean;
     calcDeg(targetCharacter: Game_CharacterBase): number;
     calcFar(targetCharacter: Game_CharacterBase): number;
@@ -387,7 +384,6 @@ declare interface Game_Character {
     moveToTarget(x: number, y: number): void;
     deltaRealXFrom(x: number): number;
     deltaRealYFrom(y: number): number;
-    isCollidedWithEvents(x: number, y: number, d?: number): boolean;
     isCollidedWithCharacters(x: number, y: number, d?: number): boolean;
 }
 
@@ -427,7 +423,6 @@ declare interface Game_Event {
     setWidthArea(widthArea: number): void;
     heightArea(): number;
     setHeightArea(heightArea: number): void;
-    isCollidedWithPlayerCharacters(x: number, y: number, d?: number): boolean;
 }
 
 declare interface Game_Follower {
@@ -753,10 +748,8 @@ namespace DotMoveSystem {
                 node1.closed = true;
                 openList.splice(openListIdx1, 1);
 
-                for (let direction = 1; direction <= 9; direction++) {
-                    if (direction === 5) continue;
-
-                    const [horz, vert] = DotMoveUtils.direction2HorzAndVert(direction);
+                for (const direction of [8, 9, 6, 3, 2, 1, 4, 7]) {
+                    const { horz, vert } = DotMoveUtils.direction2HorzAndVert(direction);
                     const x2 = $gameMap.roundXWithDirection(x1, horz);
                     const y2 = $gameMap.roundYWithDirection(y1, vert);
                     const pos2 = y2 * $gameMap.width() + x2;
@@ -923,14 +916,24 @@ namespace DotMoveSystem {
             return new DotMovePoint(x, y);
         }
 
+        static direction2Axis(direction4: number): "x" | "y" {
+            if (direction4 === 4 || direction4 === 6) {
+                return "x";
+            } else if (direction4 === 8 || direction4 === 2) {
+                return "y";
+            } else {
+                throw new Error(`${direction4} is not found`);
+            }
+        }
+
         static direction2SignPoint(direction: number): DotMovePoint {
-            const [horz, vert] = this.direction2HorzAndVert(direction);
+            const { horz, vert } = this.direction2HorzAndVert(direction);
             const xSign = horz === 4 ? -1 : horz === 6 ? 1 : 0;
             const ySign = vert === 8 ? -1 : vert === 2 ? 1 : 0;
             return new DotMovePoint(xSign, ySign);
         }
 
-        static direction2HorzAndVert(direction: number): [number, number] {
+        static direction2HorzAndVert(direction: number): { horz: number, vert: number } {
             let horz = 0, vert = 0;
             switch (direction) {
                 case 8:
@@ -962,7 +965,7 @@ namespace DotMoveSystem {
                     vert = 8;
                     break;
             }
-            return [horz, vert];
+            return { horz, vert };
         }
 
         static horzAndVert2Direction(horz: number, vert: number): number {
@@ -1020,7 +1023,7 @@ namespace DotMoveSystem {
         get targetRect() { return this._targetRect; }
         get targetObject() { return this._targetObject; }
 
-        getCollisionLength(axis: string): number {
+        getCollisionLength(axis: "x" | "y"): number {
             if (axis === "x") {
                 return this.collisionLengthX();
             } else {
@@ -1144,7 +1147,6 @@ namespace DotMoveSystem {
         origY?: number;
         overComplementMode?: boolean;
         throughIfCollided?: boolean;
-        characterIntPosMode?: boolean;
     }
 
 
@@ -1170,9 +1172,6 @@ namespace DotMoveSystem {
             this._overComplementMode = opt.overComplementMode == null ? false : opt.overComplementMode;
             // throughIfCollidedがtrueの場合は既に衝突が発生していたときの衝突判定を無効にする
             this._throughIfCollided = opt.throughIfCollided == null ? false : opt.throughIfCollided;
-            // characterIntPosModeがtrueの場合はキャラクターの衝突判定に整数座標を使用する
-            // この機能は経路探索のためにマス単位での衝突判定を可能にすることを主な目的としている
-            this._characterIntPosMode = opt.characterIntPosMode == null ? false : opt.characterIntPosMode;
         }
 
         checkCollision(x: number, y: number, d: number): CollisionResult<unknown>[] {
@@ -1831,7 +1830,7 @@ namespace DotMoveSystem {
         // 衝突判定を行い、衝突矩形から衝突した長さを取得してその分だけ距離を戻す
         // 衝突矩形が複数ある場合は最も衝突距離が長い分だけ距離を戻す
         correctDistance(pos: DotMovePoint, distance: DotMovePoint, dir: number): DotMovePoint {
-            const axis = dir === 8 || dir === 2 ? "y" : "x";
+            const axis = DotMoveUtils.direction2Axis(dir);
             const correctedDistance = distance.clone();
             if (distance[axis] === 0) return correctedDistance;
             let nextX = pos.x;
@@ -1869,7 +1868,7 @@ namespace DotMoveSystem {
             const newDis: DotMovePoint = dis.clone();
             const len = collisionResults[0].getCollisionLengthByDirection(dir);
             const diagDis: DotMovePoint = this.calcDistance(deg);
-            const axis = dir === 8 || dir === 2 ? "y" : "x";
+            const axis = DotMoveUtils.direction2Axis(dir);
             if (len < Math.abs(diagDis[axis])) {
                 newDis[axis] = diagDis[axis] < 0 ? -len : len;
             } else if (len <= this.getSlideLength(axis)) {
@@ -1882,8 +1881,8 @@ namespace DotMoveSystem {
 
         canSlide(collisionResults: CollisionResult<unknown>[], dir: number): boolean {
             if (collisionResults.length === 0) return false;
-            const collisionLength = Math.max(...collisionResults.map(result => result.getCollisionLengthByDirection(dir)));
-            const axis = dir === 8 || dir === 2 ? "y" : "x";
+            const collisionLength = this.getMaxCollisionLength(collisionResults, dir);
+            const axis = DotMoveUtils.direction2Axis(dir);
             if (collisionLength <= this.getSlideLength(axis)) {
                 return true;
             }
@@ -1899,7 +1898,7 @@ namespace DotMoveSystem {
             return collisionChecker.checkCollision(x, y, d);
         }
 
-        getSlideLength(axis: string): number {
+        getSlideLength(axis: "x" | "y"): number {
             if (axis === "x") {
                 return this._character.slideLengthX();
             } else {
@@ -1968,8 +1967,8 @@ namespace DotMoveSystem {
             return this.createCollisionChecker().checkCollision(x, y, direction);
         }
 
-        checkCollisionCharacters<T extends Game_CharacterBase>(x: number, y: number, direction: number, targetCharacterClass: new (...args: any[]) => T, opt: { characterIntPosMode?: boolean } = {}): CollisionResult<T>[] {
-            return this.createCollisionChecker(opt).checkCollisionCharacters(x, y, direction, targetCharacterClass);
+        checkCollisionCharacters<T extends Game_CharacterBase>(x: number, y: number, direction: number, targetCharacterClass: new (...args: any[]) => T): CollisionResult<T>[] {
+            return this.createCollisionChecker().checkCollisionCharacters(x, y, direction, targetCharacterClass);
         }
 
         checkCharacter<T extends Game_CharacterBase>(x: number, y: number, direction: number, character: T): CollisionResult<T> | undefined {
@@ -2012,6 +2011,7 @@ namespace DotMoveSystem {
         }
 
         startContinuousMove(targetFar: number, moveDeg: Degree): void {
+            if (targetFar === 0) return;
             if (this._moverData.stopping) this.resumeMove();
             this._moverData.targetFar = targetFar;
             this._moverData.moveDeg = moveDeg.value;
@@ -2041,8 +2041,8 @@ namespace DotMoveSystem {
         moveByDirection(d: number, moveUnit: number): void {
             if (d % 2 === 0) {
                 this.moveStraight(d, moveUnit);
-            } else if (d === 1 || d === 3 || d === 7 || d === 9) {
-                const [horz, vert] = DotMoveUtils.direction2HorzAndVert(d);
+            } else {
+                const { horz, vert } = DotMoveUtils.direction2HorzAndVert(d);
                 this.moveDiagonally(horz, vert, moveUnit);
             }
         }
@@ -2559,38 +2559,31 @@ namespace DotMoveSystem {
         return false;
     };
 
-    Game_CharacterBase.prototype.isCollidedWithFollowers = function(this: Game_CharacterBase, x, y, d: number = this.direction()) {
-        const collisionResults = this.mover().checkCollisionCharacters(x, y, d, Game_Follower, { characterIntPosMode: true });
-        for (const result of collisionResults) {
-            if (result.collisionLengthX() >= this.minTouchWidth() || result.collisionLengthY() >= this.minTouchHeight()) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    Game_CharacterBase.prototype.isCollidedWithEvents = function(this: Game_CharacterBase, x, y, d: number = this.direction()) {
-        const collisionResults = this.mover().checkCollisionCharacters(x, y, d, Game_Event, { characterIntPosMode: true });
-        for (const result of collisionResults) {
-            if (result.collisionLengthX() >= this.minTouchWidth() || result.collisionLengthY() >= this.minTouchHeight()) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    Game_CharacterBase.prototype.isCollidedWithVehicles = function(this: Game_CharacterBase, x, y, d: number = this.direction()) {
-        const collisionResults = this.mover().checkCollisionCharacters(x, y, d, Game_Vehicle, { characterIntPosMode: true });
-        for (const result of collisionResults) {
-            if (result.collisionLengthX() >= this.minTouchWidth() || result.collisionLengthY() >= this.minTouchHeight()) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     Game_CharacterBase.prototype.isCollidedWithCharacters = function(this: Game_CharacterBase, x, y, d: number = this.direction()) {
-        return this.isCollidedWithEvents(x, y, d) || this.isCollidedWithVehicles(x, y, d);
+        const collisionResults = this.mover().checkCollisionCharacters(x, y, d, Game_CharacterBase);
+        if (collisionResults.length === 0) return false;
+
+        let canSlide = true;
+        const axis = DotMoveUtils.direction2Axis(d);
+        if (axis === "x") {
+            const collisionLength = Math.max(...collisionResults.map(result => result.collisionLengthY()));
+            if (collisionLength > this.slideLengthY()) canSlide = false;
+        } else {
+            const collisionLength = Math.max(...collisionResults.map(result => result.collisionLengthX()));
+            if (collisionLength > this.slideLengthX()) canSlide = false;
+        }
+
+        if (!canSlide) {
+            const lens = collisionResults.map(result => result.getCollisionLengthByDirection(this.reverseDir(d)));
+            const collisionLength = Math.max(...lens);
+            if (axis === "x") {
+                if (collisionLength > this.minTouchWidth()) return true;
+            } else {
+                if (collisionLength > this.minTouchHeight()) return true;
+            }
+        }
+
+        return false;
     };
 
     Game_CharacterBase.prototype.calcDeg = function(targetCharacter) {
@@ -2750,7 +2743,9 @@ namespace DotMoveSystem {
     };
 
     Game_Character.prototype.moveByDirection = function(direction) {
-        this.mover().moveByDirection(direction, this._moveUnit);
+        if ([8, 9, 6, 3, 2, 1, 4, 7].includes(direction)) {
+            this.mover().moveByDirection(direction, this._moveUnit);
+        }
     };
 
     Game_Character.prototype.dotMoveToPlayer = function() {
@@ -3102,8 +3097,9 @@ namespace DotMoveSystem {
         const d = this.direction();
         this._shipOrBoatTowardingLand = true;
 
-        const x = (d === 8 || d === 2) ? this._realX : this.x;
-        const y = (d === 6 || d === 4) ? this._realY : this.y;
+        const axis = DotMoveUtils.direction2Axis(d);
+        const x = (axis === "y") ? this._realX : this.x;
+        const y = (axis === "x") ? this._realY : this.y;
         let point = new DotMovePoint(x, y);
 
         if (!this.checkShipOrBoatLandOk(point)) {
@@ -3214,8 +3210,9 @@ namespace DotMoveSystem {
             } else {
                 // 船で実数座標に着陸した場合の座標調整を実施する
                 const d = this.direction();
-                const x = (d === 8 || d === 2) ? this._realX : this.x;
-                const y = (d === 6 || d === 4) ? this._realY : this.y;
+                const axis = DotMoveUtils.direction2Axis(d);
+                const x = (axis === "y") ? this._realX : this.x;
+                const y = (axis === "x") ? this._realY : this.y;
                 this.setPositionPoint(new DotMovePoint(x, y));
             }
             this.vehicle()!.syncWithPlayer();
@@ -3306,11 +3303,11 @@ namespace DotMoveSystem {
         const dpf = this.distancePerFrame();
         for (const result of this.mover().checkHitCharactersStepDir(x, y, d, Game_Event)) {
             const event = result.targetObject;
-            const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
-            const area = axis === "x" ? event.widthArea() : event.heightArea();
+            const axis = DotMoveUtils.direction2Axis(d);
             const otherAxis = axis === "y" ? "x" : "y";
+            const area = otherAxis === "x" ? event.widthArea() : event.heightArea();
             const otherAxisLen = isTouch ? dpf * 0.75 : 0;
-            if (result.getCollisionLength(axis) >= area && result.getCollisionLength(otherAxis) >= otherAxisLen) {
+            if (result.getCollisionLength(otherAxis) >= area && result.getCollisionLength(axis) >= otherAxisLen) {
                 if (event.isTriggerIn(triggers) && event.isNormalPriority() === normal) {
                     if (isTouch && event.isThrough()) continue;
                     event.start();
@@ -3333,7 +3330,8 @@ namespace DotMoveSystem {
             } else if (destX === x2 && destY === y2) {
                 return this.triggerTouchActionD2(x2, y2);
             } else {
-                if (direction === 8 || direction === 2) {
+                const axis = DotMoveUtils.direction2Axis(direction);
+                if (axis === "x") {
                     if (destX !== x1) return false;
                 } else {
                     if (destY !== y1) return false;
@@ -3473,25 +3471,7 @@ namespace DotMoveSystem {
     };
 
     Game_Event.prototype.isCollidedWithCharacters = function(this: Game_Event, x, y, d: number = this.direction()) {
-        return (
-            Game_Character.prototype.isCollidedWithCharacters.call(this, x, y, d) ||
-            this.isCollidedWithFollowers(x, y, d) ||
-            this.isCollidedWithPlayerCharacters(x, y, d)
-        );
-    };
-
-    Game_Event.prototype.isCollidedWithEvents = function(this: Game_Event, x, y, d: number = this.direction()) {
-        return Game_Character.prototype.isCollidedWithEvents.call(this, x, y, d);
-    };
-
-    Game_Event.prototype.isCollidedWithPlayerCharacters = function(this: Game_Event, x, y, d: number = this.direction()) {
-        const collisionResults = this.mover().checkCollisionCharacters(x, y, d, Game_Player, { characterIntPosMode: true });
-        for (const result of collisionResults) {
-            if (result.collisionLengthX() >= this.minTouchWidth() || result.collisionLengthY() >= this.minTouchHeight()) {
-                return true;
-            }
-        }
-        return false;
+        return Game_Character.prototype.isCollidedWithCharacters.call(this, x, y, d);
     };
 
     Game_Event.prototype.checkEventTriggerTouchFront = function(this: Game_Event, d) {
@@ -3499,13 +3479,13 @@ namespace DotMoveSystem {
         if (this._trigger === 2) {
             const result = this.mover().checkCharacterStepDir(this._realX, this._realY, d, $gamePlayer);
             if (!result) return;
-            const axis = this._direction === 8 || this._direction === 2 ? "x" : "y";
-            const playerMinTouchWidthOrHeight = axis === "x" ? $gamePlayer.minTouchWidth() : $gamePlayer.minTouchHeight();
-            const eventWidthOrHeightArea = axis === "x" ? this.widthArea() : this.heightArea();
-            const widthOrHeightArea = Math.min(playerMinTouchWidthOrHeight, eventWidthOrHeightArea);
+            const axis = DotMoveUtils.direction2Axis(this._direction);
+            const axisLen = this.distancePerFrame() * 0.75;
             const otherAxis = axis === "y" ? "x" : "y";
-            const otherAxisLen = this.distancePerFrame() * 0.75;
-            if (result.getCollisionLength(axis) >= widthOrHeightArea && result.getCollisionLength(otherAxis) >= otherAxisLen) {
+            const playerMinTouchWidthOrHeight = otherAxis === "x" ? $gamePlayer.minTouchWidth() : $gamePlayer.minTouchHeight();
+            const eventWidthOrHeightArea = otherAxis === "x" ? this.widthArea() : this.heightArea();
+            const widthOrHeightArea = Math.min(playerMinTouchWidthOrHeight, eventWidthOrHeightArea);
+            if (result.getCollisionLength(otherAxis) >= widthOrHeightArea && result.getCollisionLength(axis) >= axisLen) {
                 if (!this.isJumping() && this.isNormalPriority()) {
                     if (!$gameMap.isEventRunning()) {
                         this.dotMoveTempData<EventDotMoveTempData>().eventTouchToPlayer = true;
