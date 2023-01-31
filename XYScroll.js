@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc XY座標スクロール v1.2.0
+@plugindesc XY座標スクロール v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/XYScroll.js
 @help
@@ -26,6 +26,12 @@ $gameMap.startScrollXY(x, y, scrollSpeed);
 
 相対座標によるスクロールの実行を行う場合は以下のように記述します。
 $gameMap.startRelativeScrollXY(relX, relY, scrollSpeed);
+
+現在の画面位置の記憶を行う場合は以下のように記述します。
+$gameMap.saveDisplayPosition();
+
+記憶した画面位置へのスクロールを行う場合は以下のように記述します。
+$gameMap.scrollToSavedDisplayPosition(scrollSpeed);
 
 スクロールの完了有無は次のスクリプトで取得することができます。
 $gameMap.isXyScrolling()
@@ -81,7 +87,7 @@ trueを設定すると、スクロール状態をセーブデータに保存し�
 @default 1
 @decimals 2
 @desc
-スクロール速度を指定します。1フレームにスクロールするピクセル値を指定してください。
+スクロール速度を指定します。1フレームにスクロールするマス数を指定してください。
 
 @arg WAIT_END_SCROLL
 @text スクロール完了まで待機
@@ -132,7 +138,7 @@ trueを設定すると、スクロール完了まで待機します。
 @default 1
 @decimals 2
 @desc
-スクロール速度を指定します。1フレームにスクロールするピクセル値を指定してください。
+スクロール速度を指定します。1フレームにスクロールするマス数を指定してください。
 
 @arg WAIT_END_SCROLL
 @text スクロール完了まで待機
@@ -159,7 +165,7 @@ trueを設定すると、スクロール完了まで待機します。
 @default 1
 @decimals 2
 @desc
-スクロール速度を指定します。1フレームにスクロールするピクセル値を指定してください。
+スクロール速度を指定します。1フレームにスクロールするマス数を指定してください。
 
 @arg WAIT_END_SCROLL
 @text スクロール完了まで待機
@@ -230,7 +236,7 @@ class ScreenScroller {
         this._targetX = null;
         this._targetY = null;
         this._moving = false;
-        this._scrollCount = 0;
+        this._targetFar = 0;
     }
 
     update() {
@@ -238,11 +244,18 @@ class ScreenScroller {
     }
 
     updateScroll() {
+        let speed;
+        if (this._scrollSpeed < this._targetFar) {
+            speed = this._scrollSpeed;
+        } else {
+            speed = this._targetFar;
+        }
+
         const oy = this._targetY - this._y;
         const ox = this._targetX - this._x;
         const rad = Math.atan2(oy, ox);
-        const disX = this._scrollSpeed * Math.cos(rad);
-        const disY = this._scrollSpeed * Math.sin(rad);
+        const disX = speed * Math.cos(rad);
+        const disY = speed * Math.sin(rad);
 
         let horz = 0;
         let vert = 0;
@@ -260,10 +273,11 @@ class ScreenScroller {
         $gameMap.doScroll(horz, Math.abs(disX));
         $gameMap.doScroll(vert, Math.abs(disY));
 
-        if (this._scrollCount <= 0) {
+        if (this._targetFar <= this._scrollSpeed) {
             this._scrolling = false;
+            this._targetFar = 0;
         } else {
-            this._scrollCount--;
+            this._targetFar -= this._scrollSpeed;
         }
     }
 
@@ -275,7 +289,7 @@ class ScreenScroller {
         this._scrollSpeed = scrollSpeed;
         this._endScrollCallback = endScrollCallback;
         const far = this.calcFar(fromPoint, targetPoint);
-        this._scrollCount = Math.round(far / scrollSpeed);
+        this._targetFar = far;
         this._x = fromPoint.x;
         this._y = fromPoint.y;
         this._targetX = targetPoint.x;
