@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Dot movement system decision trigger extension v1.1.0
+@plugindesc Dot movement system decision trigger extension v1.1.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_DecideTriggerEx.js
 @base DotMoveSystem
@@ -12,7 +12,7 @@ It becomes possible to set the bootable range.
 You can also display a popup in the event when the player enters the launchable range.
 Popup can be selected from balloon icon, icon, picture and window.
 
-※ When installing this plugin, "DotMoveSystem.js v2.1.0" or later is required.
+※ When installing this plugin, "DotMoveSystem.js v2.2.1" or later is required.
 
 【How to use】
 ■ Popup display settings
@@ -200,7 +200,7 @@ Specifies the window skin file name. If empty, use standard Window.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム 決定トリガー拡張 v1.1.0
+@plugindesc ドット移動システム 決定トリガー拡張 v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_DecideTriggerEx.js
 @base DotMoveSystem
@@ -211,7 +211,7 @@ Specifies the window skin file name. If empty, use standard Window.
 また、プレイヤーが起動可能範囲に入った際にイベントにポップアップを表示することもできます。
 ポップアップはフキダシアイコン、アイコン、ピクチャ、ウィンドウから選択することが可能です。
 
-※ 本プラグインを導入する場合、「DotMoveSystem.js v2.2.0」以降が必要になります。
+※ 本プラグインを導入する場合、「DotMoveSystem.js v2.2.1」以降が必要になります。
 
 【使用方法】
 ■ ポップアップの表示設定について
@@ -549,9 +549,12 @@ var DotMoveSystem;
             initialize(character) {
                 PlayerDotMoveTempData_Mixin._initialize.call(this, character);
                 this._decideTriggerCollidedEventIds = [];
+                this._remainDisableTouchEventTime = 0;
             }
             get decideTriggerCollidedEventIds() { return this._decideTriggerCollidedEventIds; }
             set decideTriggerCollidedEventIds(_decideTriggerCollidedEventIds) { this._decideTriggerCollidedEventIds = _decideTriggerCollidedEventIds; }
+            get remainDisableTouchEventTime() { return this._remainDisableTouchEventTime; }
+            set remainDisableTouchEventTime(_remainDisableTouchEventTime) { this._remainDisableTouchEventTime = _remainDisableTouchEventTime; }
         }
         PlayerDotMoveTempData_Mixin._initialize = DotMoveSystem.PlayerDotMoveTempData.prototype.initialize;
         mixin(DotMoveSystem.PlayerDotMoveTempData, PlayerDotMoveTempData_Mixin);
@@ -560,11 +563,30 @@ var DotMoveSystem;
             set decideTriggerArea(_decideTriggerArea) { this._decideTriggerArea = _decideTriggerArea; }
         }
         mixin(DotMoveSystem.EventDotMoveTempData, EventDotMoveTempData_Mixin);
+        class Game_Character_Mixin extends Game_Character {
+            onPress() {
+            }
+            onClick() {
+            }
+        }
+        mixin(Game_Character, Game_Character_Mixin);
         class Game_Player_Mixin extends Game_Player {
             update(sceneActive) {
                 Game_Player_Mixin._update.call(this, sceneActive);
-                if (sceneActive)
+                if (sceneActive) {
                     this.updateDecideTriggerEvent();
+                    this.updateDisableTouchEventTimer();
+                }
+            }
+            updateDisableTouchEventTimer() {
+                if ($gameMap.isEventRunning()) {
+                    this.dotMoveTempData().remainDisableTouchEventTime = 10;
+                }
+                else {
+                    if (this.dotMoveTempData().remainDisableTouchEventTime > 0) {
+                        this.dotMoveTempData().remainDisableTouchEventTime--;
+                    }
+                }
             }
             updateDecideTriggerEvent() {
                 if ($gameMap.isEventRunning())
@@ -685,6 +707,8 @@ var DotMoveSystem;
                 }
             }
             startMapDecideEventByTouch(event) {
+                if (this.dotMoveTempData().remainDisableTouchEventTime > 0)
+                    return;
                 if (!this.canStartLocalEvents())
                     return;
                 if ($gameMap.isEventRunning())
@@ -881,6 +905,13 @@ var DotMoveSystem;
                 }
                 return true;
             }
+            onClick() {
+                Game_Character.prototype.onClick();
+                $gamePlayer.startMapDecideEventByTouch(this);
+                if (this.isLocked()) {
+                    $gameTemp.clearDestination();
+                }
+            }
         }
         Game_Event_Mixin._initMembers = Game_Event.prototype.initMembers;
         Game_Event_Mixin._refresh = Game_Event.prototype.refresh;
@@ -1060,18 +1091,32 @@ var DotMoveSystem;
                 return this.hitTest(localPos.x, localPos.y);
             }
             hitTest(x, y) {
-                const rect = new Rectangle(-this.anchor.x * this.width, -this.anchor.y * this.height, this.width, this.height);
+                const width = this.spriteWidth();
+                const height = this.spriteHeight();
+                const rect = new Rectangle(-this.anchor.x * width, -this.anchor.y * height, width, height);
                 return rect.contains(x, y);
             }
+            spriteWidth() {
+                if (this._bushDepth > 0 && this._upperBody && this._lowerBody) {
+                    return this._upperBody.width;
+                }
+                else {
+                    return this.width;
+                }
+            }
+            spriteHeight() {
+                if (this._bushDepth > 0 && this._upperBody && this._lowerBody) {
+                    return this._upperBody.height + this._lowerBody.height;
+                }
+                else {
+                    return this.width;
+                }
+            }
             onPress() {
+                this._character.onPress();
             }
             onClick() {
-                if (this._character instanceof Game_Event) {
-                    $gamePlayer.startMapDecideEventByTouch(this._character);
-                    if (this._character.isLocked()) {
-                        $gameTemp.clearDestination();
-                    }
-                }
+                this._character.onClick();
             }
         }
         Sprite_Character_Mixin._initMembers = Sprite_Character.prototype.initMembers;
