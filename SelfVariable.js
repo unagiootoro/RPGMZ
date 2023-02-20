@@ -1,22 +1,22 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Self variable v1.5.0
+@plugindesc Self variable v1.5.1
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
-A plugin that introduces self-variables.
+A plugin that introduces self variables.
 
 【How to use】
 ■ Basic usage
-If you prefix the variable name with "$", the variable is treated as a self-variable.
+If you prefix the variable name with "$", the variable is treated as a self variable.
 Setting example: $ Self variable
 
-Self-variables are managed on an event-by-event basis, similar to self-switching.
-You can get and set the value of a self-variable on the editor in the same way as a normal variable.
+self variables are managed on an event-by-event basis, similar to self switching.
+You can get and set the value of a self variable on the editor in the same way as a normal variable.
 You can do it.
 
-In addition to variables, switches can also be treated as extended self-switches by adding "$"
+In addition to variables, switches can also be treated as extended self switches by adding "$"
 to the beginning of the switch name.
 
 ■ Using common event variables
@@ -40,13 +40,13 @@ Also, if a description such as "#$" is attached to the beginning, the variable i
 can be handled. Either "#" or "$" can be written first.
 Setting example: #$ decimal self variable
 
-■ Manipulate self-variables from plug-in commands
-"Get self-variable value" and "Set self-variable value" of the plug-in command
-By using self-variables from one event to another
+■ Manipulate self variables from plug-in commands
+"Get self variable value" and "Set self variable value" of the plug-in command
+By using self variables from one event to another
 It is also possible to operate.
 
-Similarly for the extended self-switch, you can operate the extended self-switch from the outside
-by using "extended self-switch value acquisition" and "extended self-switch setting".
+Similarly for the extended self switch, you can operate the extended self switch from the outside
+by using "extended self switch value acquisition" and "extended self switch setting".
 
 Plugin commands can only be used when running on MZ.
 In the case of MV, by using the function to operate self variables from the script
@@ -62,9 +62,9 @@ if the argument "whether event is specified" is ON,
 the event specified by the event ID or variable will be cleared. When set to OFF,
 all events on the map will be cleared.
 
-■ Batch setting of self-variables/extended self-switches using event tags
+■ Batch setting of self variables/extended self switches using event tags
 If you set an event tag to an event, the plug-in command "Set self variable value by event tag" will be displayed.
-Or with the event tag specified by "Extended self-switch value setting by event tag"
+Or with the event tag specified by "Extended self switch value setting by event tag"
 Self variables or extended self switches can be set for all events.
 Multiple event tags can be set.
 When setting an event tag, please describe it as follows in the first annotation of page 0 of the event.
@@ -75,36 +75,36 @@ Example: When setting event tags "ET1" and "ET2"
 <et: ET2>
 
 ■ Manipulate self variables from scripts
-・Acquisition of self-variables
-Example: To get the self-variable of ID3 of the map of ID1 and the event of ID2
+・Acquisition of self variables
+Example: To get the self variable of ID3 of the map of ID1 and the event of ID2
 $gameVariables.selfVariableValue([1, 2, 3]);
 
 ・Self variable setting
-Example: If you want to set the self-variable for ID3 to 100 for the event for ID2 in the map for ID1.
+Example: If you want to set the self variable for ID3 to 100 for the event for ID2 in the map for ID1.
 $gameVariables.selfVariableValue([1, 2, 3], 100);
 
-・Acquisition of extended self-switch
-Example: To get ID3's extended self-switch for ID2's event of ID1's map
+・Acquisition of extended self switch
+Example: To get ID3's extended self switch for ID2's event of ID1's map
 $gameSwitches.exSelfSwitchValue([1, 2, 3]);
 
-・Extended self-switch settings
-Example: When setting ON for the ID3 extended self-switch of the ID2 event in the ID1 map
+・Extended self switch settings
+Example: When setting ON for the ID3 extended self switch of the ID2 event in the ID1 map
 $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 
 Also, for those who understand the script to some extent, in Game_Event
 The following methods are defined, so by using these,
-It is possible to manipulate self-variables more easily.
+It is possible to manipulate self variables more easily.
 ・Game_Event#selfVariableValue(variableId)
-Gets the self-variable specified by variableId for the target event.
+Gets the self variable specified by variableId for the target event.
 
 ・Game_Event#setSelfVariableValue(variableId, value)
-Stores the value in the self-variable specified by variableId for the target event.
+Stores the value in the self variable specified by variableId for the target event.
 
 ・Game_Event#exSelfSwitchValue(switchId)
-Gets the extended self-switch specified by switchId for the target event.
+Gets the extended self switch specified by switchId for the target event.
 
 ・Game_Event#setExSelfSwitchValue(switchId, value)
-Stores the value in the extended self-switch specified by switchId for the target event.
+Stores the value in the extended self switch specified by switchId for the target event.
 
 【Important point】
 -Do not manipulate self variables from battle events on the editor.
@@ -123,7 +123,7 @@ This plugin is available under the terms of the MIT license.
 
 @command GetSelfVariableValue
 @text Self variable value acquisition
-@desc Gets the value of a self-variable.
+@desc Gets the value of a self variable.
 
 @arg MapId
 @type number
@@ -153,13 +153,13 @@ This plugin is available under the terms of the MIT license.
 @type variable
 @text Self variable ID
 @default 1
-@desc Specifies the self-variable ID.
+@desc Specifies the self variable ID.
 
 @arg DestVariableId
 @type variable
 @text Storage variable ID
 @default 2
-@desc Specify the variable ID that stores the acquired self-variable value.
+@desc Specify the variable ID that stores the acquired self variable value.
 
 
 @command SetSelfVariableValue
@@ -194,19 +194,48 @@ This plugin is available under the terms of the MIT license.
 @type variable
 @text Self variable ID
 @default 1
-@desc Specifies the self-variable ID.
+@desc Specifies the self variable ID.
 
 @arg Value
 @type number
 @text setting value
 @default 0
-@desc Specifies the value to set for the self-variable.
+@desc Specifies the value to set for the self variable.
 
 @arg SrcVariableId
 @type variable
 @text Setting value storage variable ID
 @default 0
-@desc Specify the variable ID that stores the value to be set in the self-variable. If you specify a direct value, specify 0 for this parameter.
+@desc Specify the variable ID that stores the value to be set in the self variable. If you specify a direct value, specify 0 for this parameter.
+
+
+@command SetSelfVariableValueByEventTags
+@text Self variable value setting by event tag
+@desc Sets the value of the self variable to all events with the specified event tag.
+
+@arg EventTags
+@type string[]
+@text Event tag
+@default []
+@desc Specify the target event tag.
+
+@arg SelfVariableId
+@type variable
+@text Self variable ID
+@default 1
+@desc Specifies the self variable ID.
+
+@arg Value
+@type number
+@text setting value
+@default 0
+@desc Specifies the value to set for the self variable.
+
+@arg SrcVariableId
+@type variable
+@text Setting value storage variable ID
+@default 0
+@desc Specify the variable ID that stores the value to be set in the self variable. If you specify a direct value, specify 0 for this parameter.
 
 
 @command ClearSelfVariables
@@ -251,8 +280,8 @@ This plugin is available under the terms of the MIT license.
 
 
 @command GetExSelfSwitchValue
-@text get extended self-switch value
-@desc Gets the extended self-switch value.
+@text get extended self switch value
+@desc Gets the extended self switch value.
 
 @arg MapId
 @type number
@@ -280,20 +309,20 @@ This plugin is available under the terms of the MIT license.
 
 @arg ExSelfSwitchId
 @type switch
-@text extended self-switch ID
+@text extended self switch ID
 @default 1
-@desc Specifies an extended self-switch ID.
+@desc Specifies an extended self switch ID.
 
 @arg DestSwitchId
 @type switch
 @text Destination switch ID
 @default 2
-@desc Specifies the switch ID that stores the acquired extended self-switch value.
+@desc Specifies the switch ID that stores the acquired extended self switch value.
 
 
 @command SetExSelfVariableValue
-@text extended self-switch value setting
-@desc Sets the extended self-switch value.
+@text extended self switch value setting
+@desc Sets the extended self switch value.
 
 @arg MapId
 @type number
@@ -321,26 +350,55 @@ This plugin is available under the terms of the MIT license.
 
 @arg ExSelfSwitchId
 @type switch
-@text extended self-switch ID
+@text extended self switch ID
 @default 1
-@desc Specifies an extended self-switch ID.
+@desc Specifies an extended self switch ID.
 
 @arg Value
 @type boolean
 @text setting value
 @default true
-@desc Specifies the value to set for the extended self-switch.
+@desc Specifies the value to set for the extended self switch.
 
 @arg SrcSwitchId
 @type switch
 @text Setting value storage switch ID
 @default 0
-@desc Specifies the switch ID that stores the value to be set in the extended self-switch. When specifying a value directly, specify 0 for this parameter.
+@desc Specifies the switch ID that stores the value to be set in the extended self switch. When specifying a value directly, specify 0 for this parameter.
+
+
+@command SetExSelfSwitchValueByEventTags
+@text Extended self switch value setting by event tag
+@desc Sets the value of the self variable to all events with the specified event tag.
+
+@arg EventTags
+@type string[]
+@text Event tag
+@default []
+@desc Specify the target event tag.
+
+@arg ExSelfSwitchId
+@type switch
+@text extended self switch ID
+@default 1
+@desc Specifies an extended self switch ID.
+
+@arg Value
+@type boolean
+@text setting value
+@default true
+@desc Specifies the value to set for the extended self switch.
+
+@arg SrcSwitchId
+@type switch
+@text Setting value storage switch ID
+@default 0
+@desc Specifies the switch ID that stores the value to be set in the extended self switch. When specifying a value directly, specify 0 for this parameter.
 
 
 @command ClearExSelfSwitches
 @text extended self switch clear
-@desc Turns off all extended self-switches corresponding to the specified map ID and event ID.
+@desc Turns off all extended self switches corresponding to the specified map ID and event ID.
 
 @arg MapId
 @type number
@@ -376,7 +434,7 @@ This plugin is available under the terms of the MIT license.
 @type switch
 @text extended self switch ID
 @default 0
-@desc If specified, only that extended self-switch will be cleared.
+@desc If specified, only that extended self switch will be cleared.
 
 
 @param SelfVariablePrefix
@@ -398,14 +456,18 @@ This plugin is available under the terms of the MIT license.
 @desc Specifies the variable name prefix used to identify decimal variables.
 
 @param ErrorLanguage
-@type string
-@text error language
+@text Error message language
+@type select
+@option english
+@value en
+@option Japanese
+@value ja
 @default en
 @desc Specifies the language for displaying errors. Normally you do not need to change this parameter.
 */
 /*:ja
 @target MV MZ
-@plugindesc セルフ変数 v1.5.0
+@plugindesc セルフ変数 v1.5.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SelfVariable.js
 @help
@@ -793,6 +855,7 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @text 設定値
 @default true
 @desc 拡張セルフスイッチに設定する値を指定します。
+
 @arg SrcSwitchId
 @type switch
 @text 設定値格納スイッチID
@@ -861,8 +924,12 @@ $gameVariables.setExSelfSwitchValue([1, 2, 3], true);
 @desc 小数変数の識別に使用する変数名のプレフィックスを指定します。
 
 @param ErrorLanguage
-@type string
-@text エラー言語
+@text エラーメッセージ言語
+@type select
+@option 英語
+@value en
+@option 日本語
+@value ja
 @default ja
 @desc エラー表示の言語を指定します。通常このパラメータを変更する必要はありません。
 */
