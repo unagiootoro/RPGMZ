@@ -51,6 +51,8 @@ CharacterMoveMotionEx.js
         ・新規作成
 
 CharacterShowShadow.js
+    2023/02/20 v1.0.3
+        ・バグ修正
     2023/01/11 v1.0.2
         ・英語版ヘルプに対応
     2022/12/30 v1.0.1

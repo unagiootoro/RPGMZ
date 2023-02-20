@@ -1,6 +1,88 @@
 /*:
 @target MZ
-@plugindesc キャラクター影表示 v1.0.1
+@plugindesc character shadow display v1.0.3
+@author unagi ootoro
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterShowShadow.js
+@help
+This plugin introduces a simple shadow display function.
+
+【How to use】
+Add the characters you want to display shadows to the plug-in parameter "Shadow display character list"
+Once registered, the character will be able to display shadows.
+In the shadow display character list, "character file name" and
+You have to specify the "character index",
+Specify the following for each:
+
+[character file name]
+Specify the image file name of the character for shadow display.
+
+[Character Index]
+When using an image with 4*2 characters registered, which position image
+Specify whether to use it with a number from 0 to 7. 0 to 3 are the first row,
+4 to 7 are the second row.
+If -1 is specified, all indexes will be shadowed.
+In the case of a single character image (those with $ at the beginning of the file name),
+This setting is not used.
+
+
+Also, in the notes section of the event or the first comment on the first page of the event
+<showShadow>
+Regardless of the setting of "Shadow display character list"
+Show shadows. Conversely, to hide shadows
+<hideShadow>
+will be described.
+
+It is also possible to switch the shadow display / non-display from the script.
+In the travel route script
+this.showShadow();
+You can display shadows by writing If you want to hide
+this.hideShadow();
+Please write
+
+【License】
+This plugin is available under the terms of the MIT license.
+
+@param ShowShadowCharacterList
+@text shadow display character list
+@type struct<ShowShadowCharacter>[]
+@default[]
+@desc
+Register a list of characters for shadow display.
+
+@param ShadowImageFileName
+@text shadow image file name
+@type file
+@dir img
+@default system/Shadow1
+@desc
+Specifies the file name of the shadow image.
+
+@param ShadowYOffset
+@text shadow Y coordinate offset
+@type number
+@default 6
+@desc
+Specifies the Y coordinate offset of the shadow image.
+*/
+/*~struct~ShowShadowCharacter:
+@param CharacterFileName
+@text character file name
+@type file
+@dir img/characters
+@desc
+Specifies the file name of the character.
+
+@param CharacterIndex
+@text character index
+@type number
+@default -1
+@min-1
+@desc
+Specifies the character index. Specify -1 to target all indexes.
+*/
+/*:ja
+@target MZ
+@plugindesc キャラクター影表示 v1.0.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterShowShadow.js
 @help
@@ -82,7 +164,8 @@ this.hideShadow();
 */
 
 declare interface Game_CharacterBase {
-    _needShadow: boolean;
+    _needShadowByShowShadowList: boolean;
+    _needShadowByApi?: boolean;
 
     isNeedShadow(): boolean;
     showShadow(): void;
@@ -90,6 +173,10 @@ declare interface Game_CharacterBase {
     shadowScreenX(): number;
     shadowScreenY(): number;
     shadowScreenZ(): number;
+}
+
+declare interface Game_Event {
+    _needShadowByMeta?: boolean;
 }
 
 declare interface Sprite_Character {
@@ -194,44 +281,43 @@ namespace SimpleShadow {
         static _initMembers = Game_CharacterBase.prototype.initMembers;
         static _setImage = Game_CharacterBase.prototype.setImage;
 
-        _needShadow!: boolean;
-
         initMembers() {
             Game_CharacterBase_Mixin._initMembers.call(this);
-            this._needShadow = false;
+            this._needShadowByShowShadowList = false;
         }
 
         setImage(characterName: string, characterIndex: number): void {
             Game_CharacterBase_Mixin._setImage.call(this, characterName, characterIndex);
-            this._needShadow = this.checkIncludedShowShadowCharacterList();
+            this._needShadowByShowShadowList = this.checkIncludedShowShadowCharacterList();
         }
 
         isNeedShadow(): boolean {
-            return this._needShadow;
+            if (this._needShadowByApi != null) return this._needShadowByApi;
+            return this._needShadowByShowShadowList;
         }
 
         showShadow(): void {
-            this._needShadow = true;
+            this._needShadowByApi = true;
         }
 
         hideShadow(): void {
-            this._needShadow = false;
+            this._needShadowByApi = false;
         }
 
         shadowScreenX(): number {
             return this.screenX();
-        };
+        }
 
         shadowScreenY(): number {
             const th = $gameMap.tileHeight();
             return Math.floor(
                 this.scrolledY() * th + th - this.shiftY() + PP.ShadowYOffset
             );
-        };
+        }
 
         shadowScreenZ(): number {
             return this.screenZ() - 1;
-        };
+        }
 
         private checkIncludedShowShadowCharacterList(): boolean {
             for (const showShadowCharacter of PP.ShowShadowCharacterList) {
@@ -247,15 +333,46 @@ namespace SimpleShadow {
     mixin(Game_CharacterBase, Game_CharacterBase_Mixin);
 
     class Game_Event_Mixin extends Game_Event {
-        static _initialize = Game_Event.prototype.initialize;
+        static _refresh = Game_Event.prototype.refresh;
 
-        initialize(mapId: number, eventId: number): void {
-            Game_Event_Mixin._initialize.call(this, mapId, eventId);
-            if (this.event().meta.showShadow) {
-                this._needShadow = true;
-            } else if (this.event().meta.hideShadow) {
-                this._needShadow = false;
+        refresh(): void {
+            Game_Event_Mixin._refresh.call(this);
+            const values = this.getAnnotationValues(0);
+            if (this.event().meta.showShadow || values.showShadow) {
+                this._needShadowByMeta = true;
+            } else if (this.event().meta.hideShadow || values.hideShadow) {
+                this._needShadowByMeta = false;
             }
+        }
+
+        isNeedShadow(): boolean {
+            if (this._needShadowByApi != null) return this._needShadowByApi;
+            if (this._needShadowByMeta != null) return this._needShadowByMeta;
+            return this._needShadowByShowShadowList;
+        }
+
+        getAnnotationValues(page: number): { [key: string]: string } {
+            const note = this.getAnnotation(page);
+            const data: any = { note };
+            DataManager.extractMetadata(data);
+            return data.meta;
+        }
+
+        getAnnotation(page: number): string {
+            const eventData = this.event();
+            if (eventData) {
+                const noteLines = [];
+                const pageList = eventData.pages[page].list;
+                for (let i = 0; i < pageList.length; i++) {
+                    if (pageList[i].code === 108 || pageList[i].code === 408) {
+                        noteLines.push(pageList[i].parameters[0]);
+                    } else {
+                        break;
+                    }
+                }
+                return noteLines.join("\n");
+            }
+            return "";
         }
     }
 
@@ -299,6 +416,17 @@ namespace SimpleShadow {
 
         updateVisible(): void {
             this.visible = this._character.isNeedShadow();
+            const spriteset = (SceneManager as any)._scene._spriteset;
+            const characterSprite = spriteset.findTargetSprite(this._character);
+            if (characterSprite && characterSprite.visible) {
+                if (this._character.isNeedShadow()) {
+                    this.visible = true;
+                } else {
+                    this.visible = false;
+                }
+            } else {
+                this.visible = false;
+            }
         }
     }
 

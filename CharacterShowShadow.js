@@ -1,8 +1,8 @@
 "use strict";
 /*:
 @target MZ
-@plugindesc character shadow display v1.0.2
-@author Unagi Otoro
+@plugindesc character shadow display v1.0.3
+@author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterShowShadow.js
 @help
 This plugin introduces a simple shadow display function.
@@ -83,7 +83,7 @@ Specifies the character index. Specify -1 to target all indexes.
 */
 /*:ja
 @target MZ
-@plugindesc キャラクター影表示 v1.0.2
+@plugindesc キャラクター影表示 v1.0.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterShowShadow.js
 @help
@@ -263,34 +263,33 @@ var SimpleShadow;
     class Game_CharacterBase_Mixin extends Game_CharacterBase {
         initMembers() {
             Game_CharacterBase_Mixin._initMembers.call(this);
-            this._needShadow = false;
+            this._needShadowByShowShadowList = false;
         }
         setImage(characterName, characterIndex) {
             Game_CharacterBase_Mixin._setImage.call(this, characterName, characterIndex);
-            this._needShadow = this.checkIncludedShowShadowCharacterList();
+            this._needShadowByShowShadowList = this.checkIncludedShowShadowCharacterList();
         }
         isNeedShadow() {
-            return this._needShadow;
+            if (this._needShadowByApi != null)
+                return this._needShadowByApi;
+            return this._needShadowByShowShadowList;
         }
         showShadow() {
-            this._needShadow = true;
+            this._needShadowByApi = true;
         }
         hideShadow() {
-            this._needShadow = false;
+            this._needShadowByApi = false;
         }
         shadowScreenX() {
             return this.screenX();
         }
-        ;
         shadowScreenY() {
             const th = $gameMap.tileHeight();
             return Math.floor(this.scrolledY() * th + th - this.shiftY() + PP.ShadowYOffset);
         }
-        ;
         shadowScreenZ() {
             return this.screenZ() - 1;
         }
-        ;
         checkIncludedShowShadowCharacterList() {
             for (const showShadowCharacter of PP.ShowShadowCharacterList) {
                 if (showShadowCharacter.CharacterFileName === this._characterName &&
@@ -305,17 +304,48 @@ var SimpleShadow;
     Game_CharacterBase_Mixin._setImage = Game_CharacterBase.prototype.setImage;
     mixin(Game_CharacterBase, Game_CharacterBase_Mixin);
     class Game_Event_Mixin extends Game_Event {
-        initialize(mapId, eventId) {
-            Game_Event_Mixin._initialize.call(this, mapId, eventId);
-            if (this.event().meta.showShadow) {
-                this._needShadow = true;
+        refresh() {
+            Game_Event_Mixin._refresh.call(this);
+            const values = this.getAnnotationValues(0);
+            if (this.event().meta.showShadow || values.showShadow) {
+                this._needShadowByMeta = true;
             }
-            else if (this.event().meta.hideShadow) {
-                this._needShadow = false;
+            else if (this.event().meta.hideShadow || values.hideShadow) {
+                this._needShadowByMeta = false;
             }
         }
+        isNeedShadow() {
+            if (this._needShadowByApi != null)
+                return this._needShadowByApi;
+            if (this._needShadowByMeta != null)
+                return this._needShadowByMeta;
+            return this._needShadowByShowShadowList;
+        }
+        getAnnotationValues(page) {
+            const note = this.getAnnotation(page);
+            const data = { note };
+            DataManager.extractMetadata(data);
+            return data.meta;
+        }
+        getAnnotation(page) {
+            const eventData = this.event();
+            if (eventData) {
+                const noteLines = [];
+                const pageList = eventData.pages[page].list;
+                for (let i = 0; i < pageList.length; i++) {
+                    if (pageList[i].code === 108 || pageList[i].code === 408) {
+                        noteLines.push(pageList[i].parameters[0]);
+                    }
+                    else {
+                        break;
+                    }
+                }
+                return noteLines.join("\n");
+            }
+            return "";
+        }
     }
-    Game_Event_Mixin._initialize = Game_Event.prototype.initialize;
+    Game_Event_Mixin._refresh = Game_Event.prototype.refresh;
     mixin(Game_Event, Game_Event_Mixin);
     class Sprite_Shadow extends Sprite {
         constructor(...args) {
@@ -345,6 +375,19 @@ var SimpleShadow;
         }
         updateVisible() {
             this.visible = this._character.isNeedShadow();
+            const spriteset = SceneManager._scene._spriteset;
+            const characterSprite = spriteset.findTargetSprite(this._character);
+            if (characterSprite && characterSprite.visible) {
+                if (this._character.isNeedShadow()) {
+                    this.visible = true;
+                }
+                else {
+                    this.visible = false;
+                }
+            }
+            else {
+                this.visible = false;
+            }
         }
     }
     SimpleShadow.Sprite_Shadow = Sprite_Shadow;
