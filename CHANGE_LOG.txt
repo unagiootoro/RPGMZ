@@ -157,6 +157,8 @@ DotMoveSystem_DecideTriggerEx.js
         ・新規作成
 
 DotMoveSystem_FunctionEx.js
+    2023/02/27 v2.2.1
+        ・慣性移動時にイベントと接触した場合、イベントを起動するように修正
     2023/01/11 v2.2.0
         ・DotMoveSystem.js v2.2.0に対応
         ・斜め移動時の壁スライド許可/禁止切り替え機能を追加

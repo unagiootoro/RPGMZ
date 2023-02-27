@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system function extension v2.2.0
+@plugindesc Dot movement system function extension v2.2.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -18,7 +18,7 @@ Add the following features.
 ・ Half-square collision detection of terrain
 ・ Triangular mass collision detection of terrain
 
-※ When installing this plugin, "DotMoveSystem.js v2.2.0" or later is required.
+※ When installing this plugin, "DotMoveSystem.js v2.2.1" or later is required.
 
 【How to use】
 ■ Change player size
@@ -571,7 +571,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v2.2.0
+@plugindesc ドット移動システム機能拡張 v2.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -588,7 +588,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 ・地形の半マス当たり判定
 ・地形の三角マス当たり判定
 
-※ 本プラグインを導入する場合、「DotMoveSystem.js v2.2.0」以降が必要になります。
+※ 本プラグインを導入する場合、「DotMoveSystem.js v2.2.1」以降が必要になります。
 
 【使用方法】
 ■ プレイヤーサイズの変更
@@ -1162,6 +1162,7 @@ declare interface Game_CharacterBase {
     setInertia(inertia: number): void;
     isNeedUpdateAcceleration(): boolean;
     updateAcceleration(): void;
+    inertiaMoveProcess(): void;
     cancelAcceleration(): void;
     smartJump(xPlus: number, yPlus: number, baseJumpPeak?: number, through?: boolean): void;
     smartJumpByDeg(deg: number, far: number, baseJumpPeak: number, through: boolean): void;
@@ -1232,15 +1233,15 @@ declare namespace DotMoveSystem {
 namespace DotMoveSystem.FunctionEx {
     export class PluginParamsParser {
         private _predictEnable: boolean;
-    
+
         static parse(params: any, typeData: any = {}, predictEnable: boolean = true) {
             return new PluginParamsParser(predictEnable).parse(params, typeData);
         }
-    
+
         constructor(predictEnable = true) {
             this._predictEnable = predictEnable;
         }
-    
+
         parse(params: any, typeData: any = {}): any {
             const result: any = {};
             for (const name in params) {
@@ -1249,7 +1250,7 @@ namespace DotMoveSystem.FunctionEx {
             }
             return result;
         }
-    
+
         expandParam(strParam: string, loopCount = 0) {
             if (++loopCount > 255) throw new Error("endless loop error");
             if (strParam.match(/^\s*\[.*\]\s*$/)) {
@@ -1265,7 +1266,7 @@ namespace DotMoveSystem.FunctionEx {
             }
             return strParam;
         }
-    
+
         convertParam(param: any, type: any, loopCount: number = 0): any {
             if (++loopCount > 255) throw new Error("endless loop error");
             if (typeof param === "string") {
@@ -1292,7 +1293,7 @@ namespace DotMoveSystem.FunctionEx {
                 throw new Error(`Invalid param: ${param}`);
             }
         }
-    
+
         cast(param: any, type: any): any {
             if (param == null || param === "") return undefined;
             if (type == null) type = "any";
@@ -1311,7 +1312,7 @@ namespace DotMoveSystem.FunctionEx {
                     throw new Error(`Unknow type: ${type}`);
             }
         }
-    
+
         predict(param: any): string {
             if (param.match(/^\-?\d+$/) || param.match(/^\-?\d+\.\d+$/)) {
                 return "number";
@@ -1321,7 +1322,7 @@ namespace DotMoveSystem.FunctionEx {
                 return "string";
             }
         }
-    }    
+    }
 
 
     const typeDefine = {
@@ -1493,7 +1494,6 @@ namespace DotMoveSystem.FunctionEx {
 
     Game_CharacterBase.prototype.distancePerFrame = function() {
         if (this._dpf == null) return this.originDistancePerFrame();
-        // if (this.isNeedUpdateAcceleration() && this._moverData.targetFar > 1) return this.originDistancePerFrame();
         return this._currentDpf;
     };
 
@@ -1534,14 +1534,18 @@ namespace DotMoveSystem.FunctionEx {
                 }
             } else {
                 if (!this.isMoving() && this._acceleration > 0) {
-                    this._acceleration -= this._inertia;
-                    if (this._acceleration < 0) this._acceleration = 0;
-                    // TODO: 暫定
-                    // this.mover().dotMoveByDirection(this.mover().direction8(), { changeDir: false });
-                    this.mover().dotMoveByDirection(this.direction(), undefined, { changeDir: false });
+                    this.inertiaMoveProcess();
                 }
             }
         }
+    };
+
+    Game_CharacterBase.prototype.inertiaMoveProcess = function() {
+        this._acceleration -= this._inertia;
+        if (this._acceleration < 0) this._acceleration = 0;
+        // TODO: 暫定
+        // this.mover().dotMoveByDirection(this.mover().direction8(), { changeDir: false });
+        this.mover().dotMoveByDirection(this.direction(), undefined, { changeDir: false });
     };
 
     Game_CharacterBase.prototype.cancelAcceleration = function() {
@@ -1568,6 +1572,12 @@ namespace DotMoveSystem.FunctionEx {
         if (this._dpf == null) return 0;
         if (this.isDashing()) return this._dpf * 2;
         return this._dpf;
+    };
+
+    Game_Player.prototype.inertiaMoveProcess = function() {
+        Game_Character.prototype.inertiaMoveProcess.call(this);
+        this.checkEventTriggerHere([1, 2]);
+        $gameMap.setupStartingEvent();
     };
 
 

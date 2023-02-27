@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Dot movement system function extension v2.2.0
+@plugindesc Dot movement system function extension v2.2.1
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -19,7 +19,7 @@ Add the following features.
 ・ Half-square collision detection of terrain
 ・ Triangular mass collision detection of terrain
 
-※ When installing this plugin, "DotMoveSystem.js v2.2.0" or later is required.
+※ When installing this plugin, "DotMoveSystem.js v2.2.1" or later is required.
 
 【How to use】
 ■ Change player size
@@ -568,7 +568,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム機能拡張 v2.2.0
+@plugindesc ドット移動システム機能拡張 v2.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem_FunctionEx.js
 @base DotMoveSystem
@@ -585,7 +585,7 @@ Set the terrain tag ID for collision detection in the upper right triangle direc
 ・地形の半マス当たり判定
 ・地形の三角マス当たり判定
 
-※ 本プラグインを導入する場合、「DotMoveSystem.js v2.2.0」以降が必要になります。
+※ 本プラグインを導入する場合、「DotMoveSystem.js v2.2.1」以降が必要になります。
 
 【使用方法】
 ■ プレイヤーサイズの変更
@@ -1385,7 +1385,6 @@ var DotMoveSystem;
         Game_CharacterBase.prototype.distancePerFrame = function () {
             if (this._dpf == null)
                 return this.originDistancePerFrame();
-            // if (this.isNeedUpdateAcceleration() && this._moverData.targetFar > 1) return this.originDistancePerFrame();
             return this._currentDpf;
         };
         Game_CharacterBase.prototype.updateCurrentDpf = function () {
@@ -1423,15 +1422,18 @@ var DotMoveSystem;
                 }
                 else {
                     if (!this.isMoving() && this._acceleration > 0) {
-                        this._acceleration -= this._inertia;
-                        if (this._acceleration < 0)
-                            this._acceleration = 0;
-                        // TODO: 暫定
-                        // this.mover().dotMoveByDirection(this.mover().direction8(), { changeDir: false });
-                        this.mover().dotMoveByDirection(this.direction(), undefined, { changeDir: false });
+                        this.inertiaMoveProcess();
                     }
                 }
             }
+        };
+        Game_CharacterBase.prototype.inertiaMoveProcess = function () {
+            this._acceleration -= this._inertia;
+            if (this._acceleration < 0)
+                this._acceleration = 0;
+            // TODO: 暫定
+            // this.mover().dotMoveByDirection(this.mover().direction8(), { changeDir: false });
+            this.mover().dotMoveByDirection(this.direction(), undefined, { changeDir: false });
         };
         Game_CharacterBase.prototype.cancelAcceleration = function () {
             this._acceleration = 0;
@@ -1457,6 +1459,11 @@ var DotMoveSystem;
             if (this.isDashing())
                 return this._dpf * 2;
             return this._dpf;
+        };
+        Game_Player.prototype.inertiaMoveProcess = function () {
+            Game_Character.prototype.inertiaMoveProcess.call(this);
+            this.checkEventTriggerHere([1, 2]);
+            $gameMap.setupStartingEvent();
         };
         Game_Follower.prototype.distancePerFrame = function () {
             if ($gamePlayer.isInVehicle())
