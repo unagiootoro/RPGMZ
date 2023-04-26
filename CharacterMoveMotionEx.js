@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Character movement motion expansion v1.2.0
+@plugindesc Character movement motion expansion v1.2.1
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterMoveMotionEx.js
 @help
@@ -45,6 +45,10 @@ When using an image with 4 * 2 characters registered, which position should be u
 Specify whether to use it with a numerical value from 0 to 7. 0 to 3 are the first row,
 4 to 7 are the second row. Single character image
 Specify 0 for (file name with $ at the beginning).
+
+■ Precautions when changing character images
+When changing the character image from the moving route,
+Be sure to specify the image of the motion when walking.
 
 ■ Material standard for diagonal walking
 The material standards for diagonal walking are as follows.
@@ -125,7 +129,7 @@ Specifies the motion playback speed in frames.
 */
 /*:ja
 @target MV MZ
-@plugindesc キャラクター移動モーション拡張 v1.2.0
+@plugindesc キャラクター移動モーション拡張 v1.2.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterMoveMotionEx.js
 @help
@@ -169,6 +173,10 @@ Specifies the motion playback speed in frames.
 使用するかを0~7までの数値で指定します。0~3までが1列目となり、
 4~7までが2列目となります。単体のキャラクター画像
 (ファイル名の先頭に$がつくもの)は0を指定してください。
+
+■ キャラクター画像変更時の注意点
+移動ルートからキャラクター画像を変更する場合、
+必ず歩行時のモーションの画像を指定してください。
 
 ■ 斜め歩行の素材規格
 斜め歩行の素材規格は下記の通りとなります。
@@ -414,6 +422,10 @@ var CharacterMoveMotionEx;
             this._needReset = true;
             this._diagonalMoveDirection = 0;
         }
+        resetMotion() {
+            this._motion = MotionType.WAIT;
+            this._lastMotion = MotionType.WALK; // 初回更新でWAITへの遷移を発生させるため、WALKとする。
+        }
         update() {
             this.updateResetMotionImage();
             this.updateEndDashMotion();
@@ -549,7 +561,6 @@ var CharacterMoveMotionEx;
                     return MotionType.WALK;
                 case MotionType.WAIT:
                     if (characterMoveMotion.WaitMotion && characterMoveMotion.WaitMotion.CharacterFileName != null) {
-                        console.log(characterMoveMotion.WaitMotion);
                         return MotionType.WAIT;
                     }
                     else {
@@ -643,12 +654,15 @@ var CharacterMoveMotionEx;
         _Game_CharacterBase_setImage.call(this, characterName, characterIndex);
         this._straightWalkCharacterName = characterName;
         this._straightWalkCharacterIndex = characterIndex;
+        this.moveMotionController().resetMotion();
+        this.resetPattern();
         const numPattern = MoveMotionUtils.getNumPattern(characterName);
         this.moveMotionController().setNumPattern(numPattern);
     };
     Game_CharacterBase.prototype.changeMotionImage = function (characterName, characterIndex) {
         this._characterName = characterName;
         this._characterIndex = characterIndex;
+        this.resetPattern();
         const numPattern = MoveMotionUtils.getNumPattern(characterName);
         this.moveMotionController().setNumPattern(numPattern);
     };
