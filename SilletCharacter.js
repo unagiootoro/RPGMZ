@@ -1,6 +1,6 @@
 /*:
 @target MZ
-@plugindesc キャラクターシルエット v1.1.0
+@plugindesc キャラクターシルエット v1.1.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/SilletCharacter.js
 @help
@@ -175,9 +175,9 @@ function searchCharacterById(eventIdOrName, interpreter) {
 function cssColorToFloatRgb(cssColor) {
     const matchData = cssColor.match(/#([0-9a-fA-F][0-9a-fA-F])([0-9a-fA-F][0-9a-fA-F])([0-9a-fA-F][0-9a-fA-F])/);
     if (matchData) {
-        const r = parseInt(`0x${matchData[1]}`);
-        const g = parseInt(`0x${matchData[2]}`);
-        const b = parseInt(`0x${matchData[3]}`);
+        const r = parseInt(`0x${matchData[1]}`) / 255.0;
+        const g = parseInt(`0x${matchData[2]}`) / 255.0;
+        const b = parseInt(`0x${matchData[3]}`) / 255.0;
         return [r, g, b];
     }
     return [0, 0, 0];
