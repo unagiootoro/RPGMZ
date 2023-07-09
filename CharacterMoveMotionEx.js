@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Character movement motion expansion v1.2.1
+@plugindesc Character movement motion expansion v1.2.2
 @author unagiootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterMoveMotionEx.js
 @help
@@ -72,6 +72,17 @@ This plugin is available under the terms of the MIT license.
 @type struct<CharacterMoveMotion>[]
 @desc
 Register a list of character movement motions.
+
+@param PatternRepetitionMode
+@text Pattern repeat mode
+@type select
+@option Rewind
+@value rewind
+@option Restart
+@value restart
+@default rewind
+@desc
+Specifies the repeat mode for the character's pattern.
 */
 /*~struct~CharacterMoveMotion:
 @param WalkMotion
@@ -129,7 +140,7 @@ Specifies the motion playback speed in frames.
 */
 /*:ja
 @target MV MZ
-@plugindesc キャラクター移動モーション拡張 v1.2.1
+@plugindesc キャラクター移動モーション拡張 v1.2.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/CharacterMoveMotionEx.js
 @help
@@ -200,6 +211,17 @@ Specifies the motion playback speed in frames.
 @type struct<CharacterMoveMotion>[]
 @desc
 キャラクター移動モーションの一覧を登録します。
+
+@param PatternRepetitionMode
+@text パターン繰り返しモード
+@type select
+@option 巻き戻し
+@value rewind
+@option 再スタート
+@value restart
+@default rewind
+@desc
+キャラクターのパターンの繰り返しモードを指定します。
 */
 /*~struct~CharacterMoveMotion:ja
 @param WalkMotion
@@ -372,6 +394,14 @@ var CharacterMoveMotionEx;
             if (this._character.isMoved())
                 this._character.moveMotionChangeProcess(deg.toDirection8());
         };
+        const _CharacterMover_continuousMoveProcess = CharacterMover.prototype.continuousMoveProcess;
+        CharacterMover.prototype.continuousMoveProcess = function () {
+            _CharacterMover_continuousMoveProcess.call(this);
+            if (this._character.isMoved()) {
+                const deg = new DotMoveSystem.Degree(this._moverData.moveDeg);
+                this._character.moveMotionChangeProcess(deg.toDirection8());
+            }
+        };
     }
     else {
         const _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
@@ -471,7 +501,7 @@ var CharacterMoveMotionEx;
                 if (this._motion === MotionType.DASH) {
                     this._motion = MotionType.DIAGONAL_DASH;
                 }
-                else if (this._motion === MotionType.WALK || MotionType.WAIT) {
+                else if (this._motion === MotionType.WALK || this._motion === MotionType.WAIT) {
                     this._motion = MotionType.DIAGONAL_WALK;
                 }
             }
@@ -705,7 +735,12 @@ var CharacterMoveMotionEx;
         this._pattern = (this._pattern + 1) % this.maxPattern();
     };
     Game_CharacterBase.prototype.maxPattern = function () {
-        return this.numPattern() * 2 - 2;
+        if (PP.PatternRepetitionMode === "restart") {
+            return this.numPattern();
+        }
+        else {
+            return this.numPattern() * 2 - 2;
+        }
     };
     Game_CharacterBase.prototype.pattern = function () {
         if (this._pattern < this.numPattern()) {
