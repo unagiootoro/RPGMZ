@@ -70,6 +70,8 @@ ContinuousAnimation.js
         ・新規作成
 
 DotMoveSystem.js
+    2023/08/27 v2.2.2
+        ・moveByDirectionに0を渡した場合は無視するように再修正
     2023/01/31 v2.2.1
         ・moveByDirectionに0を渡した場合は無視するように修正
         ・経路探索処理修正

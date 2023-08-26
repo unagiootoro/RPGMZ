@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Dot movement system v2.2.1
+@plugindesc Dot movement system v2.2.2
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -148,7 +148,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v2.2.1
+@plugindesc ドット移動システム v2.2.2
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -1747,10 +1747,10 @@ var DotMoveSystem;
             }
         }
         moveByDirection(d, moveUnit) {
-            if (d % 2 === 0) {
+            if ([8, 6, 2, 4].includes(d)) {
                 this.moveStraight(d, moveUnit);
             }
-            else {
+            else if ([9, 3, 1, 7].includes(d)) {
                 const { horz, vert } = DotMoveUtils.direction2HorzAndVert(d);
                 this.moveDiagonally(horz, vert, moveUnit);
             }
@@ -2371,9 +2371,7 @@ var DotMoveSystem;
         this.mover().dotMoveByDeg(new Degree(deg));
     };
     Game_Character.prototype.moveByDirection = function (direction) {
-        if ([8, 9, 6, 3, 2, 1, 4, 7].includes(direction)) {
-            this.mover().moveByDirection(direction, this._moveUnit);
-        }
+        this.mover().moveByDirection(direction, this._moveUnit);
     };
     Game_Character.prototype.dotMoveToPlayer = function () {
         const deg = this.calcDeg($gamePlayer);
