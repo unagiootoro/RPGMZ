@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Dot movement system v2.2.2
+@plugindesc Dot movement system v2.2.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -148,7 +148,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v2.2.2
+@plugindesc ドット移動システム v2.2.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -1882,14 +1882,11 @@ var DotMoveSystem;
     };
     const _Game_Map_update = Game_Map.prototype.update;
     Game_Map.prototype.update = function (sceneActive) {
-        this.clearAllCharactersMovedFlag();
+        for (const character of this.allCharacters()) {
+            character.prepareUpdate();
+        }
         _Game_Map_update.call(this, sceneActive);
         $gameTemp.removeUnusedCache();
-    };
-    Game_Map.prototype.clearAllCharactersMovedFlag = function () {
-        for (const character of this.allCharacters()) {
-            character.clearMovedFlag();
-        }
     };
     Game_Map.prototype.initMapCharactersCache = function () {
         $gameTemp.setupMapCharactersCache(this.width(), this.height());
@@ -1934,6 +1931,7 @@ var DotMoveSystem;
         this._moveUnit = 1; // 移動単位
         this._moved = false;
         this._moving = false;
+        this._clearMovedFlagRequested = false;
         this._moverData = new MoverData();
     };
     Game_CharacterBase.prototype.createDotMoveTempData = function () {
@@ -1996,6 +1994,7 @@ var DotMoveSystem;
     };
     const _Game_CharacterBase_update = Game_CharacterBase.prototype.update;
     Game_CharacterBase.prototype.update = function () {
+        this.clearMovedFlagIfRequested();
         _Game_CharacterBase_update.call(this);
         this.updateMapCharactersCache();
         this.updatePostMove();
@@ -2133,8 +2132,14 @@ var DotMoveSystem;
     Game_CharacterBase.prototype.removeMapCharactersCache = function () {
         this.dotMoveTempData().mapCharacterCacheUpdater.removeMapCharactersCache();
     };
-    Game_CharacterBase.prototype.clearMovedFlag = function () {
-        this._moved = false;
+    Game_CharacterBase.prototype.prepareUpdate = function () {
+        this._clearMovedFlagRequested = true;
+    };
+    Game_CharacterBase.prototype.clearMovedFlagIfRequested = function () {
+        if (this._clearMovedFlagRequested) {
+            this._moved = false;
+            this._clearMovedFlagRequested = false;
+        }
     };
     Game_CharacterBase.prototype.moveCallback = function (moved, dpf) {
         if (moved) {
@@ -2543,6 +2548,7 @@ var DotMoveSystem;
         this.setThrough(false);
     };
     Game_Player.prototype.update = function (sceneActive) {
+        this.clearMovedFlagIfRequested();
         const lastScrolledX = this.scrolledX();
         const lastScrolledY = this.scrolledY();
         this.updateDashing();

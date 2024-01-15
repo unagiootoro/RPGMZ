@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v2.2.2
+@plugindesc Dot movement system v2.2.3
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -147,7 +147,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v2.2.2
+@plugindesc ドット移動システム v2.2.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -319,6 +319,7 @@ declare interface Game_CharacterBase {
     _totalDpf: number;
     _moveUnit: number;
     _moved: boolean;
+    _clearMovedFlagRequested: boolean;
     _moving: boolean;
     _setThroughReserve?: boolean;
     _setMoveSpeedReserve?: number;
@@ -357,7 +358,8 @@ declare interface Game_CharacterBase {
     collisionRect(): DotMoveSystem.DotMoveRectangle;
     updateMapCharactersCache(): void;
     removeMapCharactersCache(): void;
-    clearMovedFlag(): void;
+    prepareUpdate(): void;
+    clearMovedFlagIfRequested(): void;
     moveCallback(moved: boolean, dpf: number): void;
     canPass(x: number, y: number, d: number, opt?: { needCheckCharacters?: boolean }): boolean;
     canPassDiagonally(x: number, y: number, horz: number, vert: number, opt?: { needCheckCharacters?: boolean }): boolean;
@@ -2215,15 +2217,11 @@ namespace DotMoveSystem {
 
     const _Game_Map_update = Game_Map.prototype.update;
     Game_Map.prototype.update = function(sceneActive) {
-        this.clearAllCharactersMovedFlag();
+        for (const character of this.allCharacters()) {
+            character.prepareUpdate();
+        }
         _Game_Map_update.call(this, sceneActive);
         $gameTemp.removeUnusedCache();
-    };
-
-    Game_Map.prototype.clearAllCharactersMovedFlag = function() {
-        for (const character of this.allCharacters()) {
-            character.clearMovedFlag();
-        }
     };
 
     Game_Map.prototype.initMapCharactersCache = function() {
@@ -2272,6 +2270,7 @@ namespace DotMoveSystem {
         this._moveUnit = 1; // 移動単位
         this._moved = false;
         this._moving = false;
+        this._clearMovedFlagRequested = false;
         this._moverData = new MoverData();
     };
 
@@ -2352,6 +2351,7 @@ namespace DotMoveSystem {
 
     const _Game_CharacterBase_update = Game_CharacterBase.prototype.update;
     Game_CharacterBase.prototype.update = function() {
+        this.clearMovedFlagIfRequested();
         _Game_CharacterBase_update.call(this);
         this.updateMapCharactersCache();
         this.updatePostMove();
@@ -2511,8 +2511,15 @@ namespace DotMoveSystem {
         this.dotMoveTempData().mapCharacterCacheUpdater.removeMapCharactersCache();
     };
 
-    Game_CharacterBase.prototype.clearMovedFlag = function() {
-        this._moved = false;
+    Game_CharacterBase.prototype.prepareUpdate = function() {
+        this._clearMovedFlagRequested = true;
+    };
+
+    Game_CharacterBase.prototype.clearMovedFlagIfRequested = function() {
+        if (this._clearMovedFlagRequested) {
+            this._moved = false;
+            this._clearMovedFlagRequested = false;
+        }
     };
 
     Game_CharacterBase.prototype.moveCallback = function(moved, dpf) {
@@ -2927,6 +2934,7 @@ namespace DotMoveSystem {
     };
 
     Game_Player.prototype.update = function(sceneActive) {
+        this.clearMovedFlagIfRequested();
         const lastScrolledX = this.scrolledX();
         const lastScrolledY = this.scrolledY();
         this.updateDashing();
