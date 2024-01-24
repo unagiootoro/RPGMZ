@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 当たり判定可視化 v1.2.0
+@plugindesc 当たり判定可視化 v1.3.0
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VisualizeCollisionArea.js
 @help
@@ -36,6 +36,14 @@ trueを設定すると、当たり判定可視化の際にイベントを当た�
 @default 114
 @desc
 可視化の有無を切り替えるキーコードを指定します。
+
+@param VisualizeGamepadButtonIndex
+@text 可視化ゲームパッドボタンインデックス
+@type number
+@min -1
+@default -1
+@desc
+可視化の有無を切り替えるゲームパッドのボタンを指定します。使用しない場合は-1を指定してください。
 */
 
 const VisualizeCollisionArea = document.currentScript.src.match(/^.*\/(.+)\.js$/)[1];
@@ -46,10 +54,16 @@ const VisualizeCollisionArea = document.currentScript.src.match(/^.*\/(.+)\.js$/
 const PP = PluginManager.parameters(VisualizeCollisionArea);
 
 const VisualizeKeyCode = parseInt(PP.VisualizeKeyCode);
+const VisualizeGamepadButtonIndex = parseInt(PP.VisualizeGamepadButtonIndex);
 const IncludeEventsInCollisionArea = PP.IncludeEventsInCollisionArea === "true";
 const CollisionAreaColor = PP.CollisionAreaColor;
 
-Input.keyMapper[VisualizeKeyCode] = "VisualizeCollisionArea";
+if (!isNaN(VisualizeKeyCode)) {
+    Input.keyMapper[VisualizeKeyCode] = "VisualizeCollisionArea";
+}
+if (!isNaN(VisualizeGamepadButtonIndex) && VisualizeGamepadButtonIndex >= 0) {
+    Input.gamepadMapper[VisualizeGamepadButtonIndex] = "VisualizeCollisionArea";
+}
 
 class Sprite_CollisionArea extends Sprite {
     initialize(bitmap = null) {
@@ -157,7 +171,7 @@ class MassCollisionTableGenerator {
 
                 if (passTable[pos2] != null) continue;
 
-                if (this._character.canPass(x1, y1, direction)) {
+                if (this.checkPassMass(x1, y1, direction)) {
                     passTable[pos2] = true;
                     if (!openList.includes(pos2)) {
                         openList.push(pos2);
