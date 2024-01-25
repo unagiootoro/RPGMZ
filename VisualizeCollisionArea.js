@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc 当たり判定可視化 v1.3.0
+@plugindesc 当たり判定可視化 v1.3.1
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/VisualizeCollisionArea.js
 @help
@@ -33,7 +33,7 @@ trueを設定すると、当たり判定可視化の際にイベントを当た�
 @param VisualizeKeyCode
 @text 可視化キーコード
 @type string
-@default 114
+@default 117
 @desc
 可視化の有無を切り替えるキーコードを指定します。
 
