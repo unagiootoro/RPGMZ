@@ -1,7 +1,7 @@
 "use strict";
 /*:
 @target MV MZ
-@plugindesc Dot movement system v2.2.3
+@plugindesc Dot movement system v2.2.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -148,7 +148,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v2.2.3
+@plugindesc ドット移動システム v2.2.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -299,9 +299,6 @@ const DotMoveSystemPluginName = document.currentScript ? decodeURIComponent(docu
 var DotMoveSystem;
 (function (DotMoveSystem) {
     class DotMovePoint {
-        constructor(...args) {
-            this.initialize(...args);
-        }
         get x() { return this._x; }
         set x(_x) { this._x = _x; }
         get y() { return this._y; }
@@ -311,6 +308,9 @@ var DotMoveSystem;
             const x = far * Math.cos(rad);
             const y = far * Math.sin(rad);
             return new DotMovePoint(x, y);
+        }
+        constructor(...args) {
+            this.initialize(...args);
         }
         initialize(x = 0, y = 0) {
             this._x = x;
@@ -341,9 +341,6 @@ var DotMoveSystem;
     }
     DotMoveSystem.DotMovePoint = DotMovePoint;
     class DotMoveRectangle {
-        constructor(...args) {
-            this.initialize(...args);
-        }
         get x() { return this._x; }
         set x(_x) { this._x = _x; }
         get y() { return this._y; }
@@ -354,6 +351,9 @@ var DotMoveSystem;
         set height(_height) { this._height = _height; }
         get x2() { return this.x + this.width; }
         get y2() { return this.y + this.height; }
+        constructor(...args) {
+            this.initialize(...args);
+        }
         initialize(x = 0, y = 0, width = 0, height = 0) {
             this._x = x;
             this._y = y;
@@ -383,9 +383,6 @@ var DotMoveSystem;
     }
     DotMoveSystem.DotMoveRectangle = DotMoveRectangle;
     class Degree {
-        constructor(...args) {
-            this.initialize(...args);
-        }
         get value() {
             return this._value;
         }
@@ -413,6 +410,9 @@ var DotMoveSystem;
         }
         static fromRad(rad) {
             return new Degree((rad * 180 / Math.PI) + 90);
+        }
+        constructor(...args) {
+            this.initialize(...args);
         }
         initialize(value) {
             value %= 360;
@@ -502,9 +502,6 @@ var DotMoveSystem;
     Degree.LEFT_UP = new Degree(315);
     DotMoveSystem.Degree = Degree;
     class AStarNode {
-        constructor(...args) {
-            this.initialize(...args);
-        }
         get parent() { return this._parent; }
         set parent(_parent) { this._parent = _parent; }
         get x() { return this._x; }
@@ -515,6 +512,9 @@ var DotMoveSystem;
         set g(_g) { this._g = _g; }
         get closed() { return this._closed; }
         set closed(_closed) { this._closed = _closed; }
+        constructor(...args) {
+            this.initialize(...args);
+        }
         initialize(parent, x, y, f, g, closed = false) {
             this._parent = parent;
             this._x = x;
@@ -613,11 +613,11 @@ var DotMoveSystem;
     }
     DotMoveSystem.AStarUtils = AStarUtils;
     class MassInfo {
+        get x() { return this._x; }
+        get y() { return this._y; }
         constructor(...args) {
             this.initialize(...args);
         }
-        get x() { return this._x; }
-        get y() { return this._y; }
         initialize(x, y) {
             this._x = x;
             this._y = y;
@@ -625,9 +625,6 @@ var DotMoveSystem;
     }
     DotMoveSystem.MassInfo = MassInfo;
     class MassRange {
-        constructor(...args) {
-            this.initialize(...args);
-        }
         static fromRect(rect) {
             const x = Math.floor(rect.x);
             const y = Math.floor(rect.y);
@@ -639,6 +636,9 @@ var DotMoveSystem;
         get y() { return this._y; }
         get x2() { return this._x2; }
         get y2() { return this._y2; }
+        constructor(...args) {
+            this.initialize(...args);
+        }
         initialize(x, y, x2, y2) {
             this._x = x;
             this._y = y;
@@ -1787,15 +1787,15 @@ var DotMoveSystem;
     DotMoveSystem.CharacterMover = CharacterMover;
     // CharacterMoverのデータのうちセーブデータに保持する必要のあるものを持たせる
     class MoverData {
-        constructor(...args) {
-            this.initialize(...args);
-        }
         get targetFar() { return this._targetFar; }
         set targetFar(_targetFar) { this._targetFar = _targetFar; }
         get moveDeg() { return this._moveDeg; }
         set moveDeg(_moveDeg) { this._moveDeg = _moveDeg; }
         get stopping() { return this._stopping; }
         set stopping(_stopping) { this._stopping = _stopping; }
+        constructor(...args) {
+            this.initialize(...args);
+        }
         initialize() {
             this._targetFar = 0;
             this._moveDeg = 0;
@@ -1804,11 +1804,11 @@ var DotMoveSystem;
     }
     DotMoveSystem.MoverData = MoverData;
     class CharacterDotMoveTempData {
+        get mover() { return this._mover; }
+        get mapCharacterCacheUpdater() { return this._mapCharacterCacheUpdater; }
         constructor(...args) {
             this.initialize(...args);
         }
-        get mover() { return this._mover; }
-        get mapCharacterCacheUpdater() { return this._mapCharacterCacheUpdater; }
         initialize(character) {
             this._mover = new CharacterMover(character);
             this._mapCharacterCacheUpdater = new MapCharacterCacheUpdater(character);
@@ -1816,11 +1816,11 @@ var DotMoveSystem;
     }
     DotMoveSystem.CharacterDotMoveTempData = CharacterDotMoveTempData;
     class PlayerDotMoveTempData extends CharacterDotMoveTempData {
+        get collideTriggerEventIds() { return this._collideTriggerEventIds; }
+        set collideTriggerEventIds(_collideTriggerEventIds) { this._collideTriggerEventIds = _collideTriggerEventIds; }
         constructor(character) {
             super(character);
         }
-        get collideTriggerEventIds() { return this._collideTriggerEventIds; }
-        set collideTriggerEventIds(_collideTriggerEventIds) { this._collideTriggerEventIds = _collideTriggerEventIds; }
         initialize(character) {
             super.initialize(character);
             this._collideTriggerEventIds = [];
@@ -1828,9 +1828,6 @@ var DotMoveSystem;
     }
     DotMoveSystem.PlayerDotMoveTempData = PlayerDotMoveTempData;
     class EventDotMoveTempData extends CharacterDotMoveTempData {
-        constructor(character) {
-            super(character);
-        }
         get width() { return this._width; }
         get height() { return this._height; }
         get offsetX() { return this._offsetX; }
@@ -1841,6 +1838,9 @@ var DotMoveSystem;
         get slideLengthY() { return this._slideLengthY; }
         get eventTouchToPlayer() { return this._eventTouchToPlayer; }
         set eventTouchToPlayer(_eventTouchToPlayer) { this._eventTouchToPlayer = _eventTouchToPlayer; }
+        constructor(character) {
+            super(character);
+        }
         initialize(character) {
             super.initialize(character);
             const values = character.getAnnotationValues(0);
@@ -1858,11 +1858,11 @@ var DotMoveSystem;
     }
     DotMoveSystem.EventDotMoveTempData = EventDotMoveTempData;
     class FollowerDotMoveTempData extends CharacterDotMoveTempData {
+        get sameDirectionTotalDpf() { return this._sameDirectionTotalDpf; }
+        set sameDirectionTotalDpf(_sameDirectionTotalDpf) { this._sameDirectionTotalDpf = _sameDirectionTotalDpf; }
         constructor(character) {
             super(character);
         }
-        get sameDirectionTotalDpf() { return this._sameDirectionTotalDpf; }
-        set sameDirectionTotalDpf(_sameDirectionTotalDpf) { this._sameDirectionTotalDpf = _sameDirectionTotalDpf; }
         initialize(character) {
             super.initialize(character);
             this._sameDirectionTotalDpf = 0;
@@ -3129,7 +3129,7 @@ var DotMoveSystem;
             return this.checkCollisionTargetPlayer(x, y, d, character);
         }
         else if (character instanceof Game_Follower) {
-            if ($gamePlayer.followers().isVisible()) {
+            if (character.isVisible()) {
                 return this.checkCollisionTargetFollower(x, y, d, character);
             }
         }

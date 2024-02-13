@@ -1,6 +1,6 @@
 /*:
 @target MV MZ
-@plugindesc Dot movement system v2.2.3
+@plugindesc Dot movement system v2.2.4
 @author unagi ootoro
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -147,7 +147,7 @@ This plugin is available under the terms of the MIT license.
 */
 /*:ja
 @target MV MZ
-@plugindesc ドット移動システム v2.2.3
+@plugindesc ドット移動システム v2.2.4
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/DotMoveSystem.js
 @help
@@ -3525,7 +3525,7 @@ namespace DotMoveSystem {
         if (character instanceof Game_Player) {
             return this.checkCollisionTargetPlayer(x, y, d, character);
         } else if (character instanceof Game_Follower) {
-            if ($gamePlayer.followers().isVisible()) {
+            if (character.isVisible()) {
                 return this.checkCollisionTargetFollower(x, y, d, character);
             }
         } else if (character instanceof Game_Event) {
