@@ -1,6 +1,34 @@
 /*:
 @target MZ
-@plugindesc Effekseerアニメーションカラー変更 v1.0.2
+@plugindesc Effekseer Animation Color Change v1.0.3
+@author unagi ootoro
+@url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EffekseerAnimationColorChange.js
+@help
+This is a plugin to change the color of Effekseer animation.
+
+【How to use】
+In the name of the animation
+<color: red, green, blue, gray>
+Please specify the color tone of the animation in the form of .
+
+(Example) When setting the color tone to red 255
+<color: 255, 0, 0, 0>
+
+【License】
+This plugin is available under the terms of the MIT license.
+
+
+@param AnimationNameParseErrorMessage
+@text animation name parse error message
+@type string
+@default The name of animation ID (%1) is invalid.
+@desc
+Error message when parsing animation name fails. There is no need to change this parameter.
+*/
+
+/*:ja
+@target MZ
+@plugindesc Effekseerアニメーションカラー変更 v1.0.3
 @author うなぎおおとろ
 @url https://raw.githubusercontent.com/unagiootoro/RPGMZ/master/EffekseerAnimationColorChange.js
 @help
