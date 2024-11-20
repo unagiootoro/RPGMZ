@@ -269,7 +269,7 @@ Specifies information for the generated item.
 @desc
 Specify item information.
 
-@param Need Items
+@param NeedItems
 @text number of items required
 @type number
 @default 1
